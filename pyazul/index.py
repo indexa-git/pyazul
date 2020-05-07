@@ -1,6 +1,5 @@
 # Python packages
 import os
-from enum import Enum
 
 # Third party packages
 import requests

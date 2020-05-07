@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 # Must update a few things in the setup
 setuptools.setup(
     name="pyazul",
-    version="0.1.0",
+    version="0.1.2",
     author="iterativo LLC",
     author_email="cristopher@iterativo.io",
     description="A library to make transaction using Azul webservices.",
@@ -19,5 +19,6 @@ setuptools.setup(
         "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
     ],
+    install_requires=['requests'],
     python_requires='>=3.6',
 )
