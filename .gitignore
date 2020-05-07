@@ -6,6 +6,9 @@ __pycache__/
 # certificate
 server.pem
 
+# pypi instructions
+instructions.txt
+
 # C extensions
 *.so
 

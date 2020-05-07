@@ -3,7 +3,7 @@ import os
 
 # Third party packages
 import requests
-import parsers
+from . import parsers
 
 
 class EngineConfiguration():
