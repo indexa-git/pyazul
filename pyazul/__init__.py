@@ -1,9 +1,9 @@
 __all__ = ('__version__')
 
 # the version number of the library
-__version__ = '0.1.0alpha'
+__version__ = '0.1.1alpha'
 
 from . import index
-from . import parsers
+from . import validate
 
-from pyazul.index import TransactionEngine, EngineConfiguration
+from pyazul.index import AzulAPI, APIConfiguration
