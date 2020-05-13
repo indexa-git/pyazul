@@ -3,68 +3,88 @@ import os
 
 # Third party packages
 import requests
-from . import parsers
+from . import validate
 
 
-class EngineConfiguration():
+class APIConfiguration():
     def __init__(self, certificate_path, auth1, auth2, connString=None, dbHost=None, dbPswd=None):
+        self.certificate_path = certificate_path
         self.auth1 = auth1
         self.auth2 = auth2
-        self.db_host = dbHost
+
+        # only set these if you are using datavault
+        self.db_host = dbHost 
         self.db_password = dbPswd
         self.connection_string = connString
-        self.certificate_path = certificate_path
 
 
-class TransactionEngine():
+class AzulAPI():
 
-    def __init__(self, environment='dev', dataVault=False, **kwargs):
+    def __init__(self, config, environment='dev', dataVault=False):
+        '''
+        :param config (type APIConfigutation)
+        :param environment (string, defaults 'dev' can also be set to 'prod')
+        :param dataVault (boolean, you must configurate database credentials for this)
+        '''
+        self.config = config
+        self.dataVault = dataVault
+        self.ENVIRONMENT = environment
         self.TEST_URL = 'https://pruebas.azul.com.do/webservices/JSON/Default.aspx'
         self.PRODUCTION_URL = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
         self.ALT_PRODUCTION_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
-        self.ENVIRONMENT = environment
-        self.dataVault = dataVault
-        if 'config' in kwargs:
-            engineConfig = kwargs.get('config')
-            if isinstance(engineConfig, EngineConfiguration):
-                self.config = engineConfig
+        
 
-    def run_transaction(self, transaction_type, **kwargs):
+    def azul_request(self, transaction_type, **kwargs):
         '''
-        Available transaction types:
-        - sales_transaction
-        - verify_transaction
-        - dv_sale_transaction
-        - dv_create
-        - dv_delete
+        :param transaction_type (string)
+        Options:
+            * Sale (sale)
+            * Hold (hold)
+            * Refund (refund)
+            * Transaction Post (post)
+            * Verify transaction  (verify)
+            * Nullify a transaction
+            * Datavault Create (datavault_create)
+            * Datavault Delete (datavault_delete)
         '''
+        
         if self.ENVIRONMENT == 'prod':
             azul_endpoint = self.PRODUCTION_URL
         else:
             azul_endpoint = self.TEST_URL
 
         try:
-            methods_handler = {
-                'sale_transaction': parsers.sale_transaction(**kwargs),
-                'verify_transaction': parsers.verify_transaction(**kwargs),
-                'dv_sale_transaction': parsers.dv_sale_transaction(**kwargs),
-                'dv_create': parsers.dv_create(**kwargs),
-                'dv_delete': parsers.dv_delete(**kwargs)
+            validation_handler = {
+                'sale': validate.sale_transaction(kwargs),
+                'hold': validate.hold_transaction(kwargs),
+                'refund': validate.refund_transaction(kwargs),
+                'post': validate.post_sale_transaction(kwargs),
+                'verify': validate.verify_transaction(kwargs),
+                'nullify': validate.nulify_transaction(kwargs),
+                'datavault_create': validate.datavault_create(kwargs),
+                'datavault_delete': validate.datavault_delete(kwargs)
             }
-            parameters = methods_handler.get(transaction_type)
+            parameters = {
+                'Channel': kwargs['Channel'],
+                'Store': kwargs['Store'],
+            }
+            # Validating that kwargs has all required attributes.
+            validation_handler.get(transaction_type.lower())
+
+            # Updating parameters with kwargs
+            parameters.update(kwargs)
+        
         except KeyError as missing_key:
             print(
                 f'You are missing {missing_key} which is a required parameter for {transaction_type}.')
             return
 
         cert_path = self.config.certificate_path
-        auth1 = self.config.auth1
-        auth2 = self.config.auth2
 
         headers = {
             'Content-Type': 'application/json',
-            'Auth1': auth1,
-            'Auth2': auth2
+            'Auth1': self.config.auth1,
+            'Auth2': self.config.auth2
         }
         try:
             response = requests.post(azul_endpoint, json=parameters,
@@ -83,9 +103,9 @@ class TransactionEngine():
 
 
 if __name__ == '__main__':
-    engineConfig = EngineConfiguration('server.pem', 'testcert2', 'testcert2')
-    trxEngine = TransactionEngine(config=engineConfig)
-    response = trxEngine.run_transaction(
+    apiConfig = APIConfiguration('server.pem', 'testcert2', 'testcert2')
+    trxEngine = AzulAPI(apiConfig)
+    response = trxEngine.azul_request(
         'sale_transaction',
         Channel='EC',
         Store='39038540035',
