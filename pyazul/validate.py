@@ -1,148 +1,148 @@
+from . import utils
 
-def datavault_create(**kwargs):
+def datavault_create(data):
     required = {
-        'CardNumber': kwargs['CardNumber'],
-        'Expiration': kwargs['Expiration'],
-        'CVC': kwargs['CVC'],
+        'CardNumber': data['CardNumber'],
+        'Expiration': data['Expiration'],
+        'CVC': data['CVC'],
         'TrxType': 'CREATE',
     }
 
     return required
 
 
-def datavault_delete(**kwargs):
+def datavault_delete(data):
     required = {
-        'CardNumber': kwargs['CardNumber'],
-        'Expiration': kwargs['Expiration'],
-        'CVC': kwargs['CVC'],
+        'CardNumber': data['CardNumber'],
+        'Expiration': data['Expiration'],
+        'CVC': data['CVC'],
         'TrxType': 'DELETE',
     }
 
     return required
 
 
-def sale_transaction(**kwargs):
-    
+def sale_transaction(data):
     required = {
-        'CardNumber': kwargs['CardNumber'],
-        'Expiration': kwargs['Expiration'],
-        'CVC': kwargs['CVC'],
-        'PosInputMode': kwargs['PosInputMode'],
-        'TrxType': 'Sales',
-        'Amount': kwargs['Amount'],
-        'Itbis': kwargs['Itbis'],
-        'CurrencyPosCode': kwargs['CurrencyPosCode'],
-        'Payments': '1',
-        'Plan': '0',
-        'AcquirerRefData': '1',
-        'CustomerServicePhone': kwargs['CustomerServicePhone'],
-        'OrderNumber': kwargs['OrderNumber'],
-        'ECommerceUrl': kwargs['ECommerceUrl'],
-        'CustomOrderId': kwargs['CustomOrderId']
+        'CardNumber': data['CardNumber'],
+        'Expiration': data['Expiration'],
+        'CVC': data['CVC'],
+        'PosInputMode': data['PosInputMode'],
+        'TrxType': 'Sale',
+        'Amount': str(utils.clean_amount(data['Amount'])),
+        'Itbis': utils.clean_amount(data['Itbis']),
+        'CurrencyPosCode': data['CurrencyPosCode'],
+        'Payments': "1",
+        'Plan': "0",
+        'AcquirerRefData': "1",
+        'CustomerServicePhone': data['CustomerServicePhone'],
+        'OrderNumber': data['OrderNumber'],
+        'ECommerceUrl': data['ECommerceUrl'],
+        'CustomOrderId': data['CustomOrderId'],
     }
 
     return required
 
 
-def hold_transaction(**kwargs):
+def hold_transaction(data):
     
     required = {
-        'CardNumber': kwargs['CardNumber'],
-        'Expiration': kwargs['Expiration'],
-        'CVC': kwargs['CVC'],
-        'PosInputMode': kwargs['PosInputMode'],
+        'CardNumber': data['CardNumber'],
+        'Expiration': data['Expiration'],
+        'CVC': data['CVC'],
+        'PosInputMode': data['PosInputMode'],
         'TrxType': 'Hold',
-        'Amount': kwargs['Amount'],
-        'Itbis': kwargs['Itbis'],
-        'CurrencyPosCode': kwargs['CurrencyPosCode'],
+        'Amount': utils.clean_amount(data['Amount']),
+        'Itbis': utils.clean_amount(data['Itbis']),
+        'CurrencyPosCode': data['CurrencyPosCode'],
         'Payments': '1',
         'Plan': '0',
         'AcquirerRefData': '1',
-        'OrderNumber': kwargs['OrderNumber']
+        'OrderNumber': data['OrderNumber']
     }
 
     return required
 
 
-def post_sale_transaction(**kwargs):
-    
+def post_sale_transaction(data):
     required = {
-        'AzulOrderId': kwargs['AzulOrderId'],
-        'Amount': kwargs['Amount'],
-        'ITBIS': kwargs['ITBIS']
+        'AzulOrderId': data['AzulOrderId'],
+        'Amount': utils.clean_amount(data['Amount']),
+        'Itbis': utils.clean_amount(data['Itbis'])
     }
 
     return required
 
 
-def nullify_transaction(**kwargs):
+def nullify_transaction(data):
     
     required = {
-        'CardNumber': kwargs['CardNumber'],
-        'Expiration': kwargs['Expiration'],
-        'CVC': kwargs['CVC'],
-        'PosInputMode': kwargs['PosInputMode'],
-        'TrxType': 'Sales',
-        'Amount': kwargs['Amount'],
-        'ITBIS': kwargs['Itbis'],
-        'CurrencyPosCode': kwargs['CurrencyPosCode'],
+        'CardNumber': data['CardNumber'],
+        'Expiration': data['Expiration'],
+        'CVC': data['CVC'],
+        'PosInputMode': data['PosInputMode'],
+        'TrxType': 'Sale',
+        'Amount': utils.clean_amount(data['Amount']),
+        'Itbis': utils.clean_amount(data['Itbis']),
+        'CurrencyPosCode': data['CurrencyPosCode'],
         'Payments': '1',
         'Plan': '0',
         'AcquirerRefData': '1',
-        'CustomerServicePhone': kwargs['CustomerServicePhone'],
-        'OrderNumber': kwargs['OrderNumber']
+        'CustomerServicePhone': data['CustomerServicePhone'],
+        'OrderNumber': data['OrderNumber']
     }
 
     return required
 
 
-def refund_transaction(**kwargs):
-    
+def refund_transaction(data):  
     required = {
-        'AzulOrderId': kwargs['AzulOrderId'],
-        'CVC': None,
-        'PosInputMode': kwargs['PosInputMode'],
-        'TrxType': 'Refund',
-        'Amount': kwargs['Amount'],
-        'Itbis': kwargs['Itbis'],
-        'CurrencyPosCode': kwargs['CurrencyPosCode'],
-        'Payments': kwargs['Payments'],
-        'Plan': kwargs['Plan'],
-        'AcquirerRefData': None,
-        'OriginalDate': kwargs['OriginalDate'],
-        'OrderNumber': kwargs['OrderNumber'],
-        'ECommerceUrl': kwargs['ECommerceUrl'],
-        'CustomOrderId': kwargs['CustomOrderId']
+        'PosInputMode': data['PosInputMode'],
+        'TrxType': data['TrxType'],
+        'Amount': data['Amount'],
+        'Itbis': data['Itbis'],
+        'CurrencyPosCode': data['CurrencyPosCode'],
+        'Payment': '1',
+        'Plan': '0',
+        'OriginalDate': data['OriginalDate'],
+        'AzulOrderId': data['AzulOrderId']
     }
-
+    
     return required
 
 
-def datavault_sale_transaction(**kwargs):
+def void_transaction(data):
+    required = {
+        'AzulOrderId': data['AzulOrderId'],
+    }
+    return required  
+
+
+def datavault_sale_transaction(data):
     
     required = {
         'CardNumber': '',
         'Expiration': '',
         'CVC': '',
-        'PosInputMode': kwargs['PosInputMode'],
-        'TrxType': 'Sales',
-        'Amount': kwargs['Amount'],
-        'Itbis': kwargs['Itbis'],
-        'CurrencyPosCode': kwargs['CurrencyPosCode'],
-        'Payments': kwargs['Payments'],
-        'Plan': kwargs['Plan'],
-        'AcquirerRefData': kwargs['AcquirerRefData'],
-        'OrderNumber': kwargs['OrderNumber'],
-        'DataVaultToken': kwargs['DataVaultToken']
+        'PosInputMode': data['PosInputMode'],
+        'TrxType': 'Sale',
+        'Amount': utils.clean_amount(data['Amount']),
+        'Itbis': utils.clean_amount(data['Itbis']),
+        'CurrencyPosCode': data['CurrencyPosCode'],
+        'Payments': data['Payments'],
+        'Plan': data['Plan'],
+        'AcquirerRefData': data['AcquirerRefData'],
+        'OrderNumber': data['OrderNumber'],
+        'DataVaultToken': data['DataVaultToken']
     }
 
     return required
 
 
-def verify_transaction(**kwargs):
+def verify_transaction(data):
    
     required = {
-        'CustomOrderId': kwargs['CustomOrderId'],
+        'CustomOrderId': data['CustomOrderId'],
     }
 
     return required
