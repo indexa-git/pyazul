@@ -13,9 +13,7 @@ def datavault_create(data):
 
 def datavault_delete(data):
     required = {
-        'CardNumber': data['CardNumber'],
-        'Expiration': data['Expiration'],
-        'CVC': data['CVC'],
+        'DataVaultToken': data['DataVaultToken'],
         'TrxType': 'DELETE',
     }
 
@@ -34,6 +32,7 @@ def sale_transaction(data):
         'CurrencyPosCode': data['CurrencyPosCode'],
         'Payments': "1",
         'Plan': "0",
+        'RNN': 'null',
         'AcquirerRefData': "1",
         'CustomerServicePhone': data['CustomerServicePhone'],
         'OrderNumber': data['OrderNumber'],
@@ -57,6 +56,7 @@ def hold_transaction(data):
         'CurrencyPosCode': data['CurrencyPosCode'],
         'Payments': '1',
         'Plan': '0',
+        'RNN': 'null',
         'AcquirerRefData': '1',
         'OrderNumber': data['OrderNumber']
     }
@@ -95,7 +95,7 @@ def nullify_transaction(data):
     return required
 
 
-def refund_transaction(data):  
+def refund_transaction(data):
     required = {
         'PosInputMode': data['PosInputMode'],
         'TrxType': data['TrxType'],
@@ -104,6 +104,7 @@ def refund_transaction(data):
         'CurrencyPosCode': data['CurrencyPosCode'],
         'Payment': '1',
         'Plan': '0',
+        'RNN': 'null',
         'OriginalDate': data['OriginalDate'],
         'AzulOrderId': data['AzulOrderId']
     }
