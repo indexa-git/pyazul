@@ -6,6 +6,7 @@ import json
 import requests
 from . import validate
 
+
 class AzulAPI():
 
     def __init__(self, auth1, auth2, certificate_path, environment='dev'):
@@ -22,26 +23,40 @@ class AzulAPI():
         self.TEST_URL = 'https://pruebas.azul.com.do/webservices/JSON/Default.aspx'
         self.PRODUCTION_URL = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
         self.ALT_PRODUCTION_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
-        
+
+        self.default_values = {
+            "Channel": "EC",
+            "Store": "",
+            "PosInputMode": "E-Commerce",
+            "CurrencyPosCode": "$",
+            "Payments": "1",
+            "Plan": "0",
+            "OriginalTrxTicketNr": "",
+            "RRN": "null",
+            "AcquirerRefData": "1",
+            "CustomerServicePhone": "",
+            "ECommerceUrl": "",
+            "OrderNumber": ""
+        }
 
     def azul_request(self, data, operation=''):
         try:
-            
+            data = self.default_values.update(data)
             # Required parameters for all transactions
             parameters = {
                 'Channel': data['Channel'],
                 'Store': data['Store'],
-                
+
             }
 
             # Updating parameters with the extra parameters
-            parameters.update(data)    
-        
+            parameters.update(data)
+
         except KeyError as missing_key:
             print(
                 f'You are missing {missing_key} which is a required parameter.')
             return
-            
+
         if self.ENVIRONMENT == 'prod':
             azul_endpoint = self.PRODUCTION_URL + f'?{operation}'
         else:
@@ -68,7 +83,7 @@ class AzulAPI():
                 print(
                     {'status': 'error',
                      'message': 'Could not reach Azul Web Service. Error: ' + str(err)})
-                
+
         return response
 
     def sale_transaction(self, **kwargs):
@@ -94,15 +109,15 @@ class AzulAPI():
     def verify_transaction(self, **kwargs):
         kwargs.update(validate.verify_transaction(kwargs))
         return self.azul_request(kwargs)
-    
+
     def nulify_transaction(self, **kwargs):
         kwargs.update(validate.nullify_transaction(kwargs))
         return self.azul_request(kwargs)
-    
+
     def datavault_create(self, **kwargs):
         kwargs.update(validate.datavault_create(kwargs))
         return self.azul_request(kwargs, operation='ProcessDatavault')
-    
+
     def datavault_delete(self, **kwargs):
         kwargs.update(validate.datavault_delete(kwargs))
         return self.azul_request(kwargs, operation='ProcessDatavault')
