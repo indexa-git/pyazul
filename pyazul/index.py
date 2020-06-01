@@ -72,12 +72,12 @@ class AzulAPI():
         response = {}
         try:
             response = requests.post(azul_endpoint, json=parameters,
-                                     headers=headers, cert=cert_path)
+                                     headers=headers, cert=cert_path, timeout=10)
         except Exception as err:
             try:
-                azul_endpoint = self.ALT_PRODUCTION_URL + f'{operation}'
+                azul_endpoint = self.ALT_PRODUCTION_URL + f'?{operation}'
                 response = requests.post(azul_endpoint, json=parameters,
-                                         headers=headers, cert=cert_path)
+                                         headers=headers, cert=cert_path, timeout=10)
                 print(str(err))
             except Exception as err:
                 print(
@@ -100,14 +100,14 @@ class AzulAPI():
 
     def void_transaction(self, **kwargs):
         kwargs.update(validate.void_transaction(kwargs))
-        return self.azul_request(kwargs, operation='processvoid')
+        return self.azul_request(kwargs, operation='ProcessVoid')
 
     def post_sale_transaction(self, **kwargs):
         kwargs.update(validate.post_sale_transaction(kwargs))
-        return self.azul_request(kwargs, operation='processpost')
+        return self.azul_request(kwargs, operation='ProcessPost')
 
     def verify_transaction(self, **kwargs):
-        kwargs.update(validate.verify_transaction(kwargs))
+        kwargs.update(validate.verify_transaction(kwargs, operation='VerifyPayment'))
         return self.azul_request(kwargs)
 
     def nulify_transaction(self, **kwargs):
