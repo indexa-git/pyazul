@@ -8,7 +8,7 @@ from . import validate
 
 class AzulAPI():
 
-    def __init__(self, certificate_path, auth1, auth2, environment='dev'):
+    def __init__(self, auth1, auth2, certificate_path, environment='dev'):
         '''
         :param auth1
         :param auth2
