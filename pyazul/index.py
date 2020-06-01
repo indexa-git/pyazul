@@ -78,13 +78,12 @@ class AzulAPI():
                 azul_endpoint = self.ALT_PRODUCTION_URL + f'?{operation}'
                 response = requests.post(azul_endpoint, json=parameters,
                                          headers=headers, cert=cert_path, timeout=10)
-                print(str(err))
             except Exception as err:
                 print(
                     {'status': 'error',
                      'message': 'Could not reach Azul Web Service. Error: ' + str(err)})
-
-        return response
+        
+        return response.json()
 
     def sale_transaction(self, **kwargs):
         kwargs.update(validate.sale_transaction(kwargs))

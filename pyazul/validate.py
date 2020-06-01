@@ -30,10 +30,6 @@ def sale_transaction(data):
         'Amount': str(utils.clean_amount(data['Amount'])),
         'Itbis': utils.clean_amount(data['Itbis']),
         'CurrencyPosCode': data['CurrencyPosCode'],
-        'Payments': "1",
-        'Plan': "0",
-        'RNN': 'null',
-        'AcquirerRefData': "1",
         'CustomerServicePhone': data['CustomerServicePhone'],
         'OrderNumber': data['OrderNumber'],
         'ECommerceUrl': data['ECommerceUrl'],
@@ -54,10 +50,6 @@ def hold_transaction(data):
         'Amount': utils.clean_amount(data['Amount']),
         'Itbis': utils.clean_amount(data['Itbis']),
         'CurrencyPosCode': data['CurrencyPosCode'],
-        'Payments': '1',
-        'Plan': '0',
-        'RNN': 'null',
-        'AcquirerRefData': '1',
         'OrderNumber': data['OrderNumber']
     }
 
@@ -85,9 +77,6 @@ def nullify_transaction(data):
         'Amount': utils.clean_amount(data['Amount']),
         'Itbis': utils.clean_amount(data['Itbis']),
         'CurrencyPosCode': data['CurrencyPosCode'],
-        'Payments': '1',
-        'Plan': '0',
-        'AcquirerRefData': '1',
         'CustomerServicePhone': data['CustomerServicePhone'],
         'OrderNumber': data['OrderNumber']
     }
@@ -102,9 +91,6 @@ def refund_transaction(data):
         'Amount': data['Amount'],
         'Itbis': data['Itbis'],
         'CurrencyPosCode': data['CurrencyPosCode'],
-        'Payment': '1',
-        'Plan': '0',
-        'RNN': 'null',
         'OriginalDate': data['OriginalDate'],
         'AzulOrderId': data['AzulOrderId']
     }
