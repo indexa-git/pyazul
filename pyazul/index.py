@@ -20,13 +20,13 @@ class AzulAPI:
         )
         self.auth1 = auth1
         self.auth2 = auth2
+        self.ENVIRONMENT = environment
+
         if environment == 'dev':
             self.url = 'https://pruebas.azul.com.do/webservices/JSON/Default.aspx'
         else:
             self.url = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
-            self.ALT_PRODUCTION_URL = (
-                'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
-            )
+            self.ALT_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
 
     def azul_request(self, data, operation=''):
         # FIXME: do this validation in a separate function
@@ -64,7 +64,7 @@ class AzulAPI:
         except Exception as err:
             if self.ENVIRONMENT == 'prod':
                 try:
-                    azul_endpoint = self.ALT_PRODUCTION_URL + f'?{operation}'
+                    azul_endpoint = self.ALT_URL + f'?{operation}'
                     r = requests.post(
                         azul_endpoint,
                         json=parameters,

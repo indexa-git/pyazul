@@ -34,7 +34,7 @@ def sale_transaction(data):
         'CustomerServicePhone': data['CustomerServicePhone'],
         'OrderNumber': data['OrderNumber'],
         'EcommerceURL': data['EcommerceURL'],
-        'CustomOrderId': data['CustomOrderId'],
+        'CustomOrderID': data['CustomOrderID'],
     }
 
     return required
@@ -101,7 +101,7 @@ def refund_transaction(data):
         'CustomerServicePhone': data['CustomerServicePhone'],
         'OrderNumber': data['OrderNumber'],
         'EcommerceURL': data['EcommerceURL'],
-        'CustomOrderId': data['CustomOrderId'],
+        'CustomOrderID': data['CustomOrderID'],
         'OriginalDate': data['OriginalDate'],
         'AzulOrderId': data['AzulOrderId']
     }
