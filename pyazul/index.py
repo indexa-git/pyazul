@@ -46,12 +46,12 @@ class AzulAPI():
         else:
             azul_endpoint = self.TEST_URL + f'?{operation}'
 
-        cert_path = self.config.certificate_path
+        cert_path = self.certificate_path
 
         headers = {
             'Content-Type': 'application/json',
-            'Auth1': self.config.auth1,
-            'Auth2': self.config.auth2
+            'Auth1': self.auth1,
+            'Auth2': self.auth2
         }
         response = {}
         try:
