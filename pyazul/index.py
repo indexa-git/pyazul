@@ -1,10 +1,12 @@
 # Python packages
-import os
 import json
+import logging
 
 # Third party packages
 import requests
 from . import validate
+
+_logger = logging.getLogger(__name__)
 
 
 class AzulAPI:
@@ -29,7 +31,7 @@ class AzulAPI:
             self.ALT_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
 
     def azul_request(self, data, operation=''):
-        # FIXME: do this validation in a separate function
+        # FIXME: do this validation in a separate function. This is not being raised.
         try:
             #  Required parameters for all transactions
             parameters = {
@@ -41,7 +43,7 @@ class AzulAPI:
             parameters.update(data)
 
         except KeyError as missing_key:
-            print(f'You are missing {missing_key} which is a required parameter.')
+            _logger.error(f'You are missing {missing_key} which is a required parameter.')
             return
 
         azul_endpoint = self.url + f'?{operation}'
@@ -53,6 +55,8 @@ class AzulAPI:
             'Auth2': self.auth2,
         }
         r = {}
+        _logger.debug('azul_request: called with data:\n%s', data)
+
         try:
             r = requests.post(
                 azul_endpoint,
@@ -61,36 +65,22 @@ class AzulAPI:
                 cert=cert_path,
                 timeout=30,
             )
-            r.raise_for_status()
+            if r.raise_for_status() and self.ENVIRONMENT == 'prod':
+                azul_endpoint = self.ALT_URL + f'?{operation}'
+                r = requests.post(
+                    azul_endpoint,
+                    json=parameters,
+                    headers=headers,
+                    cert=cert_path,
+                    timeout=30,
+                )
         except Exception as err:
-            if self.ENVIRONMENT == 'prod':
-                try:
-                    azul_endpoint = self.ALT_URL + f'?{operation}'
-                    r = requests.post(
-                        azul_endpoint,
-                        json=parameters,
-                        headers=headers,
-                        cert=cert_path,
-                        timeout=30,
-                    )
-                    r.raise_for_status()
-                except Exception as err:
-                    print(
-                        {
-                            'status': 'error',
-                            'message': 'Could not reach Azul Web Service. Error: %s '
-                            % str(err),
-                        }
-                    )
-            print(
-                {
-                    'status': 'error',
-                    'message': 'Could not reach Azul Web Service. Error: %s '
-                    % str(err),
-                }
-            )
+            _logger.error('azul_request: Got the following error\n%s', str(err))
+            raise Exception(str(err))
 
         response = json.loads(r.text)
+        _logger.debug('azul_request: Values received\n%s', json.loads(r.text))
+
         return response
 
     def sale_transaction(self, data):
