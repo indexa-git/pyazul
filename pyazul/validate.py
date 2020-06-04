@@ -32,7 +32,7 @@ def sale_transaction(data):
         'CurrencyPosCode': data['CurrencyPosCode'],
         'CustomerServicePhone': data['CustomerServicePhone'],
         'OrderNumber': data['OrderNumber'],
-        'ECommerceUrl': data['ECommerceUrl'],
+        'EcommerceURL': data['EcommerceURL'],
         'CustomOrderId': data['CustomOrderId'],
     }
 
