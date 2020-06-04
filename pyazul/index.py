@@ -24,24 +24,8 @@ class AzulAPI():
         self.PRODUCTION_URL = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
         self.ALT_PRODUCTION_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
 
-        self.default_values = {
-            "Channel": "EC",
-            "Store": "",
-            "PosInputMode": "E-Commerce",
-            "CurrencyPosCode": "$",
-            "Payments": "1",
-            "Plan": "0",
-            "OriginalTrxTicketNr": "",
-            "RRN": "null",
-            "AcquirerRefData": "1",
-            "CustomerServicePhone": "",
-            "ECommerceUrl": "",
-            "OrderNumber": ""
-        }
-
     def azul_request(self, data, operation=''):
         try:
-            data = self.default_values.update(data)
             # Required parameters for all transactions
             parameters = {
                 'Channel': data['Channel'],
