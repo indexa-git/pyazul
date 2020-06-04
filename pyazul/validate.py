@@ -87,7 +87,7 @@ def nullify_transaction(data):
 def refund_transaction(data):
     required = {
         'PosInputMode': data['PosInputMode'],
-        'TrxType': data['TrxType'],
+        'TrxType': 'Refund',
         'Amount': data['Amount'],
         'Itbis': data['Itbis'],
         'CurrencyPosCode': data['CurrencyPosCode'],
