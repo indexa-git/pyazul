@@ -82,41 +82,42 @@ class AzulAPI():
                 print(
                     {'status': 'error',
                      'message': 'Could not reach Azul Web Service. Error: ' + str(err)})
-        
+
         return response.json()
 
-    def sale_transaction(self, **kwargs):
-        kwargs.update(validate.sale_transaction(kwargs))
-        return self.azul_request(kwargs)
+    def sale_transaction(self, data):
+        data.update(validate.sale_transaction(data))
+        return self.azul_request(data)
 
-    def hold_transaction(self, **kwargs):
-        kwargs.update(validate.hold_transaction(kwargs))
-        return self.azul_request(kwargs)
+    def hold_transaction(self, data):
+        data.update(validate.hold_transaction(data))
+        return self.azul_request(data)
 
-    def refund_transaction(self, **kwargs):
-        kwargs.update(validate.refund_transaction(kwargs))
-        return self.azul_request(kwargs)
+    def refund_transaction(self, data):
+        data.update(validate.refund_transaction(data))
+        return self.azul_request(data)
 
-    def void_transaction(self, **kwargs):
-        kwargs.update(validate.void_transaction(kwargs))
-        return self.azul_request(kwargs, operation='ProcessVoid')
+    def void_transaction(self, data):
+        data.update(validate.void_transaction(data))
+        return self.azul_request(data, operation='ProcessVoid')
 
-    def post_sale_transaction(self, **kwargs):
-        kwargs.update(validate.post_sale_transaction(kwargs))
-        return self.azul_request(kwargs, operation='ProcessPost')
+    def post_sale_transaction(self, data):
+        data.update(validate.post_sale_transaction(data))
+        return self.azul_request(data, operation='ProcessPost')
 
-    def verify_transaction(self, **kwargs):
-        kwargs.update(validate.verify_transaction(kwargs, operation='VerifyPayment'))
-        return self.azul_request(kwargs)
+    def verify_transaction(self, data):
+        data.update(validate.verify_transaction(
+            data, operation='VerifyPayment'))
+        return self.azul_request(data)
 
-    def nulify_transaction(self, **kwargs):
-        kwargs.update(validate.nullify_transaction(kwargs))
-        return self.azul_request(kwargs)
+    def nulify_transaction(self, data):
+        data.update(validate.nullify_transaction(data))
+        return self.azul_request(data)
 
-    def datavault_create(self, **kwargs):
-        kwargs.update(validate.datavault_create(kwargs))
-        return self.azul_request(kwargs, operation='ProcessDatavault')
+    def datavault_create(self, data):
+        data.update(validate.datavault_create(data))
+        return self.azul_request(data, operation='ProcessDatavault')
 
-    def datavault_delete(self, **kwargs):
-        kwargs.update(validate.datavault_delete(kwargs))
-        return self.azul_request(kwargs, operation='ProcessDatavault')
+    def datavault_delete(self, data):
+        data.update(validate.datavault_delete(data))
+        return self.azul_request(data, operation='ProcessDatavault')

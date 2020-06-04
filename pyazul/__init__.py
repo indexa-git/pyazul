@@ -1,7 +1,7 @@
 __all__ = ('__version__')
 
 # the version number of the library
-__version__ = '0.3.2alpha'
+__version__ = '0.3.4alpha'
 
 from . import index
 from . import validate
