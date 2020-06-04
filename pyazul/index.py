@@ -61,6 +61,7 @@ class AzulAPI:
                 cert=cert_path,
                 timeout=30,
             )
+            r.raise_for_status()
         except Exception as err:
             if self.ENVIRONMENT == 'prod':
                 try:
@@ -72,6 +73,7 @@ class AzulAPI:
                         cert=cert_path,
                         timeout=30,
                     )
+                    r.raise_for_status()
                 except Exception as err:
                     print(
                         {
