@@ -7,4 +7,4 @@ from . import index
 from . import validate
 from . import utils
 
-from pyazul.index import AzulAPI, APIConfiguration
+from pyazul.index import AzulAPI
