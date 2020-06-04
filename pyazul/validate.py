@@ -1,5 +1,6 @@
 from . import utils
 
+
 def datavault_create(data):
     required = {
         'CardNumber': data['CardNumber'],
@@ -41,7 +42,7 @@ def sale_transaction(data):
 
 
 def hold_transaction(data):
-    
+
     required = {
         'CardNumber': data['CardNumber'],
         'Expiration': data['Expiration'],
@@ -51,7 +52,7 @@ def hold_transaction(data):
         'Amount': utils.clean_amount(data['Amount']),
         'Itbis': utils.clean_amount(data['Itbis']),
         'CurrencyPosCode': data['CurrencyPosCode'],
-        'OrderNumber': data['OrderNumber']
+        'OrderNumber': data['OrderNumber'],
     }
 
     return required
@@ -61,14 +62,14 @@ def post_sale_transaction(data):
     required = {
         'AzulOrderId': data['AzulOrderId'],
         'Amount': utils.clean_amount(data['Amount']),
-        'Itbis': utils.clean_amount(data['Itbis'])
+        'Itbis': utils.clean_amount(data['Itbis']),
     }
 
     return required
 
 
 def nullify_transaction(data):
-    
+
     required = {
         'CardNumber': data['CardNumber'],
         'Expiration': data['Expiration'],
@@ -79,7 +80,7 @@ def nullify_transaction(data):
         'Itbis': utils.clean_amount(data['Itbis']),
         'CurrencyPosCode': data['CurrencyPosCode'],
         'CustomerServicePhone': data['CustomerServicePhone'],
-        'OrderNumber': data['OrderNumber']
+        'OrderNumber': data['OrderNumber'],
     }
 
     return required
@@ -103,9 +104,9 @@ def refund_transaction(data):
         'EcommerceURL': data['EcommerceURL'],
         'CustomOrderID': data['CustomOrderID'],
         'OriginalDate': data['OriginalDate'],
-        'AzulOrderId': data['AzulOrderId']
+        'AzulOrderId': data['AzulOrderId'],
     }
-    
+
     return required
 
 
@@ -113,11 +114,11 @@ def void_transaction(data):
     required = {
         'AzulOrderId': data['AzulOrderId'],
     }
-    return required  
+    return required
 
 
 def datavault_sale_transaction(data):
-    
+
     required = {
         'CardNumber': '',
         'Expiration': '',
@@ -131,14 +132,14 @@ def datavault_sale_transaction(data):
         'Plan': data['Plan'],
         'AcquirerRefData': data['AcquirerRefData'],
         'OrderNumber': data['OrderNumber'],
-        'DataVaultToken': data['DataVaultToken']
+        'DataVaultToken': data['DataVaultToken'],
     }
 
     return required
 
 
 def verify_transaction(data):
-   
+
     required = {
         'CustomOrderId': data['CustomOrderId'],
     }
