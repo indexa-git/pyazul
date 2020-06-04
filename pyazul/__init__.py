@@ -1,4 +1,4 @@
-__all__ = ('__version__')
+__all__ = '__version__'
 
 # the version number of the library
 __version__ = '0.3.6alpha'
