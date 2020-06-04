@@ -36,7 +36,7 @@ def sample_sale():
         "ForceNo3DS"="1",
         "SaveToDataVault"="0"
     }
-    response = pyazul.sale_transaction()
+    response = pyazul.sale_transaction(params)
 
 ```
 
