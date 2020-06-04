@@ -56,16 +56,17 @@ class AzulAPI():
         response = {}
         try:
             response = requests.post(azul_endpoint, json=parameters,
-                                     headers=headers, cert=cert_path, timeout=10)
+                                     headers=headers, cert=cert_path, timeout=60)
         except Exception as err:
+            # FIXME: do not try on production if the environment is dev
             try:
                 azul_endpoint = self.ALT_PRODUCTION_URL + f'?{operation}'
                 response = requests.post(azul_endpoint, json=parameters,
-                                         headers=headers, cert=cert_path, timeout=10)
+                                         headers=headers, cert=cert_path, timeout=60)
             except Exception as err:
                 print(
                     {'status': 'error',
-                     'message': 'Could not reach Azul Web Service. Error: ' + str(err)})
+                     'message': 'Could not reach Azul Web Service. Error: %s ' % str(err)})
 
         return response.json()
 
