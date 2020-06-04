@@ -19,14 +19,16 @@ class AzulAPI():
         self.certificate_path = certificate_path  # TODO validate this is an actual certificate
         self.auth1 = auth1
         self.auth2 = auth2
-        self.ENVIRONMENT = environment
-        self.TEST_URL = 'https://pruebas.azul.com.do/webservices/JSON/Default.aspx'
-        self.PRODUCTION_URL = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
-        self.ALT_PRODUCTION_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
+        if environment == 'dev':
+            self.url = 'https://pruebas.azul.com.do/webservices/JSON/Default.aspx'
+        else:
+            self.url = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
+            self.ALT_PRODUCTION_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
 
     def azul_request(self, data, operation=''):
+        # FIXME: do this validation in a separate function
         try:
-            # Required parameters for all transactions
+            #  Required parameters for all transactions
             parameters = {
                 'Channel': data['Channel'],
                 'Store': data['Store'],
@@ -41,11 +43,7 @@ class AzulAPI():
                 f'You are missing {missing_key} which is a required parameter.')
             return
 
-        if self.ENVIRONMENT == 'prod':
-            azul_endpoint = self.PRODUCTION_URL + f'?{operation}'
-        else:
-            azul_endpoint = self.TEST_URL + f'?{operation}'
-
+        azul_endpoint = self.url + f'?{operation}'
         cert_path = self.certificate_path
 
         headers = {

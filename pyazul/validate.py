@@ -30,6 +30,7 @@ def sale_transaction(data):
         'Amount': str(utils.clean_amount(data['Amount'])),
         'Itbis': utils.clean_amount(data['Itbis']),
         'CurrencyPosCode': data['CurrencyPosCode'],
+        'AcquirerRefData': data['AcquirerRefData'],
         'CustomerServicePhone': data['CustomerServicePhone'],
         'OrderNumber': data['OrderNumber'],
         'EcommerceURL': data['EcommerceURL'],
@@ -86,11 +87,21 @@ def nullify_transaction(data):
 
 def refund_transaction(data):
     required = {
+        'CardNumber': data['CardNumber'],
+        'Expiration': data['Expiration'],
+        'CVC': data['CVC'],
         'PosInputMode': data['PosInputMode'],
         'TrxType': 'Refund',
-        'Amount': data['Amount'],
-        'Itbis': data['Itbis'],
+        'Amount': str(utils.clean_amount(data['Amount'])),
+        'Itbis': utils.clean_amount(data['Itbis']),
         'CurrencyPosCode': data['CurrencyPosCode'],
+        'OriginalDate': data['OriginalDate'],
+        'OriginalTrxTicketNr': data['OriginalTrxTicketNr'],
+        'AcquirerRefData': data['AcquirerRefData'],
+        'CustomerServicePhone': data['CustomerServicePhone'],
+        'OrderNumber': data['OrderNumber'],
+        'EcommerceURL': data['EcommerceURL'],
+        'CustomOrderId': data['CustomOrderId'],
         'OriginalDate': data['OriginalDate'],
         'AzulOrderId': data['AzulOrderId']
     }
