@@ -16,7 +16,7 @@ class AzulAPI():
         :param certificate_path (path to your .p12 certificate)
         :param environment (string, defaults 'dev' can also be set to 'prod')
         '''
-        self.certificate_path = certificate_path
+        self.certificate_path = certificate_path  # TODO validate this is an actual certificate
         self.auth1 = auth1
         self.auth2 = auth2
         self.ENVIRONMENT = environment
@@ -53,22 +53,23 @@ class AzulAPI():
             'Auth1': self.auth1,
             'Auth2': self.auth2
         }
-        response = {}
+        r = {}
         try:
-            response = requests.post(azul_endpoint, json=parameters,
-                                     headers=headers, cert=cert_path, timeout=60)
+            r = requests.post(azul_endpoint, json=parameters,
+                                     headers=headers, cert=cert_path, timeout=30)
         except Exception as err:
             # FIXME: do not try on production if the environment is dev
             try:
                 azul_endpoint = self.ALT_PRODUCTION_URL + f'?{operation}'
-                response = requests.post(azul_endpoint, json=parameters,
-                                         headers=headers, cert=cert_path, timeout=60)
+                r = requests.post(azul_endpoint, json=parameters,
+                                         headers=headers, cert=cert_path, timeout=30)
             except Exception as err:
                 print(
                     {'status': 'error',
                      'message': 'Could not reach Azul Web Service. Error: %s ' % str(err)})
 
-        return response.json()
+        response = json.loads(r.text)
+        return response
 
     def sale_transaction(self, data):
         data.update(validate.sale_transaction(data))
