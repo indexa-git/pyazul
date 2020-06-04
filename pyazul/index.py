@@ -63,7 +63,6 @@ class AzulAPI:
             )
         except Exception as err:
             if self.ENVIRONMENT == 'prod':
-                # FIXME: do not try on production if the environment is dev
                 try:
                     azul_endpoint = self.ALT_PRODUCTION_URL + f'?{operation}'
                     r = requests.post(
