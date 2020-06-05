@@ -31,20 +31,14 @@ class AzulAPI:
             self.ALT_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
 
     def azul_request(self, data, operation=''):
-        # FIXME: do this validation in a separate function. This is not being raised.
-        try:
-            #  Required parameters for all transactions
-            parameters = {
-                'Channel': data['Channel'],
-                'Store': data['Store'],
-            }
+        #  Required parameters for all transactions
+        parameters = {
+            'Channel': data.get('Channel', ''),
+            'Store': data.get('Store', ''),
+        }
 
-            # Updating parameters with the extra parameters
-            parameters.update(data)
-
-        except KeyError as missing_key:
-            _logger.error(f'You are missing {missing_key} which is a required parameter.')
-            return
+        # Updating parameters with the extra parameters
+        parameters.update(data)
 
         azul_endpoint = self.url + f'?{operation}'
         cert_path = self.certificate_path
@@ -75,7 +69,8 @@ class AzulAPI:
                     timeout=30,
                 )
         except Exception as err:
-            _logger.error('azul_request: Got the following error\n%s', str(err))
+            _logger.error(
+                'azul_request: Got the following error\n%s', str(err))
             raise Exception(str(err))
 
         response = json.loads(r.text)
@@ -104,7 +99,8 @@ class AzulAPI:
         return self.azul_request(data, operation='ProcessPost')
 
     def verify_transaction(self, data):
-        data.update(validate.verify_transaction(data, operation='VerifyPayment'))
+        data.update(validate.verify_transaction(
+            data, operation='VerifyPayment'))
         return self.azul_request(data)
 
     def nulify_transaction(self, data):
