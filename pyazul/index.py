@@ -4,10 +4,16 @@ import logging
 
 # Third party packages
 import requests
+
+# Custom dependencies
+from . import exceptions
 from . import validate
 
 _logger = logging.getLogger(__name__)
 
+# -----------------------------------------------------------------------------
+# Class for managing azul
+# -----------------------------------------------------------------------------
 
 class AzulAPI:
     def __init__(self, auth1, auth2, certificate_path, environment='dev'):
@@ -73,13 +79,15 @@ class AzulAPI:
                 'azul_request: Got the following error\n%s', str(err))
             raise Exception(str(err))
 
+
         response = json.loads(r.text)
         _logger.debug('azul_request: Values received\n%s', json.loads(r.text))
 
         return response
 
     def sale_transaction(self, data):
-        data.update(validate.sale_transaction(data))
+        validate.sale_transaction(data)
+
         return self.azul_request(data)
 
     def hold_transaction(self, data):
