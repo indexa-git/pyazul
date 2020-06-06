@@ -104,7 +104,6 @@ def refund_transaction(data):
         'Amount': str(utils.clean_amount(data.get('Amount', 0))),
         'Itbis': utils.clean_amount(data.get('Itbis', 0)),
         'CurrencyPosCode': data.get('CurrencyPosCode', ''),
-        'OriginalDate': data.get('OriginalDate', ''),
         'OriginalTrxTicketNr': data.get('OriginalTrxTicketNr', ''),
         'AcquirerRefData': data.get('AcquirerRefData', '1'),
         'CustomerServicePhone': data.get('CustomerServicePhone', ''),
