@@ -15,7 +15,7 @@ class RequiredParameterNotFound(BaseException):
     pass
 
 
-class NonOkStatusCode(requests.exceptions.HTTPError):
+class NonOkHttpStatusCode(requests.exceptions.HTTPError):
     pass
 
 
@@ -105,7 +105,7 @@ class AzulAPI:
             _logger.error(
                 f'azul_request: Got the following http code {r.status_code}'
             )
-            raise NonOkStatusCode(r.status_code)
+            raise NonOkHttpStatusCode(r.status_code)
 
         response = r.json()
         _logger.debug(f'azul_request: Values received {response}')
