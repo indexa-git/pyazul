@@ -1,5 +1,4 @@
 # Python packages
-import json
 import logging
 
 # Third party packages
@@ -15,6 +14,20 @@ _logger = logging.getLogger(__name__)
 # Class for managing azul
 # -----------------------------------------------------------------------------
 
+# -----------------------------------------------------------------------------
+# Module errors
+# -----------------------------------------------------------------------------
+class RequiredParameterNotFound(BaseException):
+    pass
+
+
+class NonOkHttpStatusCode(requests.exceptions.HTTPError):
+    pass
+
+
+# -----------------------------------------------------------------------------
+# Class for managing azul
+# -----------------------------------------------------------------------------
 class AzulAPI:
     def __init__(self, auth1, auth2, certificate_path, environment='dev'):
         '''
@@ -36,17 +49,35 @@ class AzulAPI:
             self.url = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
             self.ALT_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
 
+    def __issue_http_requests(
+        self, url, json, headers, cert, method, timeout=30
+    ):
+
+        try:
+            r = requests.__getattribute__(method)(
+                url,
+                json=json,
+                headers=headers,
+                cert=cert,
+                timeout=timeout,
+            )
+
+        except requests.exceptions.RequestException as err:
+            _logger.error(f'azul_request: Got the following error {err}')
+            raise Exception(err)
+
+        else:
+            return r
+
     def azul_request(self, data, operation=''):
-        #  Required parameters for all transactions
-        parameters = {
-            'Channel': data.get('Channel', ''),
-            'Store': data.get('Store', ''),
-        }
 
-        # Updating parameters with the extra parameters
-        parameters.update(data)
+        if not ('Channel' in data and 'Store' in data):
+            err = (
+                'Channel and Store must be present in data, and contain values'
+            )
+            _logger.error(err)
+            raise RequiredParameterNotFound(err)
 
-        azul_endpoint = self.url + f'?{operation}'
         cert_path = self.certificate_path
 
         headers = {
@@ -54,34 +85,36 @@ class AzulAPI:
             'Auth1': self.auth1,
             'Auth2': self.auth2,
         }
-        r = {}
-        _logger.debug('azul_request: called with data:\n%s', data)
 
-        try:
-            r = requests.post(
-                azul_endpoint,
-                json=parameters,
+        _logger.debug(f'azul_request: called with data:\n {data}')
+
+        r = self.__issue_http_requests(
+            url=f'{self.url}?{operation}',
+            json=data,
+            headers=headers,
+            cert=cert_path,
+            method="post",
+            timeout=30
+        )
+
+        if (not r.ok) and self.ENVIRONMENT == 'prod':
+            r = self.__issue_http_requests(
+                url=f'{self.ALT_URL}?{operation}',
+                json=data,
                 headers=headers,
                 cert=cert_path,
+                method="post",
                 timeout=30,
             )
-            if r.raise_for_status() and self.ENVIRONMENT == 'prod':
-                azul_endpoint = self.ALT_URL + f'?{operation}'
-                r = requests.post(
-                    azul_endpoint,
-                    json=parameters,
-                    headers=headers,
-                    cert=cert_path,
-                    timeout=30,
-                )
-        except Exception as err:
+
+        if not r.ok:
             _logger.error(
-                'azul_request: Got the following error\n%s', str(err))
-            raise Exception(str(err))
+                f'azul_request: Got the following http code {r.status_code}'
+            )
+            raise NonOkHttpStatusCode(r.status_code)
 
-
-        response = json.loads(r.text)
-        _logger.debug('azul_request: Values received\n%s', json.loads(r.text))
+        response = r.json()
+        _logger.debug(f'azul_request: Values received {response}')
 
         return response
 
