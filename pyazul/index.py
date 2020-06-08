@@ -133,9 +133,8 @@ class AzulAPI:
         return self.azul_request(data, operation='ProcessPost')
 
     def verify_transaction(self, data):
-        data.update(validate.verify_transaction(
-            data, operation='VerifyPayment'))
-        return self.azul_request(data)
+        data.update(validate.verify_transaction(data))
+        return self.azul_request(data, operation='VerifyPayment')
 
     def nulify_transaction(self, data):
         data.update(validate.nullify_transaction(data))
