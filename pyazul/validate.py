@@ -1,17 +1,22 @@
-""" Validation module
-"""
+''' Validation module '''
 from . import exceptions
 from . import utils
 
 
 def check_not_empty(value):
+    '''
+    Returns True if a value is not empty
+    '''
     if not value:
         raise exceptions.UnexpectedEmptyValue
     return True
 
 
 def check_minimum_length(length):
-    def inner(value):
+    '''
+    Checks that a string has minimum provided length
+    '''
+    def inner(_, value):
         value_len = len(value)
         if value_len < length:
             raise exceptions.MinimumLengthNotReached(
@@ -23,30 +28,39 @@ def check_minimum_length(length):
 
 
 def check_exists_in(data):
-    def inner(key):
+    '''
+    Checks if a given key exists in the data dictionary
+    '''
+    def inner(key, _):
         if key not in data:
             raise exceptions.RequiredParameterNotFound(key)
         return True
     return inner
 
 
-def check_type(type):
-    def inner(value):
-        if not isinstance(value, type):
+def check_type(_type):
+    '''
+    Checks value matches a certain data type
+    '''
+    def inner(_, value):
+        if not isinstance(value, _type):
             raise exceptions.UnsuportedType
         return True
     return inner
 
 
 def validate(data, validation_rule_sets):
-
+    '''
+    Validates that dictionary contains all the minimum required fields and also its values.
+    '''
     for rule_set in validation_rule_sets:
 
-        value = data[rule_set]
+        key = rule_set
+        value = data[key]
         rule_set = validation_rule_sets[rule_set]
 
         for rule in rule_set:
-            rule(value)
+            rule(key, value)
 
 
 def datavault_create(data):
@@ -71,16 +85,14 @@ def datavault_delete(data):
 
 def sale_transaction(data):
     validation_rule_sets = {
-        'CardNumber': (check_exists_in(data), check_not_empty,),
-        'Expiration': (check_exists_in(data),),
-        'CVC': (check_exists_in(data),),
+        'CardNumber': (check_exists_in(data), check_not_empty),
+        'Expiration': (check_exists_in(data)),
+        'CVC': (check_exists_in(data)),
         'PosInputMode': (
             check_exists_in(data),
-            check_exists_in(['E-Commerce']),
         ),
-        'TrxType': (check_exists_in(data), check_exists_in(['Sale']),),
-        'Payments': (check_exists_in(data), check_minimum_length(1),),
-        'Plan': (check_exists_in(data), check_minimum_length(1),),
+        'Payments': (check_exists_in(data), check_minimum_length(1)),
+        'Plan': (check_exists_in(data), check_minimum_length(1)),
         'Amount': (
             check_exists_in(data),
             check_minimum_length(1),
@@ -91,16 +103,16 @@ def sale_transaction(data):
             check_minimum_length(1),
             check_type(int),
         ),
-        'CurrencyPosCode':  (check_exists_in(data),),
+        'CurrencyPosCode':  (check_exists_in(data)),
         'AcquirerRefData': (
             check_exists_in(data),
             check_minimum_length(1),
-            check_type(str),
+            check_type(str)
         ),
-        'CustomerServicePhone': (check_exists_in(data),),
-        'OrderNumber': (check_exists_in(data),),
-        'EcommerceURL': (check_exists_in(data),),
-        'CustomOrderID': (check_exists_in(data),),
+        'CustomerServicePhone': (check_exists_in(data)),
+        'OrderNumber': (check_exists_in(data)),
+        'EcommerceURL': (check_exists_in(data)),
+        'CustomOrderID': (check_exists_in(data)),
     }
 
     validate(data, validation_rule_sets)
