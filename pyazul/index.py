@@ -3,10 +3,16 @@ import logging
 
 # Third party packages
 import requests
+
+# Custom dependencies
+from . import exceptions
 from . import validate
 
 _logger = logging.getLogger(__name__)
 
+# -----------------------------------------------------------------------------
+# Class for managing azul
+# -----------------------------------------------------------------------------
 
 # -----------------------------------------------------------------------------
 # Module errors
@@ -113,7 +119,8 @@ class AzulAPI:
         return response
 
     def sale_transaction(self, data):
-        data.update(validate.sale_transaction(data))
+        validate.sale_transaction(data)
+
         return self.azul_request(data)
 
     def hold_transaction(self, data):

@@ -1,4 +1,52 @@
+""" Validation module
+"""
+from . import exceptions
 from . import utils
+
+
+def check_not_empty(value):
+    if not value:
+        raise exceptions.UnexpectedEmptyValue
+    return True
+
+
+def check_minimum_length(length):
+    def inner(value):
+        value_len = len(value)
+        if value_len < length:
+            raise exceptions.MinimumLengthNotReached(
+                f'{value}: current length {value_len}'
+                f'expected {length}'
+            )
+        return True
+    return inner
+
+
+def check_exists_in(data):
+    def inner(key):
+        if key not in data:
+            raise exceptions.RequiredParameterNotFound(key)
+        return True
+    return inner
+
+
+def check_type(type):
+    def inner(value):
+        if not isinstance(value, type):
+            raise exceptions.UnsuportedType
+        return True
+    return inner
+
+
+def validate(data, validation_rule_sets):
+
+    for rule_set in validation_rule_sets:
+
+        value = data[rule_set]
+        rule_set = validation_rule_sets[rule_set]
+
+        for rule in rule_set:
+            rule(value)
 
 
 def datavault_create(data):
@@ -6,7 +54,7 @@ def datavault_create(data):
         'CardNumber': data.get('CardNumber', ''),
         'Expiration': data.get('Expiration', ''),
         'CVC': data.get('CVC', ''),
-        'TrxType': 'CREATE',
+        'TrxType': r'CREATE',
     }
 
     return required
@@ -15,32 +63,47 @@ def datavault_create(data):
 def datavault_delete(data):
     required = {
         'DataVaultToken': data.get('DataVaultToken', ''),
-        'TrxType': 'DELETE',
+        'TrxType': r'DELETE',
     }
 
     return required
 
 
 def sale_transaction(data):
-    required = {
-        'CardNumber': data.get('CardNumber', ''),
-        'Expiration': data.get('Expiration', ''),
-        'CVC': data.get('CVC', ''),
-        'PosInputMode': data.get('PosInputMode', 'E-Commerce'),
-        'TrxType': 'Sale',
-        'Payments': data.get('Payments', '1'),
-        'Plan': data.get('Plan', '0'),
-        'Amount': str(utils.clean_amount(data.get('Amount', 0))),
-        'Itbis': utils.clean_amount(data.get('Itbis', 0)),
-        'CurrencyPosCode': data.get('CurrencyPosCode', ''),
-        'AcquirerRefData': data.get('AcquirerRefData', '1'),
-        'CustomerServicePhone': data.get('CustomerServicePhone', ''),
-        'OrderNumber': data.get('OrderNumber', ''),
-        'EcommerceURL': data.get('EcommerceURL', ''),
-        'CustomOrderID': data.get('CustomOrderID', ''),
+    validation_rule_sets = {
+        'CardNumber': (check_exists_in(data), check_not_empty,),
+        'Expiration': (check_exists_in(data),),
+        'CVC': (check_exists_in(data),),
+        'PosInputMode': (
+            check_exists_in(data),
+            check_exists_in(['E-Commerce']),
+        ),
+        'TrxType': (check_exists_in(data), check_exists_in(['Sale']),),
+        'Payments': (check_exists_in(data), check_minimum_length(1),),
+        'Plan': (check_exists_in(data), check_minimum_length(1),),
+        'Amount': (
+            check_exists_in(data),
+            check_minimum_length(1),
+            check_type(int),
+        ),
+        'Itbis': (
+            check_exists_in(data),
+            check_minimum_length(1),
+            check_type(int),
+        ),
+        'CurrencyPosCode':  (check_exists_in(data),),
+        'AcquirerRefData': (
+            check_exists_in(data),
+            check_minimum_length(1),
+            check_type(str),
+        ),
+        'CustomerServicePhone': (check_exists_in(data),),
+        'OrderNumber': (check_exists_in(data),),
+        'EcommerceURL': (check_exists_in(data),),
+        'CustomOrderID': (check_exists_in(data),),
     }
 
-    return required
+    validate(data, validation_rule_sets)
 
 
 def hold_transaction(data):

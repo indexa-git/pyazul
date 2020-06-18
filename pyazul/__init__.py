@@ -6,5 +6,6 @@ __version__ = '0.4.2alpha'
 from . import index
 from . import validate
 from . import utils
+from . import exceptions
 
 from pyazul.index import AzulAPI
