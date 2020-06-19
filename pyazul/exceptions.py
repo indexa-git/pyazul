@@ -4,17 +4,21 @@
 from requests.exceptions import HTTPError
 
 
-class MinimumLengthNotReached(BaseException):
+class MaximumLengthExceeded(BaseException):
     ...
+
 
 class NonOkHttpStatusCode(HTTPError):
     ...
 
+
 class RequiredParameterNotFound(BaseException):
     ...
+
 
 class UnexpectedEmptyValue(BaseException):
     ...
 
-class UnsuportedType(BaseException):
+
+class UnsupportedType(BaseException):
     ...
