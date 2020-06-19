@@ -5,7 +5,7 @@ from . import utils
 
 def check_maximum_length(max_length):
     '''
-    Checks the max value of an int for the specific field
+    Checks if value is less or equals to max length allowed, returns True if not exceeded.
     '''
     def inner(_, value):
         if isinstance(value, int):
@@ -22,7 +22,7 @@ def check_maximum_length(max_length):
 
 def check_type(_type):
     '''
-    Checks value matches a certain data type
+    Checks if value matches a certain data type, returns True if they match.
     '''
     def inner(_, value):
         if not isinstance(value, _type):
@@ -34,7 +34,7 @@ def check_type(_type):
 
 def validate(data, validation_rule_sets):
     '''
-    Validates that dictionary contains all the minimum required fields.
+    Validates that dictionary contains all the minimum required fields, and executes the rules of each one.
     '''
     for rule_set in validation_rule_sets:
         key = rule_set
