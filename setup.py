@@ -6,7 +6,7 @@ with open("README.md", "r") as fh:
 # Must update a few things in the setup
 setuptools.setup(
     name="pyazul",
-    version="0.4.2alpha",
+    version="0.4.3alpha",
     author="INDEXA Inc.",
     author_email="info@indexa.do",
     description="An Azul Webservices light wrapper for Python.",
