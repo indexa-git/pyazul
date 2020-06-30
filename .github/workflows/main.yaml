@@ -4,6 +4,10 @@ on:
   push:
     branches:
       - master
+  create:
+    tags:
+      - v*
+
 jobs:
   build-n-publish:
     name: Build and publish distributions 📦 to PyPI
@@ -15,14 +19,14 @@ jobs:
         with:
           python-version: 3.7
       - name: Build distribution 📦
-        run: >-
+        run: |
           python setup.py sdist
       - name: Publish distribution 📦 to PyPI
-        if: startsWith(github.ref, 'refs/tags')
+        if: startsWith(github.ref, 'refs/tags/v')
         uses: pypa/gh-action-pypi-publish@master
         with:
           password: ${{ secrets.PYPI_TOKEN }}
-      - name: Bump version and push tag
-        uses: mathieudutour/github-tag-action@v4.5
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
+      # - name: Bump version and push tag
+      #   uses: mathieudutour/github-tag-action@v4.5
+      #   with:
+      #     github_token: ${{ secrets.GITHUB_TOKEN }}
