@@ -10,12 +10,13 @@ _logger = logging.getLogger(__name__)
 
 
 class AzulAPI:
-    def __init__(self, auth1, auth2, certificate_path, environment='dev'):
+    def __init__(self, auth1, auth2, certificate_path, custom_url=None, environment='dev'):
         '''
         :param auth1
         :param auth2
         :param certificate_path (path to your .p12 certificate)
         :param environment (string, defaults 'dev' can also be set to 'prod')
+        :param custom_url (string, defaults None, custom azul webservice url)
         '''
         self.certificate_path = (
             certificate_path  # TODO validate this is an actual certificate
@@ -24,11 +25,14 @@ class AzulAPI:
         self.auth2 = auth2
         self.ENVIRONMENT = environment
 
-        if environment == 'dev':
-            self.url = 'https://pruebas.azul.com.do/webservices/JSON/Default.aspx'
+        if custom_url:
+            self.url = custom_url
         else:
-            self.url = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
-            self.ALT_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
+            if environment == 'dev':
+                self.url = 'https://pruebas.azul.com.do/webservices/JSON/Default.aspx'
+            else:
+                self.url = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
+                self.ALT_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
 
     def azul_request(self, data, operation=''):
         #  Required parameters for all transactions
@@ -59,7 +63,7 @@ class AzulAPI:
                 cert=cert_path,
                 timeout=30,
             )
-            if r.raise_for_status() and self.ENVIRONMENT == 'prod':
+            if r.raise_for_status() and self.ENVIRONMENT == 'prod' and custom_url is None:
                 azul_endpoint = self.ALT_URL + f'?{operation}'
                 r = requests.post(
                     azul_endpoint,
