@@ -85,7 +85,7 @@ def sample_refund():
         "AuthorizationCode":"",
         "ResponseCode":"",
         "AcquirerRefData":"",
-        "RRN":null,
+        "RRN":"null",
         "AzulOrderId":40208,
         "CustomerServicePhone":"",
         "OrderNumber":"",
@@ -99,6 +99,46 @@ def sample_refund():
 
 ```
 
+## Async support
+Pyazul tambien es compatible con operaciones asíncronas de la siguiente manera:
+
+```python
+import asyncio
+# Import the Async module
+from pyazul import AzulAPIAsync
+
+# Make sure your function is async
+async def sample_sale():
+    auth1 = 'testcert2' # primer auth factor (se obtiene de Azul)
+    auth2 = 'testcert2' # segundo auth factor (se obtiene de Azul)
+    certificate_path = 'certificate.pem'
+    environment = 'prod' # defaults 'dev'
+    pyazul = AzulAPIAsync(auth1, auth2, certificate_path)
+    params = {
+        "Channel": "EC",
+        "Store": "37094649930",
+        "CardNumber": "",
+        "Expiration": "",
+        "CVC": "",
+        "PosInputMode": "E-Commerce",
+        "Amount": "12",
+        "CurrencyPosCode": "$",
+        "RNN": "null",
+        "CustomerServicePhone": "809-111-2222",
+        "OrderNumber": "SO039-2",
+        "ECommerceUrl": "azul.iterativo.do",
+        "CustomOrderId": "53",
+        "DataVaultToken": "74EAA676-FB9A-49E3-82CD-485DF85ECB61",
+        "ForceNo3DS": "1",
+        "SaveToDataVault": "0"
+    }
+    response = await pyazul.sale_transaction(params)
+
+# Test with asynccio
+if __name__ == "__main__":
+    asyncio.run(sample_sale())
+
+```
 ---
 
 &copy; LGPL License
