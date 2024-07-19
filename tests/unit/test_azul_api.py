@@ -3,12 +3,6 @@ from unittest.mock import patch, AsyncMock
 from httpx import HTTPStatusError, Response
 
 from pyazul import AzulAPI, AzulAPIConfig
-from pyazul import (
-    SaleTransactionModel,
-    VoidTransactionModel,
-    VerifyTransactionModel,
-    DataVaultCreateModel,
-)
 from pyazul import clean_amount
 
 @pytest.fixture
@@ -23,19 +17,19 @@ def azul_api():
 
 @pytest.mark.asyncio
 async def test_sale_transaction(azul_api):
-    sale_data = SaleTransactionModel(
-        Channel="Web",
-        Store="TestStore",
-        CardNumber="1234567890123456",
-        Expiration="12/25",
-        CVC="123",
-        Amount=10000,
-        CurrencyPosCode="USD",
-        CustomerServicePhone="1234567890",
-        OrderNumber="TEST001",
-        EcommerceURL="https://example.com",
-        CustomOrderID="CUSTOM001"
-    )
+    sale_data = {
+        "Channel": "Web",
+        "Store": "TestStore",
+        "CardNumber": "1234567890123456",
+        "Expiration": "12/25",
+        "CVC": "123",
+        "Amount": 10000,
+        "CurrencyPosCode": "USD",
+        "CustomerServicePhone": "1234567890",
+        "OrderNumber": "TEST001",
+        "EcommerceURL": "https://example.com",
+        "CustomOrderID": "CUSTOM001"
+    }
     
     mock_response = AsyncMock(spec=Response)
     mock_response.json.return_value = {"ResponseMessage": "Approved"}
@@ -48,11 +42,11 @@ async def test_sale_transaction(azul_api):
 
 @pytest.mark.asyncio
 async def test_void_transaction(azul_api):
-    void_data = VoidTransactionModel(
-        Channel="Web",
-        Store="TestStore",
-        AzulOrderId="ORDER123"
-    )
+    void_data = {
+        "Channel": "Web",
+        "Store": "TestStore",
+        "AzulOrderId": "ORDER123"
+    }
     
     mock_response = AsyncMock(spec=Response)
     mock_response.json.return_value = {"ResponseMessage": "Voided"}
@@ -66,19 +60,19 @@ async def test_void_transaction(azul_api):
 @pytest.mark.asyncio
 async def test_azul_request_prod_fallback(azul_api):
     azul_api.config.environment = "prod"
-    sale_data = SaleTransactionModel(
-        Channel="Web",
-        Store="TestStore",
-        CardNumber="1234567890123456",
-        Expiration="12/25",
-        CVC="123",
-        Amount=10000,
-        CurrencyPosCode="USD",
-        CustomerServicePhone="1234567890",
-        OrderNumber="TEST001",
-        EcommerceURL="https://example.com",
-        CustomOrderID="CUSTOM001"
-    )
+    sale_data = {
+        "Channel": "Web",
+        "Store": "TestStore",
+        "CardNumber": "1234567890123456",
+        "Expiration": "12/25",
+        "CVC": "123",
+        "Amount": 10000,
+        "CurrencyPosCode": "USD",
+        "CustomerServicePhone": "1234567890",
+        "OrderNumber": "TEST001",
+        "EcommerceURL": "https://example.com",
+        "CustomOrderID": "CUSTOM001"
+    }
     
     error_response = AsyncMock(spec=Response)
     error_response.raise_for_status.side_effect = HTTPStatusError("Error", request=AsyncMock(), response=AsyncMock())
@@ -94,13 +88,13 @@ async def test_azul_request_prod_fallback(azul_api):
 
 @pytest.mark.asyncio
 async def test_datavault_create(azul_api):
-    datavault_data = DataVaultCreateModel(
-        Channel="Web",
-        Store="TestStore",
-        CardNumber="1234567890123456",
-        Expiration="12/25",
-        CVC="123"
-    )
+    datavault_data = {
+        "Channel": "Web",
+        "Store": "TestStore",
+        "CardNumber": "1234567890123456",
+        "Expiration": "12/25",
+        "CVC": "123"
+    }
     
     mock_response = AsyncMock(spec=Response)
     mock_response.json.return_value = {"DataVaultToken": "TOKEN123"}
@@ -113,11 +107,11 @@ async def test_datavault_create(azul_api):
 
 @pytest.mark.asyncio
 async def test_verify_transaction(azul_api):
-    verify_data = VerifyTransactionModel(
-        Channel="Web",
-        Store="TestStore",
-        CustomOrderId="CUSTOM001"
-    )
+    verify_data = {
+        "Channel": "Web",
+        "Store": "TestStore",
+        "CustomOrderId": "CUSTOM001"
+    }
     
     mock_response = AsyncMock(spec=Response)
     mock_response.json.return_value = {"VerificationResult": "Success"}

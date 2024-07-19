@@ -1,6 +1,6 @@
 import logging
-from typing import Optional, Literal
-from pydantic import BaseModel, HttpUrl, Field
+from typing import Optional, Literal, Type
+from pydantic import BaseModel, HttpUrl, Field, ValidationError
 import httpx
 
 from .models import (
@@ -33,14 +33,19 @@ class AzulAPI:
             return "https://pruebas.azul.com.do/webservices/JSON/Default.aspx"
         return "https://pagos.azul.com.do/webservices/JSON/Default.aspx"
 
-    async def azul_request(self, data: BaseModel, operation: str = ""):
+    async def azul_request(self, data: dict, model_class: Type[BaseModel], operation: str = ""):
         azul_endpoint = f"{self.url}?{operation}"
         headers = {
             "Content-Type": "application/json",
             "Auth1": self.config.auth1,
             "Auth2": self.config.auth2,
         }
-        _logger.debug(f"azul_request: called with data:\n{data.model_dump_json()}")
+
+        try:
+            validated_data = model_class(**data)
+        except ValidationError as e:
+            _logger.error(f"Validation error: {e.json()}")
+            raise
 
         client_kwargs = {}
         if self.config.certificate_path:
@@ -50,7 +55,7 @@ class AzulAPI:
             async with httpx.AsyncClient(**client_kwargs) as client:
                 r = await client.post(
                     azul_endpoint,
-                    json=data.model_dump(),
+                    json=validated_data.model_dump(),
                     headers=headers,
                     timeout=30,
                 )
@@ -61,7 +66,7 @@ class AzulAPI:
                 azul_endpoint = f"{alt_url}?{operation}"
                 r = await client.post(
                     azul_endpoint,
-                    json=data.model_dump(),
+                    json=validated_data.model_dump(),
                     headers=headers,
                     timeout=30,
                 )
@@ -73,29 +78,28 @@ class AzulAPI:
             raise
 
         response = r.json()
-        _logger.debug(f"azul_request: Values received\n{response}")
         return response
 
-    async def sale_transaction(self, data: SaleTransactionModel):
-        return await self.azul_request(data)
+    async def sale_transaction(self, data: dict):
+        return await self.azul_request(data, SaleTransactionModel)
 
-    async def hold_transaction(self, data: HoldTransactionModel):
-        return await self.azul_request(data)
+    async def hold_transaction(self, data: dict):
+        return await self.azul_request(data, HoldTransactionModel)
 
-    async def refund_transaction(self, data: RefundTransactionModel):
-        return await self.azul_request(data)
+    async def refund_transaction(self, data: dict):
+        return await self.azul_request(data, RefundTransactionModel)
 
-    async def void_transaction(self, data: VoidTransactionModel):
-        return await self.azul_request(data, operation="ProcessVoid")
+    async def void_transaction(self, data: dict):
+        return await self.azul_request(data, VoidTransactionModel, operation="ProcessVoid")
 
-    async def post_sale_transaction(self, data: PostSaleTransactionModel):
-        return await self.azul_request(data, operation="ProcessPost")
+    async def post_sale_transaction(self, data: dict):
+        return await self.azul_request(data, PostSaleTransactionModel, operation="ProcessPost")
 
-    async def verify_transaction(self, data: VerifyTransactionModel):
-        return await self.azul_request(data, operation="VerifyPayment")
+    async def verify_transaction(self, data: dict):
+        return await self.azul_request(data, VerifyTransactionModel, operation="VerifyPayment")
 
-    async def datavault_create(self, data: DataVaultCreateModel):
-        return await self.azul_request(data, operation="ProcessDatavault")
+    async def datavault_create(self, data: dict):
+        return await self.azul_request(data, DataVaultCreateModel, operation="ProcessDatavault")
 
-    async def datavault_delete(self, data: DataVaultDeleteModel):
-        return await self.azul_request(data, operation="ProcessDatavault")
+    async def datavault_delete(self, data: dict):
+        return await self.azul_request(data, DataVaultDeleteModel, operation="ProcessDatavault")
