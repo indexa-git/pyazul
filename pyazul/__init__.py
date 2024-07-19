@@ -1,10 +1,19 @@
-__all__ = '__version__'
+__version__ = '0.5.0a0'
 
-# the version number of the library
-__version__ = '0.4.3alpha'
+from .index import AzulAPI, AzulAPIConfig
+from .models import (
+    SaleTransactionModel,
+    VoidTransactionModel,
+    VerifyTransactionModel,
+    DataVaultCreateModel,
+)
+from .utils import clean_amount
 
-from . import index
-from . import validate
-from . import utils
-
-from pyazul.index import AzulAPI
+__all__ = [
+    'AzulAPI',
+    'AzulAPIConfig',
+    'SaleTransactionModel',
+    'VoidTransactionModel',
+    'VerifyTransactionModel',
+    'DataVaultCreateModel',
+]
