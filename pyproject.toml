@@ -13,7 +13,7 @@ classifiers = [
     "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
     "Operating System :: OS Independent",
 ]
-dependencies = ["httpx"]
+dependencies = ["httpx", "pydantic>=2.0.0"]
 requires-python = ">=3.9"
 readme = "README.md"
 
@@ -22,3 +22,11 @@ Homepage = "https://github.com/indexa-git/pyazul/"
 
 [tool.setuptools]
 packages = ["pyazul"]
+
+[project.optional-dependencies]
+testing = ["pytest", "pytest-dotenv", "pytest-cov", "pytest-asyncio"]
+
+[tool.pytest.ini_options]
+addopts = "-v"
+asyncio_mode = "auto"
+testpaths = ["tests"]
