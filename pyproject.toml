@@ -1,0 +1,24 @@
+[build-system]
+requires = ["setuptools>=61.2", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyazul"
+version = "0.4.4alpha"
+description = "An Azul Webservices light wrapper for Python."
+authors = [{ name = "INDEXA Inc.", email = "info@indexa.do" }]
+license = { text = "GNU Lesser General Public License v3 (LGPLv3)" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
+    "Operating System :: OS Independent",
+]
+dependencies = ["httpx"]
+requires-python = ">=3.9"
+readme = "README.md"
+
+[project.urls]
+Homepage = "https://github.com/indexa-git/pyazul/"
+
+[tool.setuptools]
+packages = ["pyazul"]
