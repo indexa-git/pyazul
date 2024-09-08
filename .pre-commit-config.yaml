@@ -1,0 +1,31 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: detect-private-key
+        name: Confirming no private keys are present
+      - id: check-json
+        name: Checking JSON Syntax
+      - id: check-yaml
+        name: Checking YAML Syntax
+      - id: check-toml
+        name: Checking TOML Syntax
+      - id: pretty-format-json
+        name: Prettifies any JSON
+      - id: check-case-conflict
+        name: Making sure filenames are case insenstive
+      - id: forbid-submodules
+        name: No submodules please
+      - id: check-merge-conflict
+        name: Making sure there are no merge conflicts that are unresolved
+      - id: debug-statements
+        name: Making sure there are no debug statements
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.3
+    hooks:
+      - id: ruff
+        args: [--fix, --exit-non-zero-on-fix]
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    rev: v0.5.3
+    hooks:
+      - id: ruff-format
