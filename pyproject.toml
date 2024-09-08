@@ -24,6 +24,7 @@ Homepage = "https://github.com/indexa-git/pyazul/"
 packages = ["pyazul"]
 
 [project.optional-dependencies]
+dev = ["ruff~=0.6.4", "pre-commit"]
 testing = ["pytest", "pytest-dotenv", "pytest-cov", "pytest-asyncio"]
 
 [tool.pytest.ini_options]
