@@ -1,10 +1,8 @@
-__all__ = '__version__'
+__all__ = ["__version__"]
 
 # the version number of the library
-__version__ = '0.4.3alpha'
+__version__ = "0.4.4alpha"
 
-from . import index
-from . import validate
-from . import utils
+from pyazul.index import AzulAPI, AzulAPIAsync
 
-from pyazul.index import AzulAPI
+__all__ = ["AzulAPI", "AzulAPIAsync"]

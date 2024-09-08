@@ -1,207 +1,265 @@
-# Python packages
 import json
 import logging
+from typing import Dict, Any, Optional
 
-# Third party packages
 import httpx
-from . import validate
+from . import models
 
 _logger = logging.getLogger(__name__)
 
 
 class AzulAPI:
-    def __init__(self, auth1, auth2, certificate_path, custom_url=None, environment='dev'):
-        '''
-        :param auth1
-        :param auth2
-        :param certificate_path (path to your .p12 certificate)
-        :param environment (string, defaults 'dev' can also be set to 'prod')
-        :param custom_url (string, defaults None, custom azul webservice url)
-        '''
-        self.certificate_path = (
-            certificate_path  # TODO validate this is an actual certificate
-        )
-        self.auth1 = auth1
-        self.auth2 = auth2
-        self.ENVIRONMENT = environment
+    def __init__(
+        self,
+        auth1: str,
+        auth2: str,
+        certificate_path: str,
+        custom_url: Optional[str] = None,
+        environment: str = "dev",
+    ):
+        """
+        :param auth1: str
+        :param auth2: str
+        :param certificate_path: str (path to your .p12 certificate)
+        :param environment: str (defaults 'dev' can also be set to 'prod')
+        :param custom_url: Optional[str] (defaults None, custom azul webservice url)
+        """
+        self.certificate_path: str = certificate_path
+        self.auth1: str = auth1
+        self.auth2: str = auth2
+        self.ENVIRONMENT: str = environment
 
         if custom_url:
-            self.url = custom_url
+            self.url: str = custom_url
         else:
-            if environment == 'dev':
-                self.url = 'https://pruebas.azul.com.do/webservices/JSON/Default.aspx'
+            if environment == "dev":
+                self.url: str = (
+                    "https://pruebas.azul.com.do/webservices/JSON/Default.aspx"
+                )
             else:
-                self.url = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
-                self.ALT_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
+                self.url: str = (
+                    "https://pagos.azul.com.do/webservices/JSON/Default.aspx"
+                )
+                self.ALT_URL: str = (
+                    "https://contpagos.azul.com.do/Webservices/JSON/default.aspx"
+                )
 
-    def azul_request(self, data, operation=''):
+        self.client: httpx.Client = httpx.Client(cert=self.certificate_path)
+
+    def __del__(self) -> None:
+        self.client.close()
+
+    def azul_request(self, data: Dict[str, Any], operation: str = "") -> Dict[str, Any]:
         #  Required parameters for all transactions
-        parameters = {
-            'Channel': data.get('Channel', ''),
-            'Store': data.get('Store', ''),
+        parameters: Dict[str, str] = {
+            "Channel": data.get("Channel", ""),
+            "Store": data.get("Store", ""),
         }
 
         # Updating parameters with the extra parameters
         parameters.update(data)
 
-        azul_endpoint = self.url + f'?{operation}'
-        cert_path = self.certificate_path
+        azul_endpoint: str = self.url + f"?{operation}"
 
-        headers = {
-            'Content-Type': 'application/json',
-            'Auth1': self.auth1,
-            'Auth2': self.auth2,
+        headers: Dict[str, str] = {
+            "Content-Type": "application/json",
+            "Auth1": self.auth1,
+            "Auth2": self.auth2,
         }
-        r = {}
-        _logger.debug('azul_request: called with data:\n%s', data)
+        r: httpx.Response = {}
+        _logger.debug("azul_request: called with data:\n%s", data)
 
         try:
-            r = httpx.post(
+            r = self.client.post(
                 azul_endpoint,
                 json=parameters,
                 headers=headers,
-                cert=cert_path,
                 timeout=30,
             )
-            if r.raise_for_status() and self.ENVIRONMENT == 'prod' and custom_url is None:
-                azul_endpoint = self.ALT_URL + f'?{operation}'
-                r = httpx.post(
+            if r.raise_for_status() and self.ENVIRONMENT == "prod":
+                azul_endpoint = self.ALT_URL + f"?{operation}"
+                r = self.client.post(
                     azul_endpoint,
                     json=parameters,
                     headers=headers,
-                    cert=cert_path,
                     timeout=30,
                 )
         except Exception as err:
-            _logger.error(
-                'azul_request: Got the following error\n%s', str(err))
+            _logger.error("azul_request: Got the following error\n%s", str(err))
             raise Exception(str(err))
 
-        response = json.loads(r.text)
-        _logger.debug('azul_request: Values received\n%s', json.loads(r.text))
+        response: Dict[str, Any] = json.loads(r.text)
+        _logger.debug("azul_request: Values received\n%s", json.loads(r.text))
 
         return response
 
-    def sale_transaction(self, data):
-        data.update(validate.sale_transaction(data))
-        return self.azul_request(data)
+    def sale_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.SaleTransactionModel(**data).model_dump(
+            exclude_none=True
+        )
+        return self.azul_request(validated_data)
 
-    def hold_transaction(self, data):
-        data.update(validate.hold_transaction(data))
-        return self.azul_request(data)
+    def hold_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.HoldTransactionModel(**data).model_dump(
+            exclude_none=True
+        )
+        return self.azul_request(validated_data)
 
-    def refund_transaction(self, data):
-        data.update(validate.refund_transaction(data))
-        return self.azul_request(data)
+    def refund_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.RefundTransactionModel(
+            **data
+        ).model_dump(exclude_none=True)
+        return self.azul_request(validated_data)
 
-    def void_transaction(self, data):
-        data.update(validate.void_transaction(data))
-        return self.azul_request(data, operation='ProcessVoid')
+    def void_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.VoidTransactionModel(**data).model_dump(
+            exclude_none=True
+        )
+        return self.azul_request(validated_data, operation="ProcessVoid")
 
-    def post_sale_transaction(self, data):
-        data.update(validate.post_sale_transaction(data))
-        return self.azul_request(data, operation='ProcessPost')
+    def post_sale_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.PostSaleTransactionModel(
+            **data
+        ).model_dump(exclude_none=True)
+        return self.azul_request(validated_data, operation="ProcessPost")
 
-    def verify_transaction(self, data):
-        data.update(validate.verify_transaction(data))
-        return self.azul_request(data, operation='VerifyPayment')
+    def verify_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.VerifyTransactionModel(
+            **data
+        ).model_dump(exclude_none=True)
+        return self.azul_request(validated_data, operation="VerifyPayment")
 
-    def nulify_transaction(self, data):
-        data.update(validate.nullify_transaction(data))
-        return self.azul_request(data)
+    def nulify_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.NullifyTransactionModel(
+            **data
+        ).model_dump(exclude_none=True)
+        return self.azul_request(validated_data)
 
-    def datavault_create(self, data):
-        data.update(validate.datavault_create(data))
-        return self.azul_request(data, operation='ProcessDatavault')
+    def datavault_create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.DataVaultCreateModel(**data).model_dump(
+            exclude_none=True
+        )
+        return self.azul_request(validated_data, operation="ProcessDatavault")
 
-    def datavault_delete(self, data):
-        data.update(validate.datavault_delete(data))
-        return self.azul_request(data, operation='ProcessDatavault')
+    def datavault_delete(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.DataVaultDeleteModel(**data).model_dump(
+            exclude_none=True
+        )
+        return self.azul_request(validated_data, operation="ProcessDatavault")
 
 
 class AzulAPIAsync(AzulAPI):
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
+        self.client: httpx.AsyncClient = httpx.AsyncClient(cert=self.certificate_path)
 
-    async def azul_request(self, data, operation=''):
+    async def __aenter__(self) -> "AzulAPIAsync":
+        return self
+
+    async def __aexit__(
+        self,
+        exc_type: Optional[type],
+        exc_value: Optional[Exception],
+        traceback: Optional[Any],
+    ) -> None:
+        await self.client.aclose()
+
+    async def azul_request(
+        self, data: Dict[str, Any], operation: str = ""
+    ) -> Dict[str, Any]:
         #  Required parameters for all transactions
-        parameters = {
-            'Channel': data.get('Channel', ''),
-            'Store': data.get('Store', ''),
+        parameters: Dict[str, str] = {
+            "Channel": data.get("Channel", ""),
+            "Store": data.get("Store", ""),
         }
 
         # Updating parameters with the extra parameters
         parameters.update(data)
 
-        azul_endpoint = self.url + f'?{operation}'
-        cert_path = self.certificate_path
+        azul_endpoint: str = self.url + f"?{operation}"
 
-        headers = {
-            'Content-Type': 'application/json',
-            'Auth1': self.auth1,
-            'Auth2': self.auth2,
+        headers: Dict[str, str] = {
+            "Content-Type": "application/json",
+            "Auth1": self.auth1,
+            "Auth2": self.auth2,
         }
-        r = {}
-        _logger.debug('azul_request: called with data:\n%s', data)
+        r: httpx.Response = {}
+        _logger.debug("azul_request: called with data:\n%s", data)
 
         try:
-            async with httpx.AsyncClient(cert=cert_path) as client: 
-                r = await client.post(
+            r = await self.client.post(
+                azul_endpoint,
+                json=parameters,
+                headers=headers,
+                timeout=30,
+            )
+            if r.raise_for_status() and self.ENVIRONMENT == "prod":
+                azul_endpoint = self.ALT_URL + f"?{operation}"
+                r = await self.client.post(
                     azul_endpoint,
                     json=parameters,
                     headers=headers,
                     timeout=30,
                 )
-                if r.raise_for_status() and self.ENVIRONMENT == 'prod':
-                    azul_endpoint = self.ALT_URL + f'?{operation}'
-                    r = httpx.post(
-                        azul_endpoint,
-                        json=parameters,
-                        headers=headers,
-                        timeout=30,
-                    )
         except Exception as err:
-            _logger.error(
-                'azul_request: Got the following error\n%s', str(err))
+            _logger.error("azul_request: Got the following error\n%s", str(err))
             raise Exception(str(err))
 
-        response = json.loads(r.text)
-        _logger.debug('azul_request: Values received\n%s', json.loads(r.text))
+        response: Dict[str, Any] = json.loads(r.text)
+        _logger.debug("azul_request: Values received\n%s", json.loads(r.text))
 
         return response
 
-    async def sale_transaction(self, data):
-        data.update(validate.sale_transaction(data))
-        return await self.azul_request(data)
+    async def sale_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.SaleTransactionModel(**data).model_dump(
+            exclude_none=True
+        )
+        return await self.azul_request(validated_data)
 
-    async def hold_transaction(self, data):
-        data.update(validate.hold_transaction(data))
-        return await self.azul_request(data)
+    async def hold_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.HoldTransactionModel(**data).model_dump(
+            exclude_none=True
+        )
+        return await self.azul_request(validated_data)
 
-    async def refund_transaction(self, data):
-        data.update(validate.refund_transaction(data))
-        return await self.azul_request(data)
+    async def refund_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.RefundTransactionModel(
+            **data
+        ).model_dump(exclude_none=True)
+        return await self.azul_request(validated_data)
 
-    async def void_transaction(self, data):
-        data.update(validate.void_transaction(data))
-        return await self.azul_request(data, operation='ProcessVoid')
+    async def void_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.VoidTransactionModel(**data).model_dump(
+            exclude_none=True
+        )
+        return await self.azul_request(validated_data, operation="ProcessVoid")
 
-    async def post_sale_transaction(self, data):
-        data.update(validate.post_sale_transaction(data))
-        return await self.azul_request(data, operation='ProcessPost')
+    async def post_sale_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.PostSaleTransactionModel(
+            **data
+        ).model_dump(exclude_none=True)
+        return await self.azul_request(validated_data, operation="ProcessPost")
 
-    async def verify_transaction(self, data):
-        data.update(validate.verify_transaction(data))
-        return await self.azul_request(data, operation='VerifyPayment')
+    async def verify_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.VerifyTransactionModel(
+            **data
+        ).model_dump(exclude_none=True)
+        return await self.azul_request(validated_data, operation="VerifyPayment")
 
-    async def nulify_transaction(self, data):
-        data.update(validate.nullify_transaction(data))
-        return await self.azul_request(data)
+    async def nulify_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.NullifyTransactionModel(
+            **data
+        ).model_dump(exclude_none=True)
+        return await self.azul_request(validated_data)
 
-    async def datavault_create(self, data):
-        data.update(validate.datavault_create(data))
-        return await self.azul_request(data, operation='ProcessDatavault')
+    async def datavault_create(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.DataVaultCreateModel(**data).model_dump(
+            exclude_none=True
+        )
+        return await self.azul_request(validated_data, operation="ProcessDatavault")
 
-    async def datavault_delete(self, data):
-        data.update(validate.datavault_delete(data))
-        return await self.azul_request(data, operation='ProcessDatavault')
+    async def datavault_delete(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        validated_data: Dict[str, Any] = models.DataVaultDeleteModel(**data).model_dump(
+            exclude_none=True
+        )
+        return await self.azul_request(validated_data, operation="ProcessDatavault")
