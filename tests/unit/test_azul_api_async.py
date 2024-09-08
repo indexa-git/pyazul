@@ -1,6 +1,7 @@
 import pytest  # type: ignore
 from unittest.mock import patch, AsyncMock
 from httpx import Response
+from pydantic import ValidationError
 
 from pyazul import AzulAPIAsync
 
@@ -91,3 +92,51 @@ async def test_verify_transaction(azul_api_async):
         response = await azul_api_async.verify_transaction(verify_data)
 
         assert response == {"VerificationResult": "Success"}
+
+
+@pytest.mark.asyncio
+async def test_api_error_handling_async(azul_api_async):
+    with patch("httpx.AsyncClient.post", side_effect=Exception("API Error")):
+        with pytest.raises(ValidationError):
+            await azul_api_async.sale_transaction(
+                {"Channel": "Web", "Store": "TestStore"}
+            )
+
+
+@pytest.mark.asyncio
+async def test_production_alternate_url_async(azul_api_async):
+    azul_api_async.ENVIRONMENT = "prod"
+    azul_api_async.ALT_URL = "https://alt-url.com"
+
+    mock_response1 = AsyncMock(spec=Response)
+    mock_response1.raise_for_status.side_effect = Exception("Primary URL failed")
+
+    mock_response2 = AsyncMock(spec=Response)
+    mock_response2.json.return_value = {"ResponseMessage": "Success"}
+    mock_response2.raise_for_status = AsyncMock()
+    mock_response2.text = '{"ResponseMessage": "Success"}'
+
+    sale_data = {
+        "Channel": "Web",
+        "Store": "TestStore",
+        "Amount": "100.00",
+        "CurrencyPosCode": "USD",
+        "CustomerServicePhone": "1234567890",
+        "OrderNumber": "TEST001",
+        "EcommerceURL": "https://example.com",
+        "CustomOrderID": "CUSTOM001",
+        "CardNumber": "1234567890123456",
+        "Expiration": "12/25",
+        "CVC": "123",
+    }
+
+    with patch(
+        "httpx.AsyncClient.post", side_effect=[mock_response1, mock_response2]
+    ) as mock_post:
+        response = await azul_api_async.sale_transaction(sale_data)
+        assert response == {"ResponseMessage": "Success"}
+
+    # Verify that both URLs were called
+    assert mock_post.call_count == 2
+    assert mock_post.call_args_list[0][0][0] == azul_api_async.url
+    assert mock_post.call_args_list[1][0][0] == azul_api_async.ALT_URL

@@ -59,7 +59,9 @@ class AzulAPI:
         # Updating parameters with the extra parameters
         parameters.update(data)
 
-        azul_endpoint: str = self.url + f"?{operation}"
+        azul_endpoint: str = self.url
+        if operation:
+            azul_endpoint += f"?{operation}"
 
         headers: Dict[str, str] = {
             "Content-Type": "application/json",
@@ -76,17 +78,27 @@ class AzulAPI:
                 headers=headers,
                 timeout=30,
             )
-            if r.raise_for_status() and self.ENVIRONMENT == "prod":
-                azul_endpoint = self.ALT_URL + f"?{operation}"
-                r = self.client.post(
-                    azul_endpoint,
-                    json=parameters,
-                    headers=headers,
-                    timeout=30,
-                )
+            r.raise_for_status()
         except Exception as err:
-            _logger.error("azul_request: Got the following error\n%s", str(err))
-            raise Exception(str(err))
+            if self.ENVIRONMENT == "prod":
+                _logger.warning(f"Primary URL failed: {err}. Trying alternate URL.")
+                azul_endpoint = self.ALT_URL
+                if operation:
+                    azul_endpoint += f"?{operation}"
+                try:
+                    r = self.client.post(
+                        azul_endpoint,
+                        json=parameters,
+                        headers=headers,
+                        timeout=30,
+                    )
+                    r.raise_for_status()
+                except Exception as alt_err:
+                    _logger.error(f"Alternate URL also failed: {alt_err}")
+                    raise
+            else:
+                _logger.error(f"Request failed: {err}")
+                raise
 
         response: Dict[str, Any] = json.loads(r.text)
         _logger.debug("azul_request: Values received\n%s", json.loads(r.text))
@@ -179,7 +191,9 @@ class AzulAPIAsync(AzulAPI):
         # Updating parameters with the extra parameters
         parameters.update(data)
 
-        azul_endpoint: str = self.url + f"?{operation}"
+        azul_endpoint: str = self.url
+        if operation:
+            azul_endpoint += f"?{operation}"
 
         headers: Dict[str, str] = {
             "Content-Type": "application/json",
@@ -196,17 +210,27 @@ class AzulAPIAsync(AzulAPI):
                 headers=headers,
                 timeout=30,
             )
-            if r.raise_for_status() and self.ENVIRONMENT == "prod":
-                azul_endpoint = self.ALT_URL + f"?{operation}"
-                r = await self.client.post(
-                    azul_endpoint,
-                    json=parameters,
-                    headers=headers,
-                    timeout=30,
-                )
+            r.raise_for_status()
         except Exception as err:
-            _logger.error("azul_request: Got the following error\n%s", str(err))
-            raise Exception(str(err))
+            if self.ENVIRONMENT == "prod":
+                _logger.warning(f"Primary URL failed: {err}. Trying alternate URL.")
+                azul_endpoint = self.ALT_URL
+                if operation:
+                    azul_endpoint += f"?{operation}"
+                try:
+                    r = await self.client.post(
+                        azul_endpoint,
+                        json=parameters,
+                        headers=headers,
+                        timeout=30,
+                    )
+                    r.raise_for_status()
+                except Exception as alt_err:
+                    _logger.error(f"Alternate URL also failed: {alt_err}")
+                    raise
+            else:
+                _logger.error(f"Request failed: {err}")
+                raise
 
         response: Dict[str, Any] = json.loads(r.text)
         _logger.debug("azul_request: Values received\n%s", json.loads(r.text))
