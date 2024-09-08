@@ -13,7 +13,7 @@ class AzulAPI:
         self,
         auth1: str,
         auth2: str,
-        certificate_path: str,
+        certificate_path: Optional[str] = None,
         custom_url: Optional[str] = None,
         environment: str = "dev",
     ):
@@ -44,10 +44,10 @@ class AzulAPI:
                     "https://contpagos.azul.com.do/Webservices/JSON/default.aspx"
                 )
 
-        self.client: httpx.Client = httpx.Client(cert=self.certificate_path)
-
-    def __del__(self) -> None:
-        self.client.close()
+        if not certificate_path:
+            self.client = httpx.Client()
+        else:
+            self.client = httpx.Client(cert=self.certificate_path)
 
     def azul_request(self, data: Dict[str, Any], operation: str = "") -> Dict[str, Any]:
         #  Required parameters for all transactions
@@ -151,7 +151,10 @@ class AzulAPI:
 class AzulAPIAsync(AzulAPI):
     def __init__(self, *args: Any, **kwargs: Any):
         super().__init__(*args, **kwargs)
-        self.client: httpx.AsyncClient = httpx.AsyncClient(cert=self.certificate_path)
+        if not self.certificate_path:
+            self.client = httpx.AsyncClient()
+        else:
+            self.client = httpx.AsyncClient(cert=self.certificate_path)
 
     async def __aenter__(self) -> "AzulAPIAsync":
         return self
