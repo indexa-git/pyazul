@@ -5,7 +5,7 @@ __pycache__/
 
 # certificate
 server.pem
-
+certs/*
 # pypi instructions
 instructions.txt
 
