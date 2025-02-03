@@ -29,3 +29,4 @@ typing-extensions==4.12.2
     # via
     #   pydantic
     #   pydantic-core
+pydantic-settings>=2.0.0
