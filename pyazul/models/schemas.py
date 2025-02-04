@@ -60,6 +60,7 @@ class DataVaultCreateModel(AzulBaseModel):
     Expiration: str = Field(..., description="Expiration date in YYYYMM format")
     store: str = Field(..., description="Merchant ID provided by AZUL")
     CustomOrderId: Optional[str] = Field("", description="Merchant-provided identifier")
+    TrxType: Literal["CREATE"] = "CREATE"
 
 class DataVaultDeleteModel(AzulBaseModel):
     """

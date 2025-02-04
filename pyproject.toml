@@ -30,3 +30,4 @@ testing = ["pytest", "pytest-dotenv", "pytest-cov", "pytest-asyncio"]
 addopts = "-v"
 asyncio_mode = "auto"
 testpaths = ["tests"]
+asyncio_default_fixture_loop_scope = "function"
