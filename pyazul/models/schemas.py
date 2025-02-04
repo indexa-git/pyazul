@@ -19,7 +19,7 @@ class AzulBaseModel(BaseModel):
     """
     Channel: str = Field("EC", description="Payment channel provided by AZUL")
     PosInputMode: str = Field("E-Commerce", description="Entry mode provided by AZUL")
-    Amount: str = Field(..., description="Total amount (including taxes). Format: no decimals, e.g., 1000 = $10.00")
+    Amount: str = Field('', description="Total amount (including taxes). Format: no decimals, e.g., 1000 = $10.00")
     Itbis: Optional[str] = Field(None, description="Tax value (ITBIS). Same format as amount")
 
 class SaleTransactionModel(AzulBaseModel):
@@ -81,7 +81,31 @@ class TokenSaleModel(AzulBaseModel):
     TrxType: Literal["Sale"] = "Sale"
     CustomOrderId: Optional[str] = Field("", description="Merchant-provided identifier")
     AcquirerRefData: str = Field("1", description="AZUL Internal Use")
-    
+
+class PostSaleTransactionModel(HoldTransactionModel):
+    """
+    Model for processing post sale transactions.
+    """
+    TrxType: Literal["Post"] = "Post"
+    AzulOrderId: str = Field(..., description="Order number provided by AZUL")
+    ApprovedUrl: str = Field(..., description="URL to redirect to when transaction is approved")
+    DeclinedUrl: str = Field(..., description="URL to redirect to when transaction is declined")
+    CancelUrl: str = Field(..., description="URL to redirect to when transaction is cancelled")
+    UseCustomField1: str = Field("1", description="1 = use custom field 1, 0 = don't use")
+
+class VerifyTransactionModel(AzulBaseModel):
+    """
+    Model for verifying transactions.
+    """
+    CustomOrderId: str = Field(..., description="identifier merge with transaction to verify")
+   
+class VoidTransactionModel(AzulBaseModel):
+    """
+    Model for voiding transactions.
+    """
+    AzulOrderId: str = Field(..., description="Order number provided by AZUL")
+    store: str = Field(..., description="Merchant ID provided by AZUL")
+   
 class PaymentSchema(RootModel):
     """
     Root model for combining payment operations.
