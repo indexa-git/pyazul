@@ -25,8 +25,8 @@ async def test_hold():
     
     # Hold transaction data
     hold_data = {
-        "Channel": "EC",
-        "PosInputMode": "E-Commerce",
+        # "Channel": "EC",
+        # "PosInputMode": "E-Commerce",
         "Amount": "1000",  # Amount to hold
         "Itbis": "180",    # Tax amount
         "TrxType": "Hold",
