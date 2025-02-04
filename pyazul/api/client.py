@@ -4,7 +4,7 @@ from typing import Any, Dict
 
 import httpx
 from pyazul.core.config import get_azul_settings
-from pyazul.core.exceptions import APIError, AzulResponseError
+from pyazul.core.exceptions import APIError, AzulResponseError, SSLError
 from pyazul.api.constants import Environment, AzulEndpoints
 
 _logger = logging.getLogger(__name__)
@@ -33,12 +33,18 @@ class AzulAPI:
         """Initialize basic configuration from settings"""
         self.auth1 = self.settings.AUTH1
         self.auth2 = self.settings.AUTH2
-        self.certificate = (self.settings.AZUL_CERT, self.settings.AZUL_KEY)
+        self.certificate = self._load_certificates()
         self.ENVIRONMENT = Environment(self.settings.ENVIRONMENT)
-        # URL Configuration
         self.url = self._get_base_url()
         if self.ENVIRONMENT == Environment.PROD:
             self.ALT_URL = AzulEndpoints.ALT_PROD_URL
+
+    def _load_certificates(self) -> tuple:
+        """Load and validate certificates"""
+        cert = (self.settings.AZUL_CERT, self.settings.AZUL_KEY)
+        if not all(cert):
+            raise SSLError("Invalid certificate configuration")
+        return cert
 
     def _init_client_config(self) -> None:
         """Initialize HTTP client configuration"""
@@ -91,25 +97,36 @@ class AzulAPI:
         try:
             response.raise_for_status()
             data = response.json()
-            print(data)
-            
-            if ('ErrorMessage' in data and data['ErrorMessage']) or \
-               ('ErrorDescription' in data and data['ErrorDescription']) or \
-               ('ResponseCode' in data and data['ResponseCode'] == 'Error'):
+            _logger.debug(f"Received response: {json.dumps(data, indent=2)}")
+            self._check_for_errors(data)
+            return data
+        except (httpx.HTTPStatusError, json.JSONDecodeError) as e:
+            self._log_and_raise_api_error(e, response)
+
+    def _check_for_errors(self, data: Dict[str, Any]) -> None:
+        """Check for errors in API response data"""
+        error_indicators = [
+            ('ErrorMessage', data.get('ErrorMessage')),
+            ('ErrorDescription', data.get('ErrorDescription')),
+            ('ResponseCode', data.get('ResponseCode') == 'Error')
+        ]
+        for field, value in error_indicators:
+            if value:
                 error_msg = data.get('ErrorMessage') or data.get('ErrorDescription', 'Unknown error')
                 error_code = data.get('IsoCode', '')
+                _logger.error(f"API Error: {error_msg} - {error_code}")
                 raise AzulResponseError(
                     f"API Error: {error_msg} - {error_code}",
                     response_data=data
                 )
-            
-            return data
-            
-        except httpx.HTTPStatusError as e:
-            _logger.error(f"HTTP error occurred: {e.response.text}")
-            raise APIError(f"HTTP {e.response.status_code}: {e.response.text}")
-        except json.JSONDecodeError as e:
-            _logger.error(f"Invalid JSON response: {e}")
+
+    def _log_and_raise_api_error(self, error: Exception, response: httpx.Response) -> None:
+        """Log and raise API error"""
+        if isinstance(error, httpx.HTTPStatusError):
+            _logger.error(f"HTTP error occurred: {response.text}")
+            raise APIError(f"HTTP {response.status_code}: {response.text}")
+        elif isinstance(error, json.JSONDecodeError):
+            _logger.error(f"Invalid JSON response: {error}")
             raise APIError("Invalid JSON response from API")
 
     def _get_request_config(self) -> Dict[str, Any]:
@@ -127,17 +144,17 @@ class AzulAPI:
     ) -> Dict[str, Any]:
         """Make request and handle response"""
         _logger.debug(f"Making request to {endpoint} with data: {parameters}")
-        
-        # Configurar el cliente con los certificados
-        client.cert = self.certificate[0]  # Certificado
-        client.private_key = self.certificate[1]  # Llave privada
-        
-        response = await client.post(
-            endpoint,
-            json=parameters,
-            **self._get_request_config()
-        )
-        return self._handle_response(response)
+        try:
+            client.cert = self.certificate
+            response = await client.post(
+                endpoint,
+                json=parameters,
+                **self._get_request_config()
+            )
+            return self._handle_response(response)
+        except Exception as e:
+            _logger.error(f"Request failed: {str(e)}")
+            raise APIError(f"Request failed: {str(e)}")
 
     async def _async_request(
         self, 
@@ -148,11 +165,10 @@ class AzulAPI:
         """Make async request to Azul API"""
         parameters = self._prepare_request(data)
         endpoint = self._build_endpoint(operation)
-        
         try:
             async with httpx.AsyncClient(
-                verify=False,  # Temporalmente para pruebas
-                cert=(self.settings.AZUL_CERT, self.settings.AZUL_KEY)
+                verify=True,  # Enable SSL verification
+                cert=self.certificate
             ) as client:
                 try:
                     return await self._make_request(client, endpoint, parameters)

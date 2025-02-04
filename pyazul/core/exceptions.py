@@ -24,4 +24,10 @@ class ValidationError(AzulError):
 
 class ConfigurationError(AzulError):
     """Exception raised for configuration errors"""
-    pass 
+    pass
+
+class SSLError(AzulError):
+    """Exception raised for SSL configuration errors"""
+    def __init__(self, message: str):
+        self.message = message
+        super().__init__(self.message) 
