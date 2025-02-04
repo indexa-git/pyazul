@@ -1,5 +1,5 @@
 from ..api.client import AzulAPI
-from ..models.schemas import PaymentSchema, RefundTransactionModel
+from ..models.schemas import PaymentSchema, RefundTransactionModel, VerifyTransactionModel, VoidTransactionModel, PostSaleTransactionModel
 from typing import Dict, Any
 from ..core.config import AzulSettings
 
@@ -10,6 +10,9 @@ class TransactionService:
     - Sales (direct card payments)
     - Holds (authorization holds)
     - Refunds
+    - Post Sales (post authorization captures)
+    - Void (void a transaction)
+    - Verify (verify a transaction)
     
     Attributes:
         settings (AzulSettings): Configuration settings for Azul API
@@ -89,4 +92,36 @@ class TransactionService:
             transaction.model_dump(),
             operation=''
         )
+    
+    async def verify(self, transaction: VerifyTransactionModel) -> Dict[str, Any]:
+        """
+        Verify a transaction by checking its status.
 
+        Args:
+            transaction (VerifyTransactionModel): Transaction data including order ID   
+        """
+        return await self.client._async_request(
+            transaction.model_dump(),
+            operation='VerifyPayment'
+        )
+    
+    async def void(self, transaction: VoidTransactionModel) -> Dict[str, Any]:
+        """
+        Void a transaction.
+
+        Args:
+            transaction (VoidTransactionModel): Transaction data including order ID 
+        """
+        return await self.client._async_request(
+            transaction.model_dump(),
+            operation='ProcessVoid'
+        )
+    
+    async def post_sale(self, transaction: PostSaleTransactionModel) -> Dict[str, Any]:
+        """
+        Process a post sale transaction.
+        """
+        return await self.client._async_request(
+            transaction.model_dump(),
+            operation='ProcessPost'
+        )
