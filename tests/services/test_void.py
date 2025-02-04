@@ -1,5 +1,5 @@
 import pytest
-from pyazul.models.schemas import VerifyTransactionModel
+from pyazul.models.schemas import VoidTransactionModel
 from pyazul.services.transaction import TransactionService
 from pyazul.core.config import get_azul_settings
 
@@ -12,15 +12,12 @@ def transaction_service():
     settings = get_azul_settings()
     return TransactionService(settings)
 
-
 @pytest.mark.asyncio
-async def test_verify_transaction(transaction_service):
+async def test_void_transaction(transaction_service):
     """
-    Test the verify transaction method.
+    Test the void transaction method.
     """
-    transaction = VerifyTransactionModel(CustomOrderId='sale-test-001')
-    result = await transaction_service.verify(transaction)  
+    transaction = VoidTransactionModel(AzulOrderId='44474225', store=transaction_service.settings.AZUL_MERCHANT_ID)
+    result = await transaction_service.void(transaction)
     assert result is not None
-    assert result['IsoCode'] == '00', "Transaction should be verified successfully"
-    assert result['Found'], "Transaction should be found"
-    return result
+    assert result['IsoCode'] == '00', "Transaction should be voided successfully"
