@@ -1,11 +1,11 @@
 import json
 import logging
-from typing import Any, Dict, Union
+from typing import Any, Dict
 
 import httpx
-from ..core.config import get_azul_settings
-from ..core.exceptions import APIError, AzulResponseError
-from .constants import Environment, AzulEndpoints
+from pyazul.core.config import get_azul_settings
+from pyazul.core.exceptions import APIError, AzulResponseError
+from pyazul.api.constants import Environment, AzulEndpoints
 
 _logger = logging.getLogger(__name__)
 
@@ -35,7 +35,6 @@ class AzulAPI:
         self.auth2 = self.settings.AUTH2
         self.certificate = (self.settings.AZUL_CERT, self.settings.AZUL_KEY)
         self.ENVIRONMENT = Environment(self.settings.ENVIRONMENT)
-        
         # URL Configuration
         self.url = self._get_base_url()
         if self.ENVIRONMENT == Environment.PROD:
@@ -71,8 +70,8 @@ class AzulAPI:
             Dict with prepared parameters
         """
         required_params = {
-            'Channel': data.get('Channel', ''),
-            'Store': data.get('Store', ''),
+            'Channel': self.settings.CHANNEL,
+            'Store': self.settings.MERCHANT_ID,
         }
         return {**required_params, **data}
 
@@ -92,13 +91,15 @@ class AzulAPI:
         try:
             response.raise_for_status()
             data = response.json()
+            print(data)
             
-            # Check for API-specific errors
-            if 'ErrorMessage' in data or 'IsoCode' in data:
-                error_msg = data.get('ErrorMessage', 'Unknown error')
-                error_code = data.get('IsoCode', 'Unknown code')
+            if ('ErrorMessage' in data and data['ErrorMessage']) or \
+               ('ErrorDescription' in data and data['ErrorDescription']) or \
+               ('ResponseCode' in data and data['ResponseCode'] == 'Error'):
+                error_msg = data.get('ErrorMessage') or data.get('ErrorDescription', 'Unknown error')
+                error_code = data.get('IsoCode', '')
                 raise AzulResponseError(
-                    f"API Error: {error_msg} (Code: {error_code})",
+                    f"API Error: {error_msg} - {error_code}",
                     response_data=data
                 )
             
@@ -114,20 +115,22 @@ class AzulAPI:
     def _get_request_config(self) -> Dict[str, Any]:
         """Get common request configuration"""
         return {
-            'cert': self.certificate,
-            'timeout': self.timeout,
-            'verify': True,
             'headers': self.headers,
+            'timeout': self.timeout
         }
 
     async def _make_request(
         self,
-        client: Union[httpx.Client, httpx.AsyncClient],
+        client: httpx.AsyncClient,
         endpoint: str,
         parameters: Dict[str, Any],
     ) -> Dict[str, Any]:
         """Make request and handle response"""
         _logger.debug(f"Making request to {endpoint} with data: {parameters}")
+        
+        # Configurar el cliente con los certificados
+        client.cert = self.certificate[0]  # Certificado
+        client.private_key = self.certificate[1]  # Llave privada
         
         response = await client.post(
             endpoint,
@@ -147,7 +150,10 @@ class AzulAPI:
         endpoint = self._build_endpoint(operation)
         
         try:
-            async with httpx.AsyncClient() as client:
+            async with httpx.AsyncClient(
+                verify=False,  # Temporalmente para pruebas
+                cert=(self.settings.AZUL_CERT, self.settings.AZUL_KEY)
+            ) as client:
                 try:
                     return await self._make_request(client, endpoint, parameters)
                 except APIError as e:
@@ -159,27 +165,3 @@ class AzulAPI:
         except Exception as err:
             _logger.error(f"Request failed: {str(err)}")
             raise APIError(f"Request failed: {str(err)}")
-
-    def _sync_request(
-        self, 
-        data: Dict[str, Any], 
-        operation: str = '',
-        retry_on_fail: bool = True
-    ) -> Dict[str, Any]:
-        """Synchronous version of _async_request"""
-        parameters = self._prepare_request(data)
-        endpoint = self._build_endpoint(operation)
-        
-        try:
-            with httpx.Client() as client:
-                try:
-                    return self._make_request(client, endpoint, parameters)
-                except APIError as e:
-                    if retry_on_fail and self.ENVIRONMENT == Environment.PROD:
-                        _logger.info("Retrying request with alternate URL")
-                        alt_endpoint = f"{self.ALT_URL}?{operation}"
-                        return self._make_request(client, alt_endpoint, parameters)
-                    raise APIError(f"Request failed: {str(e)}")
-        except Exception as err:
-            _logger.error(f"Request failed: {str(err)}")
-            raise APIError(f"Request failed: {str(err)}") 
