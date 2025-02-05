@@ -1,5 +1,5 @@
 from typing import Optional, Union, Literal
-from pydantic import BaseModel, Field, RootModel, HttpUrl, field_validator
+from pydantic import BaseModel, Field, RootModel, HttpUrl, field_validator, ConfigDict
 from datetime import datetime
 """
 This module defines the data models and schemas for the Azul payment gateway integration.
@@ -147,6 +147,8 @@ class PaymentPageModel(BaseModel):
             CancelUrl="https://example.com/cancel"
         )
     """
+    model_config = ConfigDict(validate_assignment=True)
+
     # Basic transaction data
     CurrencyCode: Literal["$"] = "$"
     OrderNumber: str = Field(
@@ -246,6 +248,3 @@ class PaymentPageModel(BaseModel):
             f"Amount: ${amount:.2f}, "
             f"ITBIS: ${itbis:.2f}"
         )
-
-    class Config:
-        validate_assignment = True
