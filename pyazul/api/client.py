@@ -41,10 +41,10 @@ class AzulAPI:
 
     def _load_certificates(self) -> tuple:
         """Load and validate certificates"""
-        cert = (self.settings.AZUL_CERT, self.settings.AZUL_KEY)
-        if not all(cert):
+        cert_path, key_path = self.settings._load_certificates()
+        if not all((cert_path, key_path)):
             raise SSLError("Invalid certificate configuration")
-        return cert
+        return (cert_path, key_path)
 
     def _init_client_config(self) -> None:
         """Initialize HTTP client configuration"""
