@@ -1,207 +1,117 @@
-# # Python packages
-# import json
-# import logging
-
-# # Third party packages
-# import httpx
-# from . import validate
-
-# _logger = logging.getLogger(__name__)
-
-
-# class AzulAPI:
-#     def __init__(self, auth1, auth2, certificate_path, custom_url=None, environment='dev'):
-#         '''
-#         :param auth1
-#         :param auth2
-#         :param certificate_path (path to your .p12 certificate)
-#         :param environment (string, defaults 'dev' can also be set to 'prod')
-#         :param custom_url (string, defaults None, custom azul webservice url)
-#         '''
-#         self.certificate_path = (
-#             certificate_path  # TODO validate this is an actual certificate
-#         )
-#         self.auth1 = auth1
-#         self.auth2 = auth2
-#         self.ENVIRONMENT = environment
-
-#         if custom_url:
-#             self.url = custom_url
-#         else:
-#             if environment == 'dev':
-#                 self.url = 'https://pruebas.azul.com.do/webservices/JSON/Default.aspx'
-#             else:
-#                 self.url = 'https://pagos.azul.com.do/webservices/JSON/Default.aspx'
-#                 self.ALT_URL = 'https://contpagos.azul.com.do/Webservices/JSON/default.aspx'
-
-#     def azul_request(self, data, operation=''):
-#         #  Required parameters for all transactions
-#         parameters = {
-#             'Channel': data.get('Channel', ''),
-#             'Store': data.get('Store', ''),
-#         }
-
-#         # Updating parameters with the extra parameters
-#         parameters.update(data)
-
-#         azul_endpoint = self.url + f'?{operation}'
-#         cert_path = self.certificate_path
-
-#         headers = {
-#             'Content-Type': 'application/json',
-#             'Auth1': self.auth1,
-#             'Auth2': self.auth2,
-#         }
-#         r = {}
-#         _logger.debug('azul_request: called with data:\n%s', data)
-
-#         try:
-#             r = httpx.post(
-#                 azul_endpoint,
-#                 json=parameters,
-#                 headers=headers,
-#                 cert=cert_path,
-#                 timeout=30,
-#             )
-#             if r.raise_for_status() and self.ENVIRONMENT == 'prod' and custom_url is None:
-#                 azul_endpoint = self.ALT_URL + f'?{operation}'
-#                 r = httpx.post(
-#                     azul_endpoint,
-#                     json=parameters,
-#                     headers=headers,
-#                     cert=cert_path,
-#                     timeout=30,
-#                 )
-#         except Exception as err:
-#             _logger.error(
-#                 'azul_request: Got the following error\n%s', str(err))
-#             raise Exception(str(err))
-
-#         response = json.loads(r.text)
-#         _logger.debug('azul_request: Values received\n%s', json.loads(r.text))
-
-#         return response
-
-#     def sale_transaction(self, data):
-#         data.update(validate.sale_transaction(data))
-#         return self.azul_request(data)
-
-#     def hold_transaction(self, data):
-#         data.update(validate.hold_transaction(data))
-#         return self.azul_request(data)
-
-#     def refund_transaction(self, data):
-#         data.update(validate.refund_transaction(data))
-#         return self.azul_request(data)
-
-#     def void_transaction(self, data):
-#         data.update(validate.void_transaction(data))
-#         return self.azul_request(data, operation='ProcessVoid')
-
-#     def post_sale_transaction(self, data):
-#         data.update(validate.post_sale_transaction(data))
-#         return self.azul_request(data, operation='ProcessPost')
-
-#     def verify_transaction(self, data):
-#         data.update(validate.verify_transaction(data))
-#         return self.azul_request(data, operation='VerifyPayment')
-
-#     def nulify_transaction(self, data):
-#         data.update(validate.nullify_transaction(data))
-#         return self.azul_request(data)
-
-#     def datavault_create(self, data):
-#         data.update(validate.datavault_create(data))
-#         return self.azul_request(data, operation='ProcessDatavault')
-
-#     def datavault_delete(self, data):
-#         data.update(validate.datavault_delete(data))
-#         return self.azul_request(data, operation='ProcessDatavault')
+from typing import Dict,Any,Optional
+from .core.config import get_azul_settings, AzulSettings
+from .services.datavault import DataVaultService
+from .services.transaction import TransactionService
+from .services.payment_page import PaymentPageService
+from .models.schemas import (
+    SaleTransactionModel,
+    HoldTransactionModel,
+    DataVaultCreateModel,
+    DataVaultDeleteModel,
+    TokenSaleModel,
+    VerifyTransactionModel,
+    VoidTransactionModel,
+    PaymentPageModel,
+    RefundTransactionModel,
+    PostSaleTransactionModel
+)
 
 
-# class AzulAPIAsync(AzulAPI):
-#     def __init__(self, *args, **kwargs):
-#         super().__init__(*args, **kwargs)
-
-#     async def azul_request(self, data, operation=''):
-#         #  Required parameters for all transactions
-#         parameters = {
-#             'Channel': data.get('Channel', ''),
-#             'Store': data.get('Store', ''),
-#         }
-
-#         # Updating parameters with the extra parameters
-#         parameters.update(data)
-
-#         azul_endpoint = self.url + f'?{operation}'
-#         cert_path = self.certificate_path
-
-#         headers = {
-#             'Content-Type': 'application/json',
-#             'Auth1': self.auth1,
-#             'Auth2': self.auth2,
-#         }
-#         r = {}
-#         _logger.debug('azul_request: called with data:\n%s', data)
-
-#         try:
-#             async with httpx.AsyncClient(cert=cert_path) as client: 
-#                 r = await client.post(
-#                     azul_endpoint,
-#                     json=parameters,
-#                     headers=headers,
-#                     timeout=30,
-#                 )
-#                 if r.raise_for_status() and self.ENVIRONMENT == 'prod':
-#                     azul_endpoint = self.ALT_URL + f'?{operation}'
-#                     r = httpx.post(
-#                         azul_endpoint,
-#                         json=parameters,
-#                         headers=headers,
-#                         timeout=30,
-#                     )
-#         except Exception as err:
-#             _logger.error(
-#                 'azul_request: Got the following error\n%s', str(err))
-#             raise Exception(str(err))
-
-#         response = json.loads(r.text)
-#         _logger.debug('azul_request: Values received\n%s', json.loads(r.text))
-
-#         return response
-
-#     async def sale_transaction(self, data):
-#         data.update(validate.sale_transaction(data))
-#         return await self.azul_request(data)
-
-#     async def hold_transaction(self, data):
-#         data.update(validate.hold_transaction(data))
-#         return await self.azul_request(data)
-
-#     async def refund_transaction(self, data):
-#         data.update(validate.refund_transaction(data))
-#         return await self.azul_request(data)
-
-#     async def void_transaction(self, data):
-#         data.update(validate.void_transaction(data))
-#         return await self.azul_request(data, operation='ProcessVoid')
-
-#     async def post_sale_transaction(self, data):
-#         data.update(validate.post_sale_transaction(data))
-#         return await self.azul_request(data, operation='ProcessPost')
-
-#     async def verify_transaction(self, data):
-#         data.update(validate.verify_transaction(data))
-#         return await self.azul_request(data, operation='VerifyPayment')
-
-#     async def nulify_transaction(self, data):
-#         data.update(validate.nullify_transaction(data))
-#         return await self.azul_request(data)
-
-#     async def datavault_create(self, data):
-#         data.update(validate.datavault_create(data))
-#         return await self.azul_request(data, operation='ProcessDatavault')
-
-#     async def datavault_delete(self, data):
-#         data.update(validate.datavault_delete(data))
-#         return await self.azul_request(data, operation='ProcessDatavault')
+class PyAzul:
+    """
+    Cliente principal para la integración con Azul Payment Gateway.
+    
+    Esta clase proporciona acceso centralizado a todos los servicios de Azul:
+    - Procesamiento de pagos directos
+    - Tokenización de tarjetas (DataVault)
+    - Página de pago
+    - Verificación de transacciones
+    - Reembolsos y anulaciones
+    - Retención/captura de transacciones
+    
+    Example:
+        >>> from pyazul import PyAzul
+        >>> azul = PyAzul()  # Usa variables de entorno para la configuración
+        >>> 
+        >>> # Procesar un pago
+        >>> response = await azul.transaction.sale({
+        ...     "Channel": "EC",
+        ...     "Store": "39038540035",
+        ...     "CardNumber": "4111111111111111",
+        ...     "Expiration": "202812",
+        ...     "CVC": "123",
+        ...     "Amount": "100000"  # $1,000.00
+        ... })
+        >>>
+        >>> # Tokenizar una tarjeta
+        >>> token_response = await azul.datavault.create({
+        ...     "CardNumber": "4111111111111111",
+        ...     "Expiration": "202812",
+        ...     "store": "39038540035"
+        ... })
+    """
+    
+    def __init__(self, settings: Optional[AzulSettings] = None):
+        """
+        Inicializa el cliente PyAzul.
+        
+        Args:
+            settings: Configuración personalizada opcional. Si no se proporciona,
+                     se utilizarán las variables de entorno.
+        """
+        if settings is None:
+            settings = get_azul_settings()
+            
+        self.settings = settings
+        
+        # Inicializar servicios
+        self.transaction = TransactionService(settings)
+        self.datavault = DataVaultService(settings)
+        self.payment_page = PaymentPageService(settings)
+    
+    async def sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Procesa un pago directo con tarjeta."""
+        return await self.transaction.sale(SaleTransactionModel(**data))
+    
+    async def hold(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Realiza una retención en una tarjeta (pre-autorización)."""
+        return await self.transaction.hold(HoldTransactionModel(**data))
+    
+    async def refund(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Procesa un reembolso de una transacción anterior."""
+        return await self.transaction.refund(RefundTransactionModel(**data))
+    
+    async def void(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Anula (cancela) una transacción."""
+        return await self.transaction.void(VoidTransactionModel(**data))
+    
+    async def post_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Completa una transacción previamente retenida."""
+        return await self.transaction.post_sale(PostSaleTransactionModel(**data))
+    
+    async def verify(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Verifica el estado de una transacción."""
+        return await self.transaction.verify(VerifyTransactionModel(**data))
+    
+    async def create_token(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Crea un token de tarjeta en DataVault."""
+        return await self.datavault.create(DataVaultCreateModel(**data))
+    
+    async def delete_token(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Elimina un token de DataVault."""
+        return await self.datavault.delete(DataVaultDeleteModel(**data))
+    
+    async def token_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Procesa un pago usando un token de DataVault."""
+        return await self.transaction.sale(TokenSaleModel(**data))
+    
+    def create_payment_page(self, data: Dict[str, Any]) -> PaymentPageModel:
+        """
+        Crea una página de pago de Azul.
+        
+        Returns:
+            PaymentPageModel: Modelo con todos los datos necesarios para
+                            renderizar la página de pago.
+        """
+        return self.payment_page.create_payment_form(PaymentPageModel(**data))
+    

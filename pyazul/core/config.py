@@ -13,6 +13,8 @@ class AzulSettings(BaseSettings):
     # Payment Page Settings
     AZUL_MERCHANT_ID: str
     AZUL_AUTH_KEY: str
+    MERCHANT_NAME: str
+    MERCHANT_TYPE: str
 
     # Authentication Settings
     AUTH1: str
