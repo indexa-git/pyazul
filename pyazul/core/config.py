@@ -56,7 +56,6 @@ class AzulSettings(BaseSettings):
         Supports three formats:
         1. File paths
         2. Direct PEM content
-        3. Base64 encoded PEM content
         """
         cert_value = os.getenv('AZUL_CERT', '').strip("'\"")
         key_value = os.getenv('AZUL_KEY', '').strip("'\"")
@@ -102,8 +101,6 @@ class AzulSettings(BaseSettings):
             cert_path = Path(cert_value)
         elif is_pem_content(cert_value):
             write_cert(cert_path, cert_value)
-        elif is_base64(cert_value):
-            write_cert(cert_path, cert_value, True)
         else:
             raise ValueError("Invalid certificate format: Must be a valid file path, PEM content, or base64 encoded PEM")
         
