@@ -1,9 +1,9 @@
-from ..api.client import AzulAPI
+from ..core.base import BaseService
 from ..models.schemas import DataVaultCreateModel, DataVaultDeleteModel
 from typing import Dict, Any
 from ..core.config import AzulSettings
 
-class DataVaultService:
+class DataVaultService(BaseService):
     """
     Service for managing card tokenization through Azul's DataVault.
     Provides functionality to:
@@ -26,8 +26,7 @@ class DataVaultService:
         Args:
             settings (AzulSettings): Configuration containing API credentials and endpoints
         """
-        self.client = AzulAPI()
-        self.settings = settings
+        super().__init__(settings)
 
     async def create(self, data: DataVaultCreateModel) -> Dict[str, Any]:
         """

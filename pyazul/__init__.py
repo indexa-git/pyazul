@@ -42,6 +42,7 @@ from .models.schemas import (
     RefundTransactionModel,
     PostSaleTransactionModel
 )
+from .api.client import AzulAPI as AzulClient
 
 __all__ = [
     # Clase principal
@@ -71,6 +72,6 @@ __all__ = [
 ]
 
 # Versión del paquete
-__version__ = '0.4.3alpha'
+__version__ = '0.4.4alpha'
 
 

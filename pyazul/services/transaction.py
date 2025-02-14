@@ -1,9 +1,8 @@
-from ..api.client import AzulAPI
+from ..core.base import BaseService
 from ..models.schemas import PaymentSchema, RefundTransactionModel, VerifyTransactionModel, VoidTransactionModel, PostSaleTransactionModel
 from typing import Dict, Any
-from ..core.config import AzulSettings
 
-class TransactionService:
+class TransactionService(BaseService):
     """
     Service for handling payment transactions through Azul's payment gateway.
     This service provides methods for processing different types of card transactions:
@@ -13,21 +12,7 @@ class TransactionService:
     - Post Sales (post authorization captures)
     - Void (void a transaction)
     - Verify (verify a transaction)
-    
-    Attributes:
-        settings (AzulSettings): Configuration settings for Azul API
-        client (AzulAPI): HTTP client for making API requests
     """
-
-    def __init__(self, settings: AzulSettings):
-        """
-        Initialize the transaction service with Azul settings.
-
-        Args:
-            settings (AzulSettings): Configuration containing API credentials and endpoints
-        """
-        self.settings = settings
-        self.client = AzulAPI()
 
     async def sale(self, transaction: PaymentSchema) -> Dict[str, Any]:
         """

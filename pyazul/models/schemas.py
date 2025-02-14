@@ -114,14 +114,11 @@ class PaymentSchema(RootModel):
     """
     root: Union[SaleTransactionModel, HoldTransactionModel, RefundTransactionModel, DataVaultCreateModel, DataVaultDeleteModel, TokenSaleModel]
     
-
-
     @classmethod
     def validate(cls, value: dict) -> Union[SaleTransactionModel, HoldTransactionModel, RefundTransactionModel, DataVaultCreateModel]:
         if 'data_vault_token' in value and value['data_vault_token']:
             return DataVaultCreateModel(**value)
         return SaleTransactionModel(**value)
-
 
 class PaymentPageModel(BaseModel):
     """
