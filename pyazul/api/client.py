@@ -49,10 +49,8 @@ class AzulAPI:
     def _init_client_config(self) -> None:
         """Initialize HTTP client configuration"""
         self.timeout = httpx.Timeout(30.0, read=30.0)
-        self.headers = {
+        self.base_headers = {
             'Content-Type': 'application/json',
-            'Auth1': self.auth1,
-            'Auth2': self.auth2,
         }
 
     def _get_base_url(self) -> str:
@@ -60,6 +58,25 @@ class AzulAPI:
         if self.settings.CUSTOM_URL:
             return self.settings.CUSTOM_URL
         return AzulEndpoints.get_url(self.ENVIRONMENT)
+
+    def _get_request_headers(self, is_secure: bool = False) -> Dict[str, Any]:
+        """
+        Get request headers based on whether it's a secure (3DS) request or not.
+        
+        Args:
+            is_secure (bool): Whether this is a secure (3DS) request
+            
+        Returns:
+            Dict[str, Any]: Headers dictionary with appropriate authentication
+        """
+        headers = self.base_headers.copy()
+        if is_secure:
+            headers['Auth1'] = self.settings.AUTH1_3D
+            headers['Auth2'] = self.settings.AUTH2_3D
+        else:
+            headers['Auth1'] = self.auth1
+            headers['Auth2'] = self.auth2
+        return headers
 
     def _build_endpoint(self, operation: str = '') -> str:
         """Build the full endpoint URL"""
@@ -129,10 +146,10 @@ class AzulAPI:
             _logger.error(f"Invalid JSON response: {error}")
             raise APIError("Invalid JSON response from API")
 
-    def _get_request_config(self) -> Dict[str, Any]:
+    def _get_request_config(self, is_secure: bool = False) -> Dict[str, Any]:
         """Get common request configuration"""
         return {
-            'headers': self.headers,
+            'headers': self._get_request_headers(is_secure),
             'timeout': self.timeout
         }
 
@@ -141,6 +158,7 @@ class AzulAPI:
         client: httpx.AsyncClient,
         endpoint: str,
         parameters: Dict[str, Any],
+        is_secure: bool = False
     ) -> Dict[str, Any]:
         """Make request and handle response"""
         _logger.debug(f"Making request to {endpoint} with data: {parameters}")
@@ -149,7 +167,7 @@ class AzulAPI:
             response = await client.post(
                 endpoint,
                 json=parameters,
-                **self._get_request_config()
+                **self._get_request_config(is_secure)
             )
             return self._handle_response(response)
         except Exception as e:
@@ -160,7 +178,8 @@ class AzulAPI:
         self, 
         data: Dict[str, Any], 
         operation: str = '',
-        retry_on_fail: bool = True
+        retry_on_fail: bool = True,
+        is_secure: bool = False
     ) -> Dict[str, Any]:
         """Make async request to Azul API"""
         parameters = self._prepare_request(data)
@@ -171,7 +190,7 @@ class AzulAPI:
                 cert=self.certificate
             ) as client:
                 try:
-                    return await self._make_request(client, endpoint, parameters)
+                    return await self._make_request(client, endpoint, parameters, is_secure)
                 except APIError as e:
                     if retry_on_fail and self.ENVIRONMENT == Environment.PROD:
                         _logger.info("Retrying request with alternate URL")
