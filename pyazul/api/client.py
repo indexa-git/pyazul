@@ -1,5 +1,6 @@
 import json
 import logging
+import ssl
 from typing import Any, Dict
 
 import httpx
@@ -33,18 +34,24 @@ class AzulAPI:
         """Initialize basic configuration from settings"""
         self.auth1 = self.settings.AUTH1
         self.auth2 = self.settings.AUTH2
-        self.certificate = self._load_certificates()
+        self.ssl_context = self._load_certificates()
         self.ENVIRONMENT = Environment(self.settings.ENVIRONMENT)
         self.url = self._get_base_url()
         if self.ENVIRONMENT == Environment.PROD:
             self.ALT_URL = AzulEndpoints.ALT_PROD_URL
 
-    def _load_certificates(self) -> tuple:
-        """Load and validate certificates"""
-        cert_path, key_path = self.settings._load_certificates()
-        if not all((cert_path, key_path)):
-            raise SSLError("Invalid certificate configuration")
-        return (cert_path, key_path)
+    def _load_certificates(self) -> ssl.SSLContext:
+        """Load and validate certificates into an SSL context"""
+        try:
+            cert_path, key_path = self.settings._load_certificates()
+            if not all((cert_path, key_path)):
+                raise SSLError("Invalid certificate configuration")
+            
+            ssl_context = ssl.create_default_context()
+            ssl_context.load_cert_chain(cert_path, key_path)
+            return ssl_context
+        except Exception as e:
+            raise SSLError(f"Error loading certificates: {str(e)}")
 
     def _init_client_config(self) -> None:
         """Initialize HTTP client configuration"""
@@ -153,27 +160,6 @@ class AzulAPI:
             'timeout': self.timeout
         }
 
-    async def _make_request(
-        self,
-        client: httpx.AsyncClient,
-        endpoint: str,
-        parameters: Dict[str, Any],
-        is_secure: bool = False
-    ) -> Dict[str, Any]:
-        """Make request and handle response"""
-        _logger.debug(f"Making request to {endpoint} with data: {parameters}")
-        try:
-            client.cert = self.certificate
-            response = await client.post(
-                endpoint,
-                json=parameters,
-                **self._get_request_config(is_secure)
-            )
-            return self._handle_response(response)
-        except Exception as e:
-            _logger.error(f"Request failed: {str(e)}")
-            raise APIError(f"Request failed: {str(e)}")
-
     async def _async_request(
         self, 
         data: Dict[str, Any], 
@@ -181,21 +167,45 @@ class AzulAPI:
         retry_on_fail: bool = True,
         is_secure: bool = False
     ) -> Dict[str, Any]:
-        """Make async request to Azul API"""
+        """
+        Make async request to Azul API.
+        
+        Args:
+            data: Request data to send
+            operation: Optional operation name to append to URL
+            retry_on_fail: Whether to retry with alternate URL on failure (production only)
+            is_secure: Whether this is a secure (3DS) request
+            
+        Returns:
+            Dict with API response
+            
+        Raises:
+            APIError: If request fails
+        """
         parameters = self._prepare_request(data)
         endpoint = self._build_endpoint(operation)
+        
+        _logger.debug(f"Making request to {endpoint} with data: {parameters}")
+        
         try:
-            async with httpx.AsyncClient(
-                verify=True,  # Enable SSL verification
-                cert=self.certificate
-            ) as client:
+            async with httpx.AsyncClient(verify=self.ssl_context) as client:
                 try:
-                    return await self._make_request(client, endpoint, parameters, is_secure)
-                except APIError as e:
+                    response = await client.post(
+                        endpoint,
+                        json=parameters,
+                        **self._get_request_config(is_secure)
+                    )
+                    return self._handle_response(response)
+                except (httpx.HTTPError, APIError) as e:
                     if retry_on_fail and self.ENVIRONMENT == Environment.PROD:
                         _logger.info("Retrying request with alternate URL")
                         alt_endpoint = f"{self.ALT_URL}?{operation}"
-                        return await self._make_request(client, alt_endpoint, parameters)
+                        response = await client.post(
+                            alt_endpoint,
+                            json=parameters,
+                            **self._get_request_config(is_secure)
+                        )
+                        return self._handle_response(response)
                     raise APIError(f"Request failed: {str(e)}")
         except Exception as err:
             _logger.error(f"Request failed: {str(err)}")

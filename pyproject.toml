@@ -27,7 +27,10 @@ include = ["pyazul", "pyazul.*"]
 testing = ["pytest", "pytest-dotenv", "pytest-cov", "pytest-asyncio"]
 
 [tool.pytest.ini_options]
-addopts = "-v"
+addopts = "-v --import-mode=importlib"
 asyncio_mode = "auto"
 testpaths = ["tests"]
 asyncio_default_fixture_loop_scope = "function"
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
