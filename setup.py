@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="pyazul",
-    version="0.4.4a0",
+    version="1.0.0",
     packages=find_packages(include=['pyazul', 'pyazul.*']),
     package_data={
         'pyazul': ['*', '**/*'],
@@ -25,4 +25,4 @@ setup(
             "pytest-cov>=4.0.0"
         ]
     }
-) 
+)
