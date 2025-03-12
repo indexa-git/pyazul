@@ -2,10 +2,11 @@
 __pycache__/
 *.py[cod]
 *$py.class
-
+logs/*
+pyazul/examples/*
 # certificate
 server.pem
-
+certs/*
 # pypi instructions
 instructions.txt
 

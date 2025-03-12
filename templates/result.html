@@ -1,0 +1,66 @@
+
+
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Transaction Result - Azul Payment Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+        .result-container {
+            background-color: white;
+            border-radius: 8px;
+            padding: 30px;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+        .success {
+            color: #28a745;
+        }
+        .error {
+            color: #dc3545;
+        }
+        .details {
+            margin-top: 20px;
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 4px;
+        }
+        .button {
+            display: inline-block;
+            background-color: #0056b3;
+            color: white;
+            padding: 12px 24px;
+            text-decoration: none;
+            border-radius: 4px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="result-container">
+        <h1 class="{{ 'success' if result.get('IsoCode') == '00' else 'error' }}">
+            {{ result.get('ResponseMessage', 'Transaction Error') }}
+        </h1>
+        
+        {% if result.get('IsoCode') == '00' %}
+            <p>The transaction has been completed successfully!</p>
+        {% else %}
+            <p>The transaction could not be completed.</p>
+        {% endif %}
+        
+        <div class="details">
+            <h3>Transaction Details:</h3>
+            <p><strong>Authorization Code:</strong> {{ result.get('AuthorizationCode', 'N/A') }}</p>
+            <p><strong>Order Number:</strong> {{ result.get('AzulOrderId', 'N/A') }}</p>
+            <p><strong>Date and Time:</strong> {{ result.get('DateTime', 'N/A') }}</p>
+            <p><strong>ISO Code:</strong> {{ result.get('IsoCode', 'N/A') }}</p>
+        </div>
+        
+        <a href="/" class="button">Make Another Transaction</a>
+    </div>
+</body>
+</html>
