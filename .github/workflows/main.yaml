@@ -1,35 +1,42 @@
 name: Build & publish
 
 on:
+  workflow_dispatch:
   release:
-    types: [published]
+    types:
+      - published
 
 jobs:
   build_wheels:
-    name: Build wheels on ${{ matrix.os }}
+    name: Wheels on ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
+      fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2022, macos-11]
+        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
+
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.16.0
-      - uses: actions/upload-artifact@v3
+        uses: pypa/cibuildwheel@v2.23.2
+
+      - uses: actions/upload-artifact@v4.6.2
         with:
+          name: pyazul-wheels-${{ matrix.os }}
           path: ./wheelhouse/*.whl
 
   build_sdist:
-    name: Build source distribution
+    name: Make SDist
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4.2.2
 
-      - name: Build sdist
+      - name: Build SDist
         run: pipx run build --sdist
 
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4.6.1
         with:
+          name: pyazul-sdist
           path: dist/*.tar.gz
 
   upload_pypi:
@@ -38,14 +45,19 @@ jobs:
     environment: pypi
     permissions:
       id-token: write
+      attestations: write
+      contents: read
+    if: github.event_name == 'release' && github.event.action == 'published'
     steps:
-      - uses: actions/download-artifact@v3
+      - uses: actions/download-artifact@v4.2.1
         with:
-          # unpacks default artifact into dist/
-          # if `name: artifact` is omitted, the action will create extra parent dir
-          name: artifact
+          pattern: pyazul-*
           path: dist
+          merge-multiple: true
+
+      - name: Generate artifact attestations
+        uses: actions/attest-build-provenance@v2.2.3
+        with:
+          subject-path: dist/*
 
       - uses: pypa/gh-action-pypi-publish@release/v1
-        with:
-          password: ${{ secrets.PYPI_TOKEN }}
