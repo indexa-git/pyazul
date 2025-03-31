@@ -2,62 +2,84 @@ name: Build & publish
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
   release:
     types:
       - published
 
 jobs:
-  build_wheels:
-    name: Wheels on ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        os: [ubuntu-latest, windows-latest, macos-13, macos-14]
-    steps:
-      - uses: actions/checkout@v4.2.2
-
-      - name: Build wheels
-        uses: pypa/cibuildwheel@v2.23.2
-
-      - uses: actions/upload-artifact@v4.6.2
-        with:
-          name: pyazul-wheels-${{ matrix.os }}
-          path: ./wheelhouse/*.whl
-
-  build_sdist:
-    name: Make SDist
+  build-package:
+    name: Build & verify package
     runs-on: ubuntu-latest
+    permissions:
+      attestations: write
+      id-token: write
     steps:
       - uses: actions/checkout@v4.2.2
-
-      - name: Build SDist
-        run: pipx run build --sdist
-
-      - uses: actions/upload-artifact@v4.6.1
         with:
-          name: pyazul-sdist
-          path: dist/*.tar.gz
+          fetch-depth: 0
+          persist-credentials: false
 
-  upload_pypi:
-    needs: [build_wheels, build_sdist]
+      - uses: hynek/build-and-inspect-python-package@v2.12.0
+        id: build-package
+        with:
+          attest-build-provenance-github: 'true'
+    outputs:
+      package-version: ${{ steps.build-package.outputs.package_version }}
+
+
+  # Upload to Test PyPI on every commit on main.
+  release-test-pypi:
+    name: Publish in-dev package to test.pypi.org
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
       id-token: write
       attestations: write
       contents: read
-    if: github.event_name == 'release' && github.event.action == 'published'
+    if: github.repository_owner == 'indexa-git' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+
     steps:
-      - uses: actions/download-artifact@v4.2.1
+      - name: Download packages built by build-and-inspect-python-package
+        uses: actions/download-artifact@v4.2.1
         with:
-          pattern: pyazul-*
+          name: Packages
           path: dist
-          merge-multiple: true
+
+      - name: Upload package to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  # Upload to real PyPI on GitHub Releases.
+  release-pypi:
+    name: Publish released package to pypi.org
+    needs: build-package
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/project/indexa-git/${{ needs.build-package.outputs.package-version }}
+
+    permissions:
+      id-token: write
+      attestations: write
+      contents: read
+    if: github.repository_owner == 'indexa-git' && github.event_name == 'release' && github.event.action == 'published'
+
+    steps:
+      - name: Download packages built by build-and-inspect-python-package
+        uses: actions/download-artifact@v4.2.1
+        with:
+          name: Packages
+          path: dist
 
       - name: Generate artifact attestations
         uses: actions/attest-build-provenance@v2.2.3
         with:
           subject-path: dist/*
 
-      - uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Upload package to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          attestations: true
