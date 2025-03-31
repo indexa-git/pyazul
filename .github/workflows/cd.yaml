@@ -32,6 +32,7 @@ jobs:
   # Upload to Test PyPI on every commit on main.
   release-test-pypi:
     name: Publish in-dev package to test.pypi.org
+    needs: build-package
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
