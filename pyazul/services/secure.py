@@ -56,6 +56,7 @@ class SecureService:
                 "CVC": request_dict["CVC"],
                 "PosInputMode": "E-Commerce",
                 "TrxType": "Sale",
+                "AcquirerRefData":request_dict['AcquirerRefData'],
                 "Amount": str(request_dict["Amount"]),
                 "Itbis": str(request_dict["ITBIS"]),
                 "OrderNumber": request_dict["OrderNumber"],
@@ -140,6 +141,118 @@ class SecureService:
         except Exception as e:
             logger.error(f"ERROR IN SALE PROCESS! {str(e)}")
             raise AzulError(f"Error processing secure sale: {str(e)}")
+
+    async def process_hold(self, request:SecureSaleRequest) -> Dict[str, Any]:
+        """
+        Process a secure hold transaction con 3DS.
+        This method is similar to process_sale but specifically for hold transactions.
+        It includes detailed logging and session management.
+        """
+        secure_id = str(uuid4())
+        logger.info("="*50)
+        logger.info(f"STARTING SECURE HOLD PROCESS - ID: {secure_id}")
+        logger.info("="*50)
+        
+        try:
+            request_dict = request.model_dump()
+            
+            # Ensure URLs have secure_id as query parameter
+            term_url = f"{request_dict['threeDSAuth']['TermUrl']}?secure_id={secure_id}"
+            method_notification_url = f"{request_dict['threeDSAuth']['MethodNotificationUrl']}?secure_id={secure_id}"
+            
+            hold_data = {
+                "Store": self.api_client.settings.MERCHANT_ID,
+                "Channel": "EC",
+                "CardNumber": request_dict["CardNumber"],
+                "Expiration": request_dict["Expiration"],
+                "CVC": request_dict["CVC"],
+                "PosInputMode": "E-Commerce",
+                "TrxType": "Hold",
+                "AcquirerRefData":request_dict['AcquirerRefData'],
+                "Amount": str(request_dict["Amount"]),
+                "Itbis": str(request_dict["ITBIS"]),
+                "OrderNumber": request_dict["OrderNumber"],
+                "Currency": "DOP",
+                "ThreeDSAuth": {
+                    "TermUrl": term_url,
+                    "MethodNotificationUrl": method_notification_url,
+                    "RequestChallengeIndicator": request_dict["threeDSAuth"]["RequestChallengeIndicator"]
+                },
+                "CardHolderInfo": request_dict["cardHolderInfo"],
+                "ForceNo3DS": request_dict["forceNo3DS"]
+            }
+
+            # Make the request
+            logger.info("SENDING REQUEST TO AZUL...")
+            logger.info("-"*50)
+            logger.info(json.dumps(hold_data, indent=2))
+            logger.info("-"*50)
+            result = await self.api_client._async_request(
+                data=hold_data,
+                is_secure=True  # Indicate this is a 3DS request
+            )
+            
+            # Detailed response logging
+            logger.info("AZUL RESPONSE:")
+            logger.info("-"*50)
+            logger.info(json.dumps(result, indent=2))
+            logger.info("-"*50)
+            
+            # Save session information
+            self.secure_sessions[secure_id] = {
+                "azul_order_id": result.get("AzulOrderId"),
+                "card_number": request_dict["CardNumber"],
+                "expiration": request_dict["Expiration"],
+                "cvc": request_dict["CVC"],
+                "amount": request_dict["Amount"],
+                "itbis": request_dict["ITBIS"],
+                "order_number": request_dict["OrderNumber"],
+                "term_url": term_url  # Store term_url in session
+            }
+
+            response_message = result.get("ResponseMessage", "")
+            
+            if response_message == "3D_SECURE_CHALLENGE":
+                logger.info("INITIATING 3D SECURE CHALLENGE!")
+                return {
+                    "redirect": True,
+                    "id": secure_id,
+                    "html": self._create_challenge_form(
+                        result["ThreeDSChallenge"]["CReq"],
+                        term_url,
+                        result["ThreeDSChallenge"]["RedirectPostUrl"]
+                    ),
+                    "message": "Starting 3D Secure verification..."
+                }
+            elif response_message == "3D_SECURE_2_METHOD":
+                logger.info("INITIATING 3D SECURE METHOD!")
+                return {
+                    "redirect": True,
+                    "id": secure_id,
+                    "html": result["ThreeDSMethod"]["MethodForm"],
+                    "message": "Starting 3D Secure verification..."
+                }
+            elif response_message == "APROBADA":
+                logger.info("TRANSACTION APPROVED WITHOUT 3DS!")
+                return {
+                    "redirect": False,
+                    "id": secure_id,
+                    "value": result
+                }
+            else:
+                logger.warning(f"UNEXPECTED RESPONSE! Message: {response_message}")
+                logger.warning("Complete response:")
+                logger.warning(json.dumps(result, indent=2))
+                return {
+                    "redirect": False,
+                    "id": secure_id,
+                    "value": result,
+                    "message": f"Unexpected response: {response_message}"
+                }
+                
+        except Exception as e:
+            logger.error(f"ERROR IN HOLD PROCESS! {str(e)}")
+            raise AzulError(f"Error processing secure hold: {str(e)}")
 
     async def process_3ds_method(
         self,

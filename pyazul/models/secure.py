@@ -100,7 +100,7 @@ class SecureSaleRequest(BaseModel):
      OrderNumber: str = Field(..., description="Unique order identifier")
      Channel: str = Field("EC",description="Transaction channel")
      PosInputMode: str = Field("E-commerce",description="Entry mode")
-     acquirerRefData: Literal["0", "1"] = Field("1", description="Acquirer reference data")
+     AcquirerRefData: Literal["0", "1"] = Field("1", description="Acquirer reference data")
      forceNo3DS: Literal["0", "1"] = Field("0", description="Force no 3DS flag")
      cardHolderInfo: CardHolderInfo
      threeDSAuth: ThreeDSAuth
