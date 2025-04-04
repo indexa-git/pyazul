@@ -63,7 +63,7 @@ TEST_CARDS = [
         "label": "Challenge without 3DSMethod",
         "expiration": "202812",
         "cvv": "123",
-        "force_no_3ds": "1",
+        "force_no_3ds": "0",
         "challenge_indicator": "03"  # CHALLENGE
     }
 ]
@@ -170,6 +170,91 @@ async def process_payment(
                 "error": "Unexpected error processing payment. Please try again."
             }
         )
+
+@app.post('/process-hold')
+async def process_hold(
+    request: Request,
+    card_number: str = Form(...),
+    amount: float = Form(...),
+    itbis: float = Form(...)
+):
+    """Process a secure payment with 3D Secure authentication."""
+    
+    card = next((c for c in TEST_CARDS if c["number"] == card_number), None)
+    if not card:
+        logger.error(f"Invalid card: {card_number}")
+        return templates.TemplateResponse(
+            "error.html",
+            {
+                "request": request,
+                "error": "Invalid card. Please select a valid test card."
+            }
+        )
+
+    try:
+        base_url = str(request.base_url).rstrip('/')
+        # AcquirerRefData
+        
+        hold_request = SecureSaleRequest(
+            Amount=int(amount * 100),
+            ITBIS=int(itbis * 100),
+            CardNumber=card["number"],
+            CVC=card["cvv"],
+            Expiration=card["expiration"],
+            OrderNumber=datetime.now().strftime("%Y%m%d%H%M%S"),
+            Channel="EC",
+            PosInputMode="E-Commerce",
+            forceNo3DS=card["force_no_3ds"],
+            cardHolderInfo=CardHolderInfo(
+                BillingAddressCity="Santo Domingo",
+                BillingAddressCountry="DO",
+                BillingAddressLine1="Main Street #123",
+                BillingAddressState="National District",
+                BillingAddressZip="10101",
+                Email="test@example.com",
+                Name="Test User",
+                ShippingAddressCity="Santo Domingo",
+                ShippingAddressCountry="DO",
+                ShippingAddressLine1="Main Street #123",
+                ShippingAddressState="National District",
+                ShippingAddressZip="10101"
+            ),
+            threeDSAuth=ThreeDSAuth(
+                TermUrl=f"{base_url}/post-3ds",
+                MethodNotificationUrl=f"{base_url}/capture-3ds",
+                RequestChallengeIndicator=card["challenge_indicator"]
+            )
+        )
+
+        logger.info("Processing hold...")
+        result = await secure_service.process_hold(hold_request)
+        logger.info("HOLD processed")
+        return result
+        
+    except AzulError as e:
+        logger.error(f"Error in payment process: {str(e)}")
+        error_message = str(e)
+        if "BIN NOT FOUND" in error_message:
+            error_message = "The card used is not registered in the test environment. Please use one of the provided test cards."
+        return templates.TemplateResponse(
+            "error.html",
+            {
+                "request": request,
+                "error": error_message
+            }
+        )
+    except Exception as e:
+        logger.error(f"Error in payment process: {str(e)}")
+        return templates.TemplateResponse(
+            "error.html",
+            {
+                "request": request,
+                "error": "Unexpected error processing payment. Please try again."
+            }
+        )
+
+
+
 
 @app.post("/capture-3ds")
 async def capture_3ds(
