@@ -104,3 +104,22 @@ class SecureSaleRequest(BaseModel):
      forceNo3DS: Literal["0", "1"] = Field("0", description="Force no 3DS flag")
      cardHolderInfo: CardHolderInfo
      threeDSAuth: ThreeDSAuth
+class SecureTokenSale(BaseModel):
+    """
+    Model for processing token sales.
+    """
+    Amount: int = Field(..., description="Transaction amount in cents")
+    ITBIS: int = Field(..., description="Tax amount in cents")
+    Channel: str = Field("EC",description="Transaction channel")
+    PosInputMode: str = Field("E-commerce",description="Entry mode")
+    DataVaultToken: str = Field(..., description="DataVault token for the transaction")
+    Expiration: str = Field("", description="Expiration date in YYYYMM format (required even with token)")
+    CardNumber: str= Field("", description="Card number (optional when using token)")
+    OrderNumber: str = Field(..., description="Unique order identifier")
+    CVC: str = Field("", description="Security code (optional when using token)")
+    TrxType: Literal["Sale"] = "Sale"
+    CustomOrderId: Optional[str] = Field("", description="Merchant-provided identifier")
+    AcquirerRefData: str = Field("1", description="AZUL Internal Use")
+    forceNo3DS: Literal["0", "1"] = Field("0", description="Force no 3DS flag")
+    cardHolderInfo: CardHolderInfo
+    threeDSAuth: ThreeDSAuth 
