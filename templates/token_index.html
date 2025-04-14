@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Azul Token Payment Demo</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        select, input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .btn-primary {
+            background-color: #007bff;
+        }
+        .btn-primary:hover {
+            background-color: #0069d9;
+        }
+        .btn-secondary {
+            background-color: #6c757d;
+        }
+        .btn-secondary:hover {
+            background-color: #5a6268;
+        }
+        .card {
+            background-color: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+        .token-info {
+            background-color: #f8f9fa;
+            border-left: 4px solid #007bff;
+            padding: 15px;
+            margin-bottom: 20px;
+            display: none;
+        }
+        #result-container {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            display: none;
+        }
+        .success {
+            border-left: 4px solid #28a745;
+        }
+        .error {
+            border-left: 4px solid #dc3545;
+        }
+        .processing {
+            border-left: 4px solid #17a2b8;
+        }
+        .loading-container {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .loading-spinner {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        pre {
+            background-color: white;
+            padding: 15px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        .json-key { color: #881391; }
+        .json-string { color: #008000; }
+        .json-number { color: #1a01cc; }
+        .json-boolean { color: #ff0000; }
+        .json-null { color: #808080; }
+        .steps {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 30px;
+        }
+        .step {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+            margin: 0 5px;
+        }
+        .step.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .step.completed {
+            background-color: #28a745;
+            color: white;
+        }
+        .tab-content {
+            display: none;
+        }
+        .tab-content.active {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <h1>Azul Token Payment Demo</h1>
+    
+    <div class="steps">
+        <div id="step1" class="step active">1. Crear Token</div>
+        <div id="step2" class="step">2. Procesar Pago con Token</div>
+        <div id="step3" class="step">3. Resultado</div>
+    </div>
+    
+    <!-- Step 1: Create Token -->
+    <div id="tab1" class="tab-content active">
+        <div class="card">
+            <h2>Crear Token de Tarjeta</h2>
+            <form id="token-form">
+                <div class="form-group">
+                    <label for="card">Tarjeta de Prueba:</label>
+                    <select id="card" name="card_number" required>
+                        {% for card in cards %}
+                        <option value="{{ card.number }}">{{ card.label }} ({{ card.number }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label for="amount">Monto:</label>
+                    <input type="number" id="amount" name="amount" value="10.00" step="0.01" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="itbis">ITBIS:</label>
+                    <input type="number" id="itbis" name="itbis" value="1.80" step="0.01" required>
+                </div>
+                
+                <button type="submit" class="btn-primary">Crear Token</button>
+            </form>
+        </div>
+    </div>
+    
+    <!-- Step 2: Process Payment -->
+    <div id="tab2" class="tab-content">
+        <div class="card">
+            <h2>Procesar Pago con Token</h2>
+            
+            <div id="token-info" class="token-info">
+                <h3>Información del Token</h3>
+                <p><strong>Token ID:</strong> <span id="token-id"></span></p>
+                <p><strong>Tarjeta:</strong> <span id="masked-card"></span></p>
+                <p><strong>Marca:</strong> <span id="card-brand"></span></p>
+            </div>
+            
+            <form id="payment-form">
+                <input type="hidden" id="token_id" name="token_id">
+                
+                <div class="form-group">
+                    <label for="payment-amount">Monto a Cobrar:</label>
+                    <input type="number" id="payment-amount" name="amount" value="10.00" step="0.01" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="payment-itbis">ITBIS:</label>
+                    <input type="number" id="payment-itbis" name="itbis" value="1.80" step="0.01" required>
+                </div>
+                
+                <div class="form-group">
+                    <label for="challenge_indicator">Indicador de Desafío:</label>
+                    <select id="challenge_indicator" name="challenge_indicator">
+                        <option value="02">02 - Sin Desafío (Frictionless)</option>
+                        <option value="03" selected>03 - Con Desafío (Challenge)</option>
+                        <option value="04">04 - Shared Data</option>
+                    </select>
+                </div>
+                
+                <button type="submit" class="btn-primary">Procesar Pago</button>
+                <button type="button" id="back-to-token" class="btn-secondary">Volver a Crear Token</button>
+            </form>
+        </div>
+    </div>
+
+    <div id="result-container"></div>
+
+    <script>
+        // Función para la sintaxis destacada de JSON
+        function syntaxHighlight(json) {
+            if (typeof json !== 'string') {
+                json = JSON.stringify(json, null, 2);
+            }
+            json = json.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            return json.replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g, function (match) {
+                let cls = 'json-number';
+                if (/^"/.test(match)) {
+                    if (/:$/.test(match)) {
+                        cls = 'json-key';
+                    } else {
+                        cls = 'json-string';
+                    }
+                } else if (/true|false/.test(match)) {
+                    cls = 'json-boolean';
+                } else if (/null/.test(match)) {
+                    cls = 'json-null';
+                }
+                return '<span class="' + cls + '">' + match + '</span>';
+            });
+        }
+
+        // Mostrar resultado
+        function showResult(result, status = 'processing') {
+            const container = document.getElementById('result-container');
+            container.style.display = 'block';
+            container.className = `result-container ${status}`;
+
+            // Crear una copia del resultado para limpiar datos sensibles
+            const cleanResult = JSON.parse(JSON.stringify(result));
+            if (cleanResult.html) {
+                cleanResult.html = '[HTML Content]';
+            }
+
+            let content = '';
+            let statusText = '';
+            let errorDetails = '';
+            let processingDetails = '';
+
+            switch (status) {
+                case 'success':
+                    statusText = '<h2 style="color: #28a745">✓ Transacción Exitosa</h2>';
+                    break;
+                case 'error':
+                    statusText = '<h2 style="color: #dc3545">✗ Error en la Transacción</h2>';
+                    // Agregar detalles del error si están disponibles
+                    if (cleanResult.error || cleanResult.ErrorDescription) {
+                        const errorMessage = cleanResult.error || cleanResult.ErrorDescription;
+                        errorDetails = `<div class="error-details" style="margin-top: 10px; padding: 10px; background: #fff1f0; border-left: 4px solid #dc3545; margin-bottom: 15px;">
+                            <strong>Detalles del error:</strong><br>
+                            ${errorMessage}
+                        </div>`;
+                    }
+                    break;
+                default:
+                    statusText = '<h2 style="color: #17a2b8">⟳ Procesando Transacción</h2>';
+                    if (cleanResult.message) {
+                        processingDetails = `<div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-left: 4px solid #17a2b8; margin-bottom: 15px;">
+                            ${cleanResult.message}
+                            ${cleanResult.details ? `<br><small>${cleanResult.details}</small>` : ''}
+                        </div>`;
+                    }
+            }
+
+            content = `
+                ${statusText}
+                ${errorDetails}
+                ${processingDetails}
+                <pre>${syntaxHighlight(cleanResult)}</pre>
+            `;
+
+            if (status === 'processing') {
+                content += '<div class="loading-spinner"></div>';
+            }
+
+            container.innerHTML = content;
+        }
+
+        // Función para cambiar de paso
+        function goToStep(stepNumber) {
+            // Actualizar los indicadores de pasos
+            document.querySelectorAll('.step').forEach((step, index) => {
+                step.classList.remove('active', 'completed');
+                if (index + 1 < stepNumber) {
+                    step.classList.add('completed');
+                } else if (index + 1 === stepNumber) {
+                    step.classList.add('active');
+                }
+            });
+            
+            // Ocultar todos los tabs
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            // Mostrar el tab activo
+            const activeTab = document.getElementById(`tab${stepNumber}`);
+            if (activeTab) {
+                activeTab.classList.add('active');
+            }
+        }
+
+        // Manejar la creación de token
+        document.getElementById('token-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            try {
+                showResult({ message: "Creando token de tarjeta..." }, 'processing');
+                
+                const response = await fetch('/create-token', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                console.log('Resultado de create-token:', result);
+                
+                if (result.error) {
+                    showResult({
+                        error: result.error
+                    }, 'error');
+                    return;
+                }
+                
+                // Mostrar información del token
+                document.getElementById('token-id').textContent = result.token_id;
+                document.getElementById('masked-card').textContent = result.masked_card;
+                document.getElementById('card-brand').textContent = result.brand;
+                document.getElementById('token_id').value = result.token_id;
+                
+                // Mostrar el div de información del token
+                document.getElementById('token-info').style.display = 'block';
+                
+                // Copiar valores de monto e ITBIS
+                document.getElementById('payment-amount').value = document.getElementById('amount').value;
+                document.getElementById('payment-itbis').value = document.getElementById('itbis').value;
+                
+                // Cambiar al siguiente paso
+                goToStep(2);
+                
+                // Mostrar mensaje de éxito
+                showResult({
+                    message: "Token creado exitosamente",
+                    token_id: result.token_id,
+                    masked_card: result.masked_card,
+                    brand: result.brand
+                }, 'success');
+                
+            } catch (error) {
+                console.error('Error en create-token:', error);
+                showResult({
+                    error: error.message
+                }, 'error');
+            }
+        });
+
+        // Manejar el procesamiento de pago con token
+        document.getElementById('payment-form').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const formData = new FormData(e.target);
+            try {
+                showResult({ message: "Procesando pago con token..." }, 'processing');
+                
+                const response = await fetch('/process-token-payment', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                console.log('Resultado de process-token-payment:', result);
+                
+                // Actualizar paso
+                goToStep(3);
+                
+                // Mostrar el resultado inicial
+                if (result.error) {
+                    showResult({
+                        error: result.error
+                    }, 'error');
+                    return;
+                }
+
+                if (result.redirect && result.html) {
+                    showResult({ message: "Iniciando verificación 3D Secure..." }, 'processing');
+                    
+                    if (result.html.includes('tdsMmethodForm')) {
+                        await handle3DSMethod(result);
+                    } else {
+                        // Crear un div temporal para parsear el HTML
+                        const tempDiv = document.createElement('div');
+                        tempDiv.innerHTML = result.html;
+                        
+                        // Obtener el formulario y sus valores
+                        const form3ds = tempDiv.querySelector('#form3ds');
+                        if (form3ds) {
+                            const tempForm = document.createElement('form');
+                            tempForm.method = 'POST';
+                            tempForm.action = form3ds.action;
+                            
+                            // Copiar todos los campos del formulario original
+                            const inputs = form3ds.querySelectorAll('input');
+                            inputs.forEach(input => {
+                                const newInput = document.createElement('input');
+                                newInput.type = 'hidden';
+                                newInput.name = input.name;
+                                newInput.value = input.value;
+                                tempForm.appendChild(newInput);
+                            });
+                            
+                            // Agregar el formulario al documento y enviarlo
+                            document.body.appendChild(tempForm);
+                            tempForm.submit();
+                        } else {
+                            showResult({
+                                error: "No se encontró el formulario 3DS en la respuesta"
+                            }, 'error');
+                        }
+                    }
+                } else if (result.value) {
+                    showResult(result.value, result.value.IsoCode === '00' ? 'success' : 'error');
+                } else {
+                    showResult(result, result.IsoCode === '00' || result.ResponseMessage === 'APROBADA' ? 'success' : 'error');
+                }
+            } catch (error) {
+                console.error('Error en process-token-payment:', error);
+                showResult({
+                    error: error.message
+                }, 'error');
+            }
+        });
+        
+        // Manejar método 3DS
+        async function handle3DSMethod(result) {
+            showResult(result, 'processing');
+            
+            // Crear un div oculto para el formulario 3DS
+            const formContainer = document.createElement('div');
+            formContainer.style.display = 'none';
+            formContainer.innerHTML = result.html;
+            document.body.appendChild(formContainer);
+            
+            const methodForm = formContainer.querySelector('form');
+            if (methodForm) {
+                methodForm.submit();
+                
+                // Esperamos un tiempo prudente para asegurar que el método 3DS se procesó
+                setTimeout(async () => {
+                    try {
+                        const response = await fetch(`/capture-3ds?secure_id=${result.id}`, {
+                            method: 'POST'
+                        });
+                        
+                        // Primero intentamos leer la respuesta como texto
+                        const responseText = await response.text();
+                        let challengeResult;
+                        
+                        try {
+                            // Intentamos parsear como JSON
+                            challengeResult = JSON.parse(responseText);
+                        } catch (e) {
+                            // Si no es JSON, asumimos que es un mensaje de error
+                            showResult({
+                                error: responseText
+                            }, 'error');
+                            return;
+                        }
+
+                        console.log('Resultado del capture-3ds:', challengeResult);
+
+                        // Verificar si hay error en la respuesta
+                        if (response.status !== 200 || challengeResult.error) {
+                            const errorMessage = challengeResult.error || challengeResult.detail || 'Error desconocido en la transacción';
+                            showResult({
+                                error: errorMessage
+                            }, 'error');
+                            return;
+                        }
+                        
+                        // Mostrar el resultado del capture-3ds
+                        if (challengeResult.ResponseMessage) {
+                            // Si tenemos una respuesta directa de Azul
+                            showResult(challengeResult, challengeResult.ResponseMessage === 'APROBADA' ? 'success' : 'error');
+                            return; // Terminamos aquí si ya tenemos respuesta final
+                        }
+                        
+                        if (challengeResult.redirect && challengeResult.html) {
+                            // Crear un div temporal para parsear el HTML
+                            const tempDiv = document.createElement('div');
+                            tempDiv.innerHTML = challengeResult.html;
+                            
+                            // Obtener el formulario y sus valores
+                            const form3ds = tempDiv.querySelector('form');
+                            if (form3ds) {
+                                const tempForm = document.createElement('form');
+                                tempForm.method = 'POST';
+                                tempForm.action = form3ds.action;
+                                
+                                // Copiar todos los campos del formulario original
+                                const inputs = form3ds.querySelectorAll('input');
+                                inputs.forEach(input => {
+                                    const newInput = document.createElement('input');
+                                    newInput.type = 'hidden';
+                                    newInput.name = input.name;
+                                    newInput.value = input.value;
+                                    tempForm.appendChild(newInput);
+                                });
+                                
+                                // Agregar el formulario al documento y enviarlo
+                                document.body.appendChild(tempForm);
+                                tempForm.submit();
+                            } else {
+                                showResult({
+                                    error: "No se encontró el formulario 3DS en la respuesta"
+                                }, 'error');
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Error en capture-3ds:', error);
+                        showResult({
+                            error: error.message
+                        }, 'error');
+                    }
+                }, 2000); // Esperamos 2 segundos antes de hacer el capture-3ds
+            } else {
+                showResult({
+                    error: "No se encontró el formulario 3DS"
+                }, 'error');
+            }
+        }
+        
+        // Botón para volver al paso de crear token
+        document.getElementById('back-to-token').addEventListener('click', () => {
+            goToStep(1);
+        });
+
+        // Escuchar mensajes de la ventana de desafío 3DS
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.status === 'completed' && event.data.result) {
+                const result = event.data.result;
+                
+                // Mostrar el resultado final del 3DS
+                if (result.ResponseMessage || result.IsoCode) {
+                    const isSuccess = result.ResponseMessage === 'APROBADA' || result.IsoCode === '00';
+                    showResult(result, isSuccess ? 'success' : 'error');
+                    
+                    // Si hay una ventana de desafío abierta, cerrarla
+                    const challengeContainer = document.querySelector('[style*="position: fixed"]');
+                    if (challengeContainer) {
+                        challengeContainer.remove();
+                    }
+                    
+                    // Si hay una ventana popup abierta, cerrarla después de 3 segundos
+                    if (event.source && event.source !== window) {
+                        setTimeout(() => {
+                            event.source.close();
+                        }, 3000);
+                    }
+                }
+            }
+        });
+    </script>
+</body>
+</html> 
