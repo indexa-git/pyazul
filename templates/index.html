@@ -301,7 +301,7 @@
             try {
                 showResult({ message: "Iniciando proceso de pago..." }, 'processing');
                 
-                const response = await fetch('/process-payment', {
+                const response = await fetch('/process-hold', {
                     method: 'POST',
                     body: formData
                 });
