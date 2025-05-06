@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "pyazul"
-version = "1.0.0"
+version = "1.1.0"
 description = "An Azul Webservices light wrapper for Python."
 authors = [{ name = "INDEXA Inc.", email = "info@indexa.do" }]
 license = { text = "GNU Lesser General Public License v3 (LGPLv3)" }
