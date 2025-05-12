@@ -107,101 +107,115 @@ async def payment_page(order_id: str):
     })
 ```
 
-### 3D Secure Implementation
+## 3D Secure Implementation
+
+PyAzul provides a comprehensive 3D Secure 2.0 integration that enables secure transactions with advanced authentication. The complete flow consists of several steps and requires proper client initialization.
+
+### Proper Initialization
+
+**Important**: To use the 3DS service, you must explicitly pass an `AzulAPI` instance to the PyAzul constructor:
 
 ```python
 from pyazul import PyAzul
-from pyazul.models.secure import SecureSaleRequest, CardHolderInfo
+from pyazul.api.client import AzulAPI
 
-azul = PyAzul()
+# Create the API client first
+api_client = AzulAPI()
 
-async def secure_payment(card_number, expiry, cvv, amount):
-    # Card holder data (required for 3DS)
-    cardholder_info = CardHolderInfo(
-        BillingFirstName="John",
-        BillingLastName="Doe",
-        BillingAddressLine1="Main Street",
-        BillingAddressCity="Santo Domingo",
-        BillingAddressZip="10101",
-        BillingAddressCountry="DO",
-        Email="customer@example.com"
-    )
-    
-    # Create 3DS request
-    secure_request = SecureSaleRequest(
-        CardNumber=card_number,
-        Expiration=expiry,
-        CVC=cvv,
-        Amount=amount,
-        ITBIS="0",
-        OrderNumber="ORDER-3DS-123",
-        threeDSAuth={
-            "TermUrl": "https://your-site.com/api/post-3ds",
-            "MethodNotificationUrl": "https://your-site.com/api/method-3ds",
-            "RequestChallengeIndicator": "03"
-        },
-        cardHolderInfo=cardholder_info,
-        forceNo3DS="0"
-    )
-
-    # Process 3DS payment
-    result = await azul.secure.process_sale(secure_request)
-    
-    if result.get("redirect"):
-        # Return HTML form for 3DS redirection
-        return result.get("html")
-    else:
-        # Transaction completed without 3DS
-        return result.get("value")
+# Pass the API client to PyAzul
+azul = PyAzul(api_client=api_client)
 ```
 
-### Token Sale 3DS implementations
+### Complete 3D Secure Flow
 
-``` python
+The 3DS process requires multiple steps:
 
-from pyazul import PyAzul
-from pyazul.models.secure import SecureSaleRequest, CardHolderInfo,ThreeDSAuth
+1. **Transaction Initiation**:
+```python
+# You can pass a simple dictionary (no need to create a Pydantic model)
+response = await azul.secure_sale({
+    "CardNumber": "4111111111111111",
+    "Expiration": "202812",
+    "CVC": "123",
+    "Amount": 100000,         # $1,000.00 (in cents)
+    "ITBIS": 18000,           # $180.00 (in cents)
+    "OrderNumber": "ORDER123",
+    "Channel": "EC",
+    "PosInputMode": "E-Commerce",
+    "forceNo3DS": "0",
+    "cardHolderInfo": {
+        "Name": "John Doe",
+        "Email": "john@example.com",
+        "BillingAddressCity": "Santo Domingo",
+        "BillingAddressCountry": "DO",
+        "BillingAddressLine1": "Main Street #123",
+        "BillingAddressState": "National District",
+        "BillingAddressZip": "10101",
+        "ShippingAddressCity": "Santo Domingo",
+        "ShippingAddressCountry": "DO",
+        "ShippingAddressLine1": "Main Street #123",
+        "ShippingAddressState": "National District",
+        "ShippingAddressZip": "10101"
+    },
+    "threeDSAuth": {
+        "TermUrl": "https://your-domain.com/post-3ds",
+        "MethodNotificationUrl": "https://your-domain.com/capture-3ds",
+        "RequestChallengeIndicator": "03"  # Request challenge
+    }
+})
 
-azul = Pyazul()
-async def secure_payment_token(token):
-
-    cardholder_info = CardHolderInfo(
-        BillingFirstName="John",
-        BillingLastName="Doe",
-        BillingAddressLine1="Main Street",
-        BillingAddressCity="Santo Domingo",
-        BillingAddressZip="10101",
-        BillingAddressCountry="DO",
-        Email="customer@example.com"
-    )
-
-    three_ds_auth = ThreeDSAuth(
-        TermUrl="https://your-site.com/api/post-3ds",  # URL to return after 3DS authentication
-        MethodNotificationUrl="https://your-site.com/api/method-3ds",  # URL for 3DS method notification
-        RequestChallengeIndicator="02"  # Challenge indicator 
-        """
-        01= No preference for challenge
-        02=No challenge requested, 
-        03=Challenge requested, 
-        04=Challenge mandated"""
-    )
-
-    # También se puede usar un token con 3DS
-   
-    secure_token_request = SecureTokenSale(
-        DataVaultToken=token,
-        Amount=150000,              # $1,500.00
-        ITBIS=27000,               # $270.00
-        OrderNumber="TOKEN-3DS-001",
-        AcquirerRefData="REF124",
-        cardHolderInfo=cardholder,
-        threeDSAuth=three_ds_auth,
-        forceNo3DS="0"
-    )
-
-    token_result = await azul.secure.process_token_sale(secure_token_request)
-    return token_result
+# The library automatically stores session details
+if response.get("redirect"):
+    secure_id = response.get("id")
+    
+    # Return HTML form to client to continue 3DS process
+    html_form = response.get("html")
 ```
+
+2. **3DS Method Processing**:
+```python
+# When you receive 3DS method notification:
+@app.post("/capture-3ds")
+async def capture_3ds(request: Request, secure_id: str = None):
+    # The library automatically manages sessions internally
+    # Get the session data from the secure service
+    session = azul.secure.secure_sessions.get(secure_id)
+    
+    if not session:
+        return {"error": "Invalid session"}
+    
+    # Process 3DS method notification
+    result = await azul.secure_3ds_method(
+        session["azul_order_id"],
+        "RECEIVED"  # Notification status
+    )
+    
+    # Check if challenge is required
+    if result.get("ResponseMessage") == "3D_SECURE_CHALLENGE":
+        # Generate HTML form for the challenge
+        form_html = azul.create_challenge_form(
+            result["ThreeDSChallenge"]["CReq"],
+            session["term_url"],
+            result["ThreeDSChallenge"]["RedirectPostUrl"]
+        )
+        return {"redirect": True, "html": form_html}
+```
+
+3. **3DS Challenge Processing**:
+```python
+@app.post("/post-3ds")
+async def post_3ds(request: Request, secure_id: str = None, cres: str = None):
+    # Complete the process with the challenge response
+    result = await azul.secure_challenge(secure_id, cres)
+    # Process final response
+    return result
+```
+
+### Important Notes
+
+- The library automatically manages 3DS sessions internally through the `secure_sessions` attribute.
+- For production systems, you may want to implement your own session storage system for better persistence and reliability.
+- The `secure_id` is the key to access session data throughout the 3DS flow.
 
 ## API Reference
 
@@ -232,161 +246,173 @@ await azul.token_sale({...})        # Payment with token
 azul.create_payment_page({...})     # Generate payment form
 
 # 3D Secure
-await azul.secure.process_sale({...})        # 3DS card payment
-await azul.secure.process_token_sale({...})  # 3DS token payment
-await azul.secure.process_3ds_method(...)    # Process 3DS method notification
-await azul.secure.process_challenge(...)     # Process 3DS challenge result
+await azul.secure_sale({...})        # 3DS card payment
+await azul.secure_hold({...})        # 3DS card hold transaction
+await azul.secure_token_sale({...})  # 3DS token payment
+await azul.secure_3ds_method(...)    # Process 3DS method notification
+await azul.secure_challenge(...)     # Process 3DS challenge result
 ```
 
-# Pydantic Models by the key methods 
+## Request Data Reference
+
+> **Note**: These examples show the structure of data expected by PyAzul methods. You can pass dictionaries with these fields directly to the methods without manually creating Pydantic instances.
+
+
+### Basic Transaction Models
 
 ```python
-from pyazul.models.schemas import (
-    SaleTransactionModel, HoldTransactionModel, RefundTransactionModel,
-    DataVaultCreateModel, DataVaultDeleteModel, TokenSaleModel,
-    PostSaleTransactionModel, VerifyTransactionModel, VoidTransactionModel,
-    PaymentPageModel
-)
-from pyazul.models.secure import (
-    CardHolderInfo, ThreeDSAuth, ChallengeIndicator,
-    SecureSaleRequest, SecureTokenSale
-)
-
 # Card Sale Transaction
-sale_model = SaleTransactionModel(
-    CardNumber="4111********1111",
-    Expiration="202812",  # YYYYMM format
-    CVC="123",
-    Amount="100000",      # $1,000.00
-    Itbis="18000",        # $180.00
-    CustomOrderId="order-123"
-)
+{
+    "CardNumber": "4111111111111111",
+    "Expiration": "202812",  # YYYYMM format
+    "CVC": "123",
+    "Amount": "100000",      # $1,000.00
+    "Itbis": "18000",        # $180.00
+    "CustomOrderId": "order-123", #Optional
+    "OrderNumber": "INV-12345",
+    "SaveToDataVault": '1 - Save to token' | '2 - Do not save'
+}
 
 # Authorization Hold
-hold_model = HoldTransactionModel(
-    CardNumber="4111********1111",
-    Expiration="202812",
-    CVC="123",
-    Amount="100000",
-    Itbis="18000",
-    CustomOrderId="hold-123"
-)
+{
+    "CardNumber": "4111111111111111",
+    "Expiration": "202812",
+    "CVC": "123",
+    "Amount": "100000",
+    "Itbis": "18000",
+    "CustomOrderId": "hold-123" 
+}
 
 # Refund Transaction
-refund_model = RefundTransactionModel(
-    AzulOrderId="12345678",
-    Amount="100000"
-)
-
-# Create Card Token
-token_create_model = DataVaultCreateModel(
-    CardNumber="4111********1111",
-    Expiration="202812",
-    store="39038540035",
-    CustomOrderId="token-123"
-)
-
-# Delete Card Token
-token_delete_model = DataVaultDeleteModel(
-    DataVaultToken="a1b2c3d4e5f6",
-    store="39038540035"
-)
-
-# Payment using Token
-token_sale_model = TokenSaleModel(
-    DataVaultToken="a1b2c3d4e5f6",
-    Amount="100000",
-    Itbis="18000",
-    CustomOrderId="token-sale-123"
-)
-
-# Post Sale (Capture pre-authorized payment)
-post_sale_model = PostSaleTransactionModel(
-    AzulOrderId="12345678",
-    Amount="100000",
-    Itbis="18000",
-    CardNumber="4111********1111",
-    Expiration="202812",
-    CVC="123",
-    ApprovedUrl="https://your-site.com/success",
-    DeclinedUrl="https://your-site.com/declined",
-    CancelUrl="https://your-site.com/cancel"
-)
-
-# Verify Transaction
-verify_model = VerifyTransactionModel(
-    CustomOrderId="order-123"
-)
+{
+    "AzulOrderId": "12345678",
+    "Amount": "100000"
+}
 
 # Void Transaction
-void_model = VoidTransactionModel(
-    AzulOrderId="12345678",
-    store="39038540035"
-)
+{
+    "AzulOrderId": "12345678",
+    "store": "39038540035"
+}
 
+# Verify Transaction
+{
+    "CustomOrderId": "order-123"
+}
+
+# Post Sale (Capture)
+{
+    "AzulOrderId": "12345678",
+    "Amount": "100000",
+    "Itbis": "18000"
+}
+```
+
+### Token Operations
+
+```python
+# Create Card Token
+{
+    "CardNumber": "4111111111111111",
+    "Expiration": "202812",
+    "store": "39038540035",
+    "CustomOrderId": "token-123"
+}
+
+# Delete Card Token
+{
+    "DataVaultToken": "a1b2c3d4e5f6",
+    "store": "39038540035"
+}
+
+# Payment using Token
+{
+    "DataVaultToken": "a1b2c3d4e5f6",
+    "Amount": "100000",
+    "Itbis": "18000",
+    "CustomOrderId": "token-sale-123",
+    "Channel": "EC"
+}
+```
+
+### Payment Page Configuration
+
+```python
 # Payment Page Integration
-payment_page_model = PaymentPageModel(
-    Amount="100000",      # $1,000.00
-    ITBIS="18000",        # $180.00
-    ApprovedUrl="https://your-site.com/success",
-    DeclineUrl="https://your-site.com/declined",
-    CancelUrl="https://your-site.com/cancel",
-    UseCustomField1="1",
-    CustomField1Label="Order Reference",
-    CustomField1Value="ORD-123456"
-)
+{
+    "Amount": "100000",      # $1,000.00
+    "ITBIS": "18000",        # $180.00
+    "ApprovedUrl": "https://your-site.com/success",
+    "DeclineUrl": "https://your-site.com/declined",
+    "CancelUrl": "https://your-site.com/cancel",
+    "UseCustomField1": "1",
+    "CustomField1Label": "Order Reference",
+    "CustomField1Value": "ORD-123456"
+}
+```
 
-# 3D Secure Models
+### 3D Secure Models
 
-# Cardholder Information for 3DS
-cardholder_info = CardHolderInfo(
-    BillingAddressCity="Santo Domingo",
-    BillingAddressCountry="DO",
-    BillingAddressLine1="Avenida Principal #123",
-    BillingAddressState="Distrito Nacional",
-    BillingAddressZip="10101",
-    Email="customer@example.com",
-    Name="John Doe",
-    PhoneMobile="+18094567890",
-    ShippingAddressCity="Santo Domingo",
-    ShippingAddressCountry="DO",
-    ShippingAddressLine1="Avenida Principal #123",
-    ShippingAddressState="Distrito Nacional",
-    ShippingAddressZip="10101"
-)
+```python
+# Cardholder Information
+{
+    "BillingAddressCity": "Santo Domingo",
+    "BillingAddressCountry": "DO",
+    "BillingAddressLine1": "Main Street #123",
+    "BillingAddressState": "National District",
+    "BillingAddressZip": "10101",
+    "Email": "customer@example.com",
+    "Name": "John Doe",
+    "PhoneMobile": "+18094567890",  # Optional
+    "ShippingAddressCity": "Santo Domingo",
+    "ShippingAddressCountry": "DO",
+    "ShippingAddressLine1": "Main Street #123",
+    "ShippingAddressState": "National District",
+    "ShippingAddressZip": "10101"
+}
 
 # 3DS Authentication Parameters
-three_ds_auth = ThreeDSAuth(
-    TermUrl="https://your-site.com/3ds-complete",
-    MethodNotificationUrl="https://your-site.com/3ds-method",
-    RequestChallengeIndicator=ChallengeIndicator.CHALLENGE  # "03" - Request challenge
-)
+{
+    "TermUrl": "https://your-site.com/3ds-complete",
+    "MethodNotificationUrl": "https://your-site.com/3ds-method",
+    "RequestChallengeIndicator": "03"  # "03" - Request challenge
+    # Other values: "01" - No preference, "02" - No challenge requested, "04" - Challenge mandated
+}
 
 # 3DS Direct Card Payment
-secure_sale = SecureSaleRequest(
-    CardNumber="4111********1111",
-    Expiration="202812",
-    CVC="123",
-    Amount=100000,           # $1,000.00 (in cents)
-    ITBIS=18000,             # $180.00 tax (in cents)
-    OrderNumber="3DS-ORDER-123",
-    forceNo3DS="0",          # Enable 3DS
-    cardHolderInfo=cardholder_info,
-    threeDSAuth=three_ds_auth
-)
+{
+    "CardNumber": "4111111111111111",
+    "Expiration": "202812",
+    "CVC": "123",
+    "Amount": 100000,           # $1,000.00 (in cents)
+    "ITBIS": 18000,             # $180.00 tax (in cents)
+    "OrderNumber": "3DS-ORDER-123",
+    "Channel": "EC",
+    "PosInputMode": "E-Commerce",
+    "forceNo3DS": "0",          # Enable 3DS
+    "cardHolderInfo": {
+        # Cardholder info as shown above
+    },
+    "threeDSAuth": {
+        # 3DS Authentication Parameters as shown above
+    }
+}
 
 # 3DS Token Payment
-secure_token_sale = SecureTokenSale(
-    DataVaultToken="a1b2c3d4e5f6",
-    Amount=100000,           # $1,000.00 (in cents)
-    ITBIS=18000,             # $180.00 tax (in cents)
-    OrderNumber="3DS-TOKEN-ORDER-456",
-    Expiration="202812",     # Required even with token
-    forceNo3DS="0",          # Enable 3DS
-    cardHolderInfo=cardholder_info,
-    threeDSAuth=three_ds_auth
-)
-
+{
+    "DataVaultToken": "a1b2c3d4e5f6",
+    "Amount": 100000,           # $1,000.00 (in cents)
+    "ITBIS": 18000,             # $180.00 tax (in cents)
+    "OrderNumber": "3DS-TOKEN-ORDER-456",
+    "Channel": "EC",
+    "forceNo3DS": "0",          # Enable 3DS
+    "cardHolderInfo": {
+        # Cardholder info as shown above
+    },
+    "threeDSAuth": {
+        # 3DS Authentication Parameters as shown above
+    }
+}
 ```
 
 ## More Information about the azul
