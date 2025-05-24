@@ -27,7 +27,12 @@ Example:
 from .core.config import AzulSettings, get_azul_settings
 from .core.exceptions import AzulError
 from .index import PyAzul
-from .models.schemas import (
+
+# Import models from the centralized pyazul.models package
+from .models import (
+    AzulBaseModel,
+    CardHolderInfo,
+    ChallengeIndicator,
     DataVaultCreateModel,
     DataVaultDeleteModel,
     HoldTransactionModel,
@@ -35,13 +40,20 @@ from .models.schemas import (
     PostSaleTransactionModel,
     RefundTransactionModel,
     SaleTransactionModel,
+    SecureSaleRequest,  # Added Secure Models
+    SecureTokenSale,  # Added Secure Models
+    ThreeDSAuth,  # Added Secure Models
     TokenSaleModel,
     VerifyTransactionModel,
     VoidTransactionModel,
 )
+
+# Services - SecureService will be added when PyAzul is updated
 from .services.datavault import DataVaultService
 from .services.payment_page import PaymentPageService
 from .services.transaction import TransactionService
+
+# from .services.secure import SecureService # Will be exposed if needed, or via PyAzul
 
 __all__ = [
     # Clase principal
@@ -50,22 +62,25 @@ __all__ = [
     "get_azul_settings",
     "AzulSettings",
     "AzulError",
-    # Servicios
+    # Servicios (Consider if all services need to be public if PyAzul is the main entry)
     "DataVaultService",
     "TransactionService",
     "PaymentPageService",
     # Modelos
+    "AzulBaseModel",
     "SaleTransactionModel",
     "HoldTransactionModel",
+    "RefundTransactionModel",
     "DataVaultCreateModel",
     "DataVaultDeleteModel",
     "TokenSaleModel",
+    "PostSaleTransactionModel",
     "VerifyTransactionModel",
     "VoidTransactionModel",
     "PaymentPageModel",
-    "RefundTransactionModel",
-    "PostSaleTransactionModel",
+    "SecureSaleRequest",
+    "SecureTokenSale",
+    "CardHolderInfo",
+    "ThreeDSAuth",
+    "ChallengeIndicator",
 ]
-
-# Versión del paquete
-__version__ = "0.4.4alpha"

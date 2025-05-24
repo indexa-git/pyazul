@@ -137,7 +137,7 @@ class SecureService:
 
         except Exception as e:
             logger.error(f"ERROR IN SALE PROCESS! {str(e)}")
-            raise AzulError(f"Error processing secure sale: {str(e)}")
+            raise AzulError(f"Error processing secure sale: {str(e)}") from e
 
     async def process_token_sale(self, request: SecureTokenSale) -> Dict[str, Any]:
         """
@@ -244,7 +244,7 @@ class SecureService:
 
         except Exception as e:
             logger.error(f"ERROR IN SALE PROCESS! {str(e)}")
-            raise AzulError(f"Error processing secure sale: {str(e)}")
+            raise AzulError(f"Error processing secure sale: {str(e)}") from e
 
     async def process_hold(self, request: SecureSaleRequest) -> Dict[str, Any]:
         """
@@ -354,7 +354,7 @@ class SecureService:
 
         except Exception as e:
             logger.error(f"ERROR IN HOLD PROCESS! {str(e)}")
-            raise AzulError(f"Error processing secure hold: {str(e)}")
+            raise AzulError(f"Error processing secure hold: {str(e)}") from e
 
     async def process_3ds_method(
         self, azul_order_id: str, method_notification_status: str
@@ -404,7 +404,9 @@ class SecureService:
         except Exception as e:
             # If error occurs, remove processed mark
             self.processed_methods.pop(azul_order_id, None)
-            raise AzulError(f"Error processing 3DS method notification: {str(e)}")
+            raise AzulError(
+                f"Error processing 3DS method notification: {str(e)}"
+            ) from e
 
     async def process_challenge(self, secure_id: str, cres: str) -> Dict[str, Any]:
         session = self.secure_sessions.get(secure_id)
@@ -479,7 +481,7 @@ class SecureService:
                     "Please try the payment again."
                 )
 
-            raise AzulError(f"Error processing 3DS challenge: {error_msg}")
+            raise AzulError(f"Error processing 3DS challenge: {error_msg}") from e
 
     @staticmethod
     def _create_challenge_form(creq: str, term_url: str, redirect_post_url: str) -> str:

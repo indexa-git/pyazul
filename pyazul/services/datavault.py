@@ -1,76 +1,54 @@
 from typing import Any, Dict
 
-from ..core.base import BaseService
+from ..api.client import AzulAPI
 from ..core.config import AzulSettings
 from ..models.schemas import DataVaultCreateModel, DataVaultDeleteModel
 
 
-class DataVaultService(BaseService):
+class DataVaultService:
     """
-    Service for managing card tokenization through Azul's DataVault.
-    Provides functionality to:
-    - Create tokens from card data
-    - Delete existing tokens
-    - Use tokens for transactions
+    Service for managing DataVault tokens (card tokenization).
 
-    This service helps maintain PCI compliance by storing card data securely
-    in Azul's DataVault instead of your own systems.
-
-    Attributes:
-        client (AzulAPI): HTTP client for making API requests
-        settings (AzulSettings): Configuration settings for Azul API
+    Provides methods to create and delete card tokens using Azul's DataVault.
     """
 
-    def __init__(self, settings: AzulSettings):
+    def __init__(self, settings: AzulSettings, api_client: AzulAPI):
         """
-        Initialize the DataVault service with Azul settings.
+        Initialize DataVaultService.
 
         Args:
-            settings (AzulSettings): Configuration containing API credentials and endpoints
+            settings: Configuration settings for Azul.
+            api_client: An instance of AzulAPI for making requests.
         """
-        super().__init__(settings)
+        self.settings = settings
+        self.api_client = api_client
 
-    async def create(self, data: DataVaultCreateModel) -> Dict[str, Any]:
+    async def create(self, token_data: DataVaultCreateModel) -> Dict[str, Any]:
         """
-        Create a new token from card data in DataVault.
+        Create a DataVault token for a card.
 
         Args:
-            data (DataVaultCreateModel): Card data to tokenize including:
-                - Card number
-                - Expiration date
-                - Merchant ID
+            token_data (DataVaultCreateModel): Data for creating the token
 
         Returns:
-            Dict[str, Any]: API response containing:
-                - DataVaultToken: Generated token for future use
-                - IsoCode: '00' indicates success
-                - ResponseMessage: Status message
+            Dict[str, Any]: API response containing token details or error
 
         Raises:
             APIError: If token creation fails or API returns an error
         """
-        return await self.client._async_request(
-            data.model_dump(), operation="ProcessDatavault"
-        )
+        return await self.api_client._async_request(token_data.model_dump())
 
-    async def delete(self, data: DataVaultDeleteModel) -> Dict[str, Any]:
+    async def delete(self, token_data: DataVaultDeleteModel) -> Dict[str, Any]:
         """
-        Delete an existing token from DataVault.
+        Delete a DataVault token.
 
         Args:
-            data (DataVaultDeleteModel): Token deletion data including:
-                - DataVaultToken: Token to delete
-                - Merchant ID
+            token_data (DataVaultDeleteModel): Data for deleting the token
 
         Returns:
-            Dict[str, Any]: API response containing:
-                - IsoCode: '00' indicates successful deletion
-                - ResponseMessage: Status message
+            Dict[str, Any]: API response indicating success or error
 
         Raises:
-            APIError: If deletion fails or API returns an error
-                     Common error: Token does not exist
+            APIError: If token deletion fails or API returns an error
         """
-        return await self.client._async_request(
-            data.model_dump(), operation="ProcessDatavault"
-        )
+        return await self.api_client._async_request(token_data.model_dump())

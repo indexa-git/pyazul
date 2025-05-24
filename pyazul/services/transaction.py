@@ -1,33 +1,40 @@
-from typing import Any, Dict
+from typing import Any, Dict, Union
 
-from ..core.base import BaseService
+from ..api.client import AzulAPI
+from ..core.config import AzulSettings
 from ..models.schemas import (
-    PaymentSchema,
+    HoldTransactionModel,
     PostSaleTransactionModel,
     RefundTransactionModel,
+    SaleTransactionModel,
+    TokenSaleModel,
     VerifyTransactionModel,
     VoidTransactionModel,
 )
 
 
-class TransactionService(BaseService):
-    """
-    Service for handling payment transactions through Azul's payment gateway.
-    This service provides methods for processing different types of card transactions:
-    - Sales (direct card payments)
-    - Holds (authorization holds)
-    - Refunds
-    - Post Sales (post authorization captures)
-    - Void (void a transaction)
-    - Verify (verify a transaction)
-    """
+class TransactionService:
+    """Service for handling payment transactions like sales, refunds, etc."""
 
-    async def sale(self, transaction: PaymentSchema) -> Dict[str, Any]:
+    def __init__(self, settings: AzulSettings, api_client: AzulAPI):
+        """
+        Initialize TransactionService.
+
+        Args:
+            settings: Configuration settings for Azul.
+            api_client: An instance of AzulAPI for making requests.
+        """
+        self.settings = settings
+        self.client = api_client
+
+    async def sale(
+        self, transaction: Union[SaleTransactionModel, TokenSaleModel]
+    ) -> Dict[str, Any]:
         """
         Process a sale transaction (card payment or token payment).
 
         Args:
-            transaction (PaymentSchema): Payment data including card details or token
+            transaction (Union[SaleTransactionModel, TokenSaleModel]): Payment data including card details or token
 
         Returns:
             Dict[str, Any]: API response containing transaction results
@@ -39,15 +46,18 @@ class TransactionService(BaseService):
         Raises:
             APIError: If the transaction fails or API returns an error
         """
-        return await self.client._async_request(transaction.model_dump(), operation="")
+        return await self.client._async_request(transaction.model_dump())
 
-    async def hold(self, transaction: PaymentSchema) -> Dict[str, Any]:
+    async def hold(
+        self,
+        transaction: HoldTransactionModel,
+    ) -> Dict[str, Any]:
         """
         Create an authorization hold on a card.
         This reserves the amount but doesn't capture the funds.
 
         Args:
-            transaction (PaymentSchema): Hold transaction data
+            transaction (HoldTransactionModel): Hold transaction data
 
         Returns:
             Dict[str, Any]: API response containing hold results
@@ -58,9 +68,12 @@ class TransactionService(BaseService):
         Raises:
             APIError: If the hold fails or API returns an error
         """
-        return await self.client._async_request(transaction.model_dump(), operation="")
+        return await self.client._async_request(transaction.model_dump())
 
-    async def refund(self, transaction: RefundTransactionModel) -> Dict[str, Any]:
+    async def refund(
+        self,
+        transaction: RefundTransactionModel,
+    ) -> Dict[str, Any]:
         """
         Process a refund for a previous transaction.
 
@@ -75,18 +88,19 @@ class TransactionService(BaseService):
         Raises:
             APIError: If the refund fails or API returns an error
         """
-        return await self.client._async_request(transaction.model_dump(), operation="")
+        return await self.client._async_request(transaction.model_dump())
 
-    async def verify(self, transaction: VerifyTransactionModel) -> Dict[str, Any]:
+    async def verify(
+        self,
+        transaction: VerifyTransactionModel,
+    ) -> Dict[str, Any]:
         """
         Verify a transaction by checking its status.
 
         Args:
             transaction (VerifyTransactionModel): Transaction data including order ID
         """
-        return await self.client._async_request(
-            transaction.model_dump(), operation="VerifyPayment"
-        )
+        return await self.client._async_request(transaction.model_dump())
 
     async def void(self, transaction: VoidTransactionModel) -> Dict[str, Any]:
         """
@@ -95,14 +109,13 @@ class TransactionService(BaseService):
         Args:
             transaction (VoidTransactionModel): Transaction data including order ID
         """
-        return await self.client._async_request(
-            transaction.model_dump(), operation="ProcessVoid"
-        )
+        return await self.client._async_request(transaction.model_dump())
 
-    async def post_sale(self, transaction: PostSaleTransactionModel) -> Dict[str, Any]:
+    async def post_sale(
+        self,
+        transaction: PostSaleTransactionModel,
+    ) -> Dict[str, Any]:
         """
         Process a post sale transaction.
         """
-        return await self.client._async_request(
-            transaction.model_dump(), operation="ProcessPost"
-        )
+        return await self.client._async_request(transaction.model_dump())

@@ -1,12 +1,12 @@
 import json
 import logging
 import ssl
-from typing import Any, Dict
+from typing import Any, Dict, NoReturn
 
 import httpx
 
 from pyazul.api.constants import AzulEndpoints, Environment
-from pyazul.core.config import get_azul_settings
+from pyazul.core.config import AzulSettings
 from pyazul.core.exceptions import APIError, AzulResponseError, SSLError
 
 _logger = logging.getLogger(__name__)
@@ -27,9 +27,9 @@ class AzulAPI:
     and handles all the low-level details of making secure API requests.
     """
 
-    def __init__(self):
-        """Initialize AzulAPI using configuration from environment variables"""
-        self.settings = get_azul_settings()
+    def __init__(self, settings: AzulSettings):
+        """Initialize AzulAPI using provided configuration"""
+        self.settings = settings
         self._init_configuration()
         self._init_client_config()
 
@@ -54,7 +54,7 @@ class AzulAPI:
             ssl_context.load_cert_chain(cert_path, key_path)
             return ssl_context
         except Exception as e:
-            raise SSLError(f"Error loading certificates: {str(e)}")
+            raise SSLError(f"Error loading certificates: {str(e)}") from e
 
     def _init_client_config(self) -> None:
         """Initialize HTTP client configuration"""
@@ -137,7 +137,7 @@ class AzulAPI:
             ("ErrorDescription", data.get("ErrorDescription")),
             ("ResponseCode", data.get("ResponseCode") == "Error"),
         ]
-        for field, value in error_indicators:
+        for _, value in error_indicators:
             if value:
                 error_msg = data.get("ErrorMessage") or data.get(
                     "ErrorDescription", "Unknown error"
@@ -150,7 +150,7 @@ class AzulAPI:
 
     def _log_and_raise_api_error(
         self, error: Exception, response: httpx.Response
-    ) -> None:
+    ) -> NoReturn:
         """Log and raise API error"""
         if isinstance(error, httpx.HTTPStatusError):
             _logger.error(f"HTTP error occurred: {response.text}")
@@ -158,6 +158,8 @@ class AzulAPI:
         elif isinstance(error, json.JSONDecodeError):
             _logger.error(f"Invalid JSON response: {error}")
             raise APIError("Invalid JSON response from API")
+        _logger.error(f"An unexpected error occurred: {error}")
+        raise APIError(f"An unexpected error type was handled: {str(error)}")
 
     def _get_request_config(self, is_secure: bool = False) -> Dict[str, Any]:
         """Get common request configuration"""
@@ -210,7 +212,7 @@ class AzulAPI:
                             **self._get_request_config(is_secure),
                         )
                         return self._handle_response(response)
-                    raise APIError(f"Request failed: {str(e)}")
+                    raise APIError(f"Request failed: {str(e)}") from e
         except Exception as err:
             _logger.error(f"Request failed: {str(err)}")
-            raise APIError(f"Request failed: {str(err)}")
+            raise APIError(f"Request failed: {str(err)}") from err
