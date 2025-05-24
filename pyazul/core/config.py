@@ -2,9 +2,10 @@ import base64
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional, Tuple
+from typing import Any, Optional, Self, Tuple
 
 from dotenv import load_dotenv
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Load .env file with override=True to ensure values are loaded
@@ -13,17 +14,17 @@ load_dotenv(override=True)
 
 class AzulSettings(BaseSettings):
     # Payment Page Settings
-    AZUL_MERCHANT_ID: str
-    AZUL_AUTH_KEY: str
-    MERCHANT_NAME: str
-    MERCHANT_TYPE: str
+    AZUL_MERCHANT_ID: Optional[str] = None
+    AZUL_AUTH_KEY: Optional[str] = None
+    MERCHANT_NAME: Optional[str] = None
+    MERCHANT_TYPE: Optional[str] = None
 
     # Authentication Settings
-    AUTH1: str
-    AUTH2: str
+    AUTH1: Optional[str] = None
+    AUTH2: Optional[str] = None
     AUTH1_3D: str = ""
     AUTH2_3D: str = ""
-    MERCHANT_ID: str
+    MERCHANT_ID: Optional[str] = None
     CHANNEL: str = "EC"
 
     # Certificate Settings
@@ -35,9 +36,10 @@ class AzulSettings(BaseSettings):
     CUSTOM_URL: Optional[str] = None
 
     # Service URLs
-    DEV_URL: str
-    PROD_URL: str
-    ALT_PROD_URL: str
+    DEV_URL: Optional[str] = None
+    PROD_URL: Optional[str] = None
+    ALT_PROD_URL: Optional[str] = None
+    ALT_PROD_URL_PAYMENT: Optional[str] = None
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="allow"
@@ -96,7 +98,7 @@ class AzulSettings(BaseSettings):
                     f.write(data)
                 path.chmod(0o600)
             except Exception as e:
-                raise ValueError(f"Error writing certificate: {str(e)}")
+                raise ValueError(f"Error writing certificate: {str(e)}") from e
 
         # Process certificate
         cert_path = temp_dir / "azul_cert.crt"
@@ -123,6 +125,45 @@ class AzulSettings(BaseSettings):
             )
 
         return str(cert_path), str(key_path)
+
+    @model_validator(mode="after")
+    def _ensure_required_fields_are_set(self) -> Self:
+        # Always required fields
+        always_required_fields = {
+            "AZUL_MERCHANT_ID": self.AZUL_MERCHANT_ID,
+            "AZUL_AUTH_KEY": self.AZUL_AUTH_KEY,
+            "MERCHANT_NAME": self.MERCHANT_NAME,
+            "MERCHANT_TYPE": self.MERCHANT_TYPE,
+            "AUTH1": self.AUTH1,
+            "AUTH2": self.AUTH2,
+            "MERCHANT_ID": self.MERCHANT_ID,
+        }
+
+        missing_fields = [
+            name for name, value in always_required_fields.items() if value is None
+        ]
+
+        # Environment-specific URL requirements
+        if self.ENVIRONMENT == "dev":
+            if self.DEV_URL is None:
+                missing_fields.append("DEV_URL")
+        elif self.ENVIRONMENT == "prod":
+            if self.PROD_URL is None:
+                missing_fields.append("PROD_URL")
+            # ALT_PROD_URL is optional. If set, it overrides the default alternate URL
+            # for 'prod' environment retries used by the API client.
+            # ALT_PROD_URL_PAYMENT is optional and allows overriding the constant defined in AzulEndpoints.
+            # The PaymentPageService should be designed to allow selection between primary and this alternate URL.
+        # else:
+        # ENVIRONMENT has a default ('dev'), and pydantic would typically handle
+        # validation if it were an Enum. If it can be other values,
+        # one might add a warning here, but for 'dev'/'prod' this is sufficient.
+
+        if missing_fields:
+            raise ValueError(
+                f"The following required settings are missing or not set in the environment: {', '.join(missing_fields)}"
+            )
+        return self
 
 
 @lru_cache()

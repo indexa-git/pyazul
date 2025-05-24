@@ -35,13 +35,23 @@ class AzulAPI:
 
     def _init_configuration(self) -> None:
         """Initialize basic configuration from settings"""
+        if self.settings.AUTH1 is None:
+            raise ValueError(
+                "AUTH1 is not set in settings; essential for API authentication."
+            )
         self.auth1 = self.settings.AUTH1
+
+        if self.settings.AUTH2 is None:
+            raise ValueError(
+                "AUTH2 is not set in settings; essential for API authentication."
+            )
         self.auth2 = self.settings.AUTH2
         self.ssl_context = self._load_certificates()
         self.ENVIRONMENT = Environment(self.settings.ENVIRONMENT)
         self.url = self._get_base_url()
         if self.ENVIRONMENT == Environment.PROD:
-            self.ALT_URL = AzulEndpoints.ALT_PROD_URL
+            # Prioritize user-defined ALT_PROD_URL from settings, fallback to constant
+            self.ALT_URL = self.settings.ALT_PROD_URL or AzulEndpoints.ALT_PROD_URL
 
     def _load_certificates(self) -> ssl.SSLContext:
         """Load and validate certificates into an SSL context"""

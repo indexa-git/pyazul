@@ -1,9 +1,8 @@
 import hashlib
 import hmac
-from dataclasses import dataclass
 
 from pyazul.api.constants import AzulEndpoints, Environment
-from pyazul.core.config import get_azul_settings
+from pyazul.core.config import AzulSettings
 from pyazul.models.schemas import PaymentPageModel
 
 """
@@ -13,31 +12,11 @@ This module provides the service layer for interacting with Azul's Payment Page.
 It handles:
 - Payment form generation
 - Authentication hash calculation
-- Environment-specific configurations
+- Environment-specific configurations (including primary and alternate production URLs)
 - Form field formatting and validation
 
 The payment page allows secure card processing by redirecting users to Azul's hosted payment form.
 """
-
-
-@dataclass
-class AzulPageConfig:
-    """
-    Configuration for Azul Payment Page.
-
-    Attributes:
-        merchant_id: Merchant identifier provided by Azul
-        merchant_name: Merchant name to display on payment page
-        merchant_type: Type of merchant (provided by Azul)
-        auth_key: Authentication key for hash generation
-        enviroment: Current environment (dev/prod)
-    """
-
-    merchant_id: str
-    merchant_name: str
-    merchant_type: str
-    auth_key: str
-    enviroment: str
 
 
 class PaymentPageService:
@@ -45,70 +24,75 @@ class PaymentPageService:
     Service for handling Azul Payment Page Operations.
 
     This service provides methods to:
-    1. Generate secure payment forms
-    2. Calculate authentication hashes
-    3. Handle environment-specific URLs
+    1. Generate secure payment forms for primary or alternate production URLs.
+    2. Calculate authentication hashes.
+    3. Handle environment-specific URLs.
 
     Usage example:
+        settings = get_azul_settings() # Or your custom AzulSettings instance
         service = PaymentPageService(settings)
-        form = service.create_payment_form(payment_request)
+        # For primary URL
+        form_primary = service.create_payment_form(payment_request)
+        # For alternate URL in production if needed
+        form_alternate = service.create_payment_form(payment_request, use_alternate_url=True)
     """
 
-    def __init__(self, settings: get_azul_settings):
+    def __init__(self, settings: AzulSettings):
         """
         Initialize PaymentPage Service.
 
         Args:
-            settings: Azul configuration settings
+            settings: Azul configuration settings instance.
         """
-        self.config = AzulPageConfig(
-            merchant_id=settings.AZUL_MERCHANT_ID,
-            merchant_name=settings.MERCHANT_NAME,
-            merchant_type=settings.MERCHANT_TYPE,
-            auth_key=settings.AZUL_AUTH_KEY,
-            enviroment=settings.ENVIRONMENT,
-        )
+        self.settings = settings
 
-        self.azul_url = self._get_base_url()
-
-    def _get_base_url(self) -> str:
+    def _get_base_url(self, use_alternate_url: bool = False) -> str:
         """
-        Get the base URL for Payment Page based on environment.
+        Get the base URL for Payment Page based on environment and alternate flag.
+
+        Args:
+            use_alternate_url (bool): If True and in 'prod' environment, returns the alternate URL.
 
         Returns:
             str: Base URL for the payment page
         """
-        if self.config.enviroment == Environment.DEV:
+        if self.settings.ENVIRONMENT == Environment.DEV:
             return AzulEndpoints.DEV_URL_PAYMEMT
+
+        # Production environment
+        if use_alternate_url:
+            # Prioritize user-set alternate, then constant
+            return (
+                self.settings.ALT_PROD_URL_PAYMENT or AzulEndpoints.ALT_PROD_URL_PAYMEMT
+            )
         return AzulEndpoints.PROD_URL_PAYMEMT
 
     def _generate_auth_hash(self, payment_request: PaymentPageModel) -> str:
         """
         Generate authentication hash for the payment request.
-
-        The hash is calculated using HMAC-SHA512 with the following components:
-        - Merchant ID
-        - Merchant Name
-        - Merchant Type
-        - Currency Code
-        - Order Number
-        - Amount
-        - ITBIS
-        - URLs (Approved, Decline, Cancel)
-        - Custom Fields
-        - Auth Key
-
-        Args:
-            payment_request: Payment page request model
-
-        Returns:
-            str: Generated hash for authentication
         """
+        if self.settings.AZUL_MERCHANT_ID is None:
+            raise ValueError(
+                "AZUL_MERCHANT_ID must be set for payment page hash generation."
+            )
+        if self.settings.MERCHANT_NAME is None:
+            raise ValueError(
+                "MERCHANT_NAME must be set for payment page hash generation."
+            )
+        if self.settings.MERCHANT_TYPE is None:
+            raise ValueError(
+                "MERCHANT_TYPE must be set for payment page hash generation."
+            )
+        if self.settings.AZUL_AUTH_KEY is None:
+            raise ValueError(
+                "AZUL_AUTH_KEY must be set for payment page hash generation."
+            )
+
         # Create the string to hash following Azul's specification
         has_components = [
-            self.config.merchant_id,
-            self.config.merchant_name,
-            self.config.merchant_type,
+            self.settings.AZUL_MERCHANT_ID,
+            self.settings.MERCHANT_NAME,
+            self.settings.MERCHANT_TYPE,
             payment_request.CurrencyCode,
             payment_request.OrderNumber,
             payment_request.Amount,
@@ -124,59 +108,44 @@ class PaymentPageService:
             payment_request.CustomField2Value or "",
         ]
 
-        # Only include SaveToDataVault if it's not None
         if payment_request.SaveToDataVault is not None:
             has_components.append(payment_request.SaveToDataVault)
 
-        has_components.append(self.config.auth_key)
+        has_components.append(self.settings.AZUL_AUTH_KEY)
         hash_string = "".join(has_components)
 
         # Generate HMAC SHA-512 hash
         hmac_obj = hmac.new(
-            self.config.auth_key.encode("utf-8"),
+            self.settings.AZUL_AUTH_KEY.encode("utf-8"),
             hash_string.encode("utf-8"),
             hashlib.sha512,
         )
         return hmac_obj.hexdigest()
 
-    def create_payment_form(self, payment_request: PaymentPageModel) -> str:
+    def create_payment_form(
+        self, payment_request: PaymentPageModel, use_alternate_url: bool = False
+    ) -> str:
         """
         Create HTML form for Payment Page redirect.
-
-        This method:
-        1. Generates an authentication hash
-        2. Creates a hidden form with all required fields
-        3. Adds auto-submit JavaScript
-
-        The generated form will automatically redirect the user to Azul's
-        payment page when loaded.
+        Can specify to use the alternate production URL.
 
         Args:
-            payment_request: Payment page request model
-
+            payment_request: Payment page request model.
+            use_alternate_url (bool): If True and in 'prod' environment,
+                                      the form will post to the alternate payment page URL.
+                                      Defaults to False (uses primary URL).
         Returns:
-            str: HTML form ready for automatic submission
-
-        Example form fields:
-            - MerchantId
-            - MerchantName
-            - MerchantType
-            - CurrencyCode
-            - OrderNumber
-            - Amount
-            - ITBIS
-            - URLs (Approved, Declined, Cancel)
-            - Custom Fields
-            - AuthHash
+            str: HTML form ready for automatic submission.
         """
-        # Generate authentication hash
         auth_hash = self._generate_auth_hash(payment_request)
 
-        # Create the HTML form with base fields
+        # Determine the target URL for the form action
+        form_action_url = self._get_base_url(use_alternate_url=use_alternate_url)
+
         form_fields = [
-            f'<input type="hidden" id="MerchantId" name="MerchantId" value="{self.config.merchant_id}" />',
-            f'<input type="hidden" id="MerchantName" name="MerchantName" value="{self.config.merchant_name}" />',
-            f'<input type="hidden" id="MerchantType" name="MerchantType" value="{self.config.merchant_type}" />',
+            f'<input type="hidden" id="MerchantId" name="MerchantId" value="{self.settings.AZUL_MERCHANT_ID}" />',
+            f'<input type="hidden" id="MerchantName" name="MerchantName" value="{self.settings.MERCHANT_NAME}" />',
+            f'<input type="hidden" id="MerchantType" name="MerchantType" value="{self.settings.MERCHANT_TYPE}" />',
             f'<input type="hidden" id="CurrencyCode" name="CurrencyCode" value="{payment_request.CurrencyCode}" />',
             f'<input type="hidden" id="OrderNumber" name="OrderNumber" value="{payment_request.OrderNumber}" />',
             f'<input type="hidden" id="Amount" name="Amount" value="{payment_request.Amount}" />',
@@ -194,18 +163,15 @@ class PaymentPageService:
             f'<input type="hidden" id="Locale" name="Locale" value="{payment_request.Locale}" />',
         ]
 
-        # Only include SaveToDataVault if present
         if payment_request.SaveToDataVault is not None:
             form_fields.append(
                 f'<input type="hidden" id="SaveToDataVault" name="SaveToDataVault" value="{payment_request.SaveToDataVault}" />'
             )
 
-        # Add authentication hash
         form_fields.append(
             f'<input type="hidden" id="AuthHash" name="AuthHash" value="{auth_hash}" />'
         )
 
-        # Create complete HTML form with auto-submit
         form = f"""
         <html>
         <head>
@@ -216,7 +182,7 @@ class PaymentPageService:
         </script>
         </head>
         <body>
-        <form method="POST" action="{self.azul_url}">
+        <form method="POST" action="{form_action_url}">
             {"".join(form_fields)}
         </form>
         </body>

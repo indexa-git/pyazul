@@ -13,4 +13,4 @@ class BaseService:
             settings (AzulSettings): Configuration containing API credentials and endpoints
         """
         self.settings = settings
-        self.client = AzulAPI()
+        self.client = AzulAPI(settings=self.settings)
