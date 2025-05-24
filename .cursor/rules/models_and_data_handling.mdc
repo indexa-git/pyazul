@@ -1,0 +1,33 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# PyAzul Pydantic Models and Data Handling
+
+This document describes how data is modeled and handled in `pyazul`.
+
+## Pydantic Models
+*   **Core Principle**: `pyazul` uses Pydantic models for defining the structure of request and response data, ensuring validation and type safety.
+*   **Location**:
+    *   Standard transaction models (e.g., `SaleTransactionModel`, `HoldTransactionModel`) are defined in `[pyazul/models/schemas.py](mdc:pyazul/models/schemas.py)`.
+    *   3D Secure specific models (e.g., `SecureSaleRequest`, `CardHolderInfo`) are defined in `[pyazul/models/secure.py](mdc:pyazul/models/secure.py)`.
+*   **Centralized Export**: All user-facing Pydantic models are re-exported from `[pyazul/models/__init__.py](mdc:pyazul/models/__init__.py)`. Users should import models directly from `pyazul.models`.
+    *   Example: `from pyazul.models import SaleTransactionModel, SecureSaleRequest`
+*   **Usage in `PyAzul` Facade**:
+    *   Methods on the `PyAzul` object (see `[pyazul/index.py](mdc:pyazul/index.py)`) primarily accept Python dictionaries as input for convenience. These dictionaries are then parsed into the respective Pydantic models internally before being passed to the service layer.
+        ```python
+        # payment_data is a dict
+        response = await azul.sale(payment_data) 
+        # Internally, PyAzul does something like:
+        # model_instance = SaleTransactionModel(**payment_data)
+        # await self.transaction.sale(model_instance)
+        ```
+    *   Users *can* choose to pre-validate their data by creating Pydantic model instances themselves and then passing the model instance or `model.model_dump()` to the `PyAzul` methods (though `PyAzul` methods are typed for `Dict[str, Any]` input for user data, they handle the model conversion). The [README.md](mdc:README.md) suggests passing dictionaries or `model_dump()`.
+*   **Usage in Service Layer**:
+    *   Service layer methods (e.g., in `[pyazul/services/transaction.py](mdc:pyazul/services/transaction.py)`) are generally typed to accept the specific Pydantic model they operate on (e.g., `TransactionService.sale` accepts `Union[SaleTransactionModel, TokenSaleModel]`).
+
+## Data Conversion
+*   **Amounts/ITBIS**: For API calls to Azul, amounts and ITBIS are typically sent as strings representing cents (e.g., "10000" for $100.00). Pydantic models (like `SecureSaleRequest` which takes `Amount: int`) and service methods (like in `[pyazul/services/secure.py](mdc:pyazul/services/secure.py)`) handle the conversion from integers (often preferred in user code for clarity) to strings where necessary for the final API request payload. Always refer to the specific Pydantic model definitions for exact field types if constructing them directly.
+
+See [README.md](mdc:README.md) for examples of request data structures as dictionaries.

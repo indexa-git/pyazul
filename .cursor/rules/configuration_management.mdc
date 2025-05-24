@@ -1,0 +1,40 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# PyAzul Configuration Management
+
+Configuration for the `pyazul` library is managed through the `AzulSettings` Pydantic model, defined in `[pyazul/core/config.py](mdc:pyazul/core/config.py)`.
+
+## Loading Configuration
+*   By default, `PyAzul()` (see `[pyazul/index.py](mdc:pyazul/index.py)`) initializes `AzulSettings` by loading values from a `.env` file in the project root and then from environment variables (environment variables override `.env` values).
+*   A custom, pre-configured `AzulSettings` instance can also be passed directly to the `PyAzul` constructor: `PyAzul(settings=my_custom_settings)`.
+
+## Key Configuration Variables (in `.env` or as environment variables)
+
+*   **Basic API Credentials**:
+    *   `AUTH1`: Your primary Auth1 key.
+    *   `AUTH2`: Your primary Auth2 key.
+    *   `MERCHANT_ID`: Your merchant identifier.
+*   **Certificates**:
+    *   `AZUL_CERT`: Path to your SSL certificate file OR the full PEM content as a string.
+    *   `AZUL_KEY`: Path to your SSL private key file OR the full PEM content as a string OR Base64 encoded PEM content.
+    *   The library handles writing PEM content to temporary files if direct content is provided (see `_load_certificates` in `[pyazul/core/config.py](mdc:pyazul/core/config.py)`). The `AzulAPI` client in `[pyazul/api/client.py](mdc:pyazul/api/client.py)` uses these settings to establish its SSL context.
+*   **Environment**:
+    *   `ENVIRONMENT`: Set to `dev` for development/testing or `prod` for production. Controls API endpoints.
+*   **3D Secure Credentials (Required for 3DS operations)**:
+    *   `AUTH1_3D`: Specific Auth1 key for 3D Secure transactions.
+    *   `AUTH2_3D`: Specific Auth2 key for 3D Secure transactions.
+    *   `AzulAPI` ([pyazul/api/client.py](mdc:pyazul/api/client.py)) automatically uses these credentials from the `AzulSettings` object when its request methods are called with `is_secure=True`.
+*   **Payment Page Settings (Optional, if using Payment Page)**:
+    *   `AZUL_MERCHANT_ID`: Merchant ID for the payment page (often same as `MERCHANT_ID`).
+    *   `AZUL_AUTH_KEY`: Authentication key for generating the payment page hash.
+    *   `MERCHANT_NAME`: Your business name displayed on the page.
+    *   `MERCHANT_TYPE`: Your business type.
+*   **Other**:
+    *   `CHANNEL`: Default payment channel (e.g., "EC" for E-Commerce).
+    *   `CUSTOM_URL`: Optionally override base API URLs.
+
+Consult `[pyazul/core/config.py](mdc:pyazul/core/config.py)` for all available settings fields.
+The [README.md](mdc:README.md) provides a `.env` example and further details.
