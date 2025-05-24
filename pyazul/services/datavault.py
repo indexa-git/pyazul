@@ -1,7 +1,9 @@
+from typing import Any, Dict
+
 from ..core.base import BaseService
-from ..models.schemas import DataVaultCreateModel, DataVaultDeleteModel
-from typing import Dict, Any
 from ..core.config import AzulSettings
+from ..models.schemas import DataVaultCreateModel, DataVaultDeleteModel
+
 
 class DataVaultService(BaseService):
     """
@@ -10,7 +12,7 @@ class DataVaultService(BaseService):
     - Create tokens from card data
     - Delete existing tokens
     - Use tokens for transactions
-    
+
     This service helps maintain PCI compliance by storing card data securely
     in Azul's DataVault instead of your own systems.
 
@@ -47,8 +49,10 @@ class DataVaultService(BaseService):
         Raises:
             APIError: If token creation fails or API returns an error
         """
-        return await self.client._async_request(data.model_dump(), operation='ProcessDatavault')
-    
+        return await self.client._async_request(
+            data.model_dump(), operation="ProcessDatavault"
+        )
+
     async def delete(self, data: DataVaultDeleteModel) -> Dict[str, Any]:
         """
         Delete an existing token from DataVault.
@@ -67,4 +71,6 @@ class DataVaultService(BaseService):
             APIError: If deletion fails or API returns an error
                      Common error: Token does not exist
         """
-        return await self.client._async_request(data.model_dump(), operation='ProcessDatavault')
+        return await self.client._async_request(
+            data.model_dump(), operation="ProcessDatavault"
+        )

@@ -12,7 +12,7 @@ Este paquete proporciona una interfaz completa para interactuar con los servicio
 Example:
     >>> from pyazul import PyAzul
     >>> azul = PyAzul()  # Usa variables de entorno para la configuración
-    >>> 
+    >>>
     >>> # Procesar un pago
     >>> response = await azul.sale({
     ...     "Channel": "EC",
@@ -24,54 +24,48 @@ Example:
     ... })
 """
 
-from .core.config import get_azul_settings, AzulSettings
+from .core.config import AzulSettings, get_azul_settings
 from .core.exceptions import AzulError
 from .index import PyAzul
-from .services.datavault import DataVaultService
-from .services.transaction import TransactionService
-from .services.payment_page import PaymentPageService
 from .models.schemas import (
-    SaleTransactionModel,
-    HoldTransactionModel,
     DataVaultCreateModel,
     DataVaultDeleteModel,
+    HoldTransactionModel,
+    PaymentPageModel,
+    PostSaleTransactionModel,
+    RefundTransactionModel,
+    SaleTransactionModel,
     TokenSaleModel,
     VerifyTransactionModel,
     VoidTransactionModel,
-    PaymentPageModel,
-    RefundTransactionModel,
-    PostSaleTransactionModel
 )
-from .api.client import AzulAPI as AzulClient
+from .services.datavault import DataVaultService
+from .services.payment_page import PaymentPageService
+from .services.transaction import TransactionService
 
 __all__ = [
     # Clase principal
-    'PyAzul',
-    
+    "PyAzul",
     # Configuración
-    'get_azul_settings',
-    'AzulSettings',
-    'AzulError',
-    
+    "get_azul_settings",
+    "AzulSettings",
+    "AzulError",
     # Servicios
-    'DataVaultService',
-    'TransactionService',
-    'PaymentPageService',
-    
+    "DataVaultService",
+    "TransactionService",
+    "PaymentPageService",
     # Modelos
-    'SaleTransactionModel',
-    'HoldTransactionModel',
-    'DataVaultCreateModel',
-    'DataVaultDeleteModel',
-    'TokenSaleModel',
-    'VerifyTransactionModel',
-    'VoidTransactionModel',
-    'PaymentPageModel',
-    'RefundTransactionModel',
-    'PostSaleTransactionModel',
+    "SaleTransactionModel",
+    "HoldTransactionModel",
+    "DataVaultCreateModel",
+    "DataVaultDeleteModel",
+    "TokenSaleModel",
+    "VerifyTransactionModel",
+    "VoidTransactionModel",
+    "PaymentPageModel",
+    "RefundTransactionModel",
+    "PostSaleTransactionModel",
 ]
 
 # Versión del paquete
-__version__ = '0.4.4alpha'
-
-
+__version__ = "0.4.4alpha"
