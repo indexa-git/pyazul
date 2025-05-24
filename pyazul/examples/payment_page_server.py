@@ -1,8 +1,9 @@
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+
+from pyazul.core.config import get_azul_settings
 from pyazul.models.schemas import PaymentPageModel
 from pyazul.services.payment_page import PaymentPageService
-from pyazul.core.config import get_azul_settings
 
 """
 Example server for Azul Payment Page integration.
@@ -44,29 +45,31 @@ async def view_amounts():
     Shows both the raw amounts (in cents) and formatted amounts (in USD).
     """
     payment_request = PaymentPageModel(
-        Amount="100000",     # $1,000.00 (total amount including ITBIS)
-        ITBIS="18000",      # $180.00 (18% of base amount)
+        Amount="100000",  # $1,000.00 (total amount including ITBIS)
+        ITBIS="18000",  # $180.00 (18% of base amount)
         ApprovedUrl="https://www.instagram.com/progressa.group/#",
         DeclineUrl="https://www.progressa.group/",
         CancelUrl="https://www.progressa.group/",
         UseCustomField1="0",
         CustomField1Label="",
-        CustomField1Value=""
+        CustomField1Value="",
     )
 
-    return JSONResponse({
-        # Formatted amounts in USD
-        "string_representation": str(payment_request),
-        "amount_in_cents": payment_request.Amount,      # Raw amount in cents
-        "itbis_in_cents": payment_request.ITBIS        # Raw ITBIS in cents
-    })
+    return JSONResponse(
+        {
+            # Formatted amounts in USD
+            "string_representation": str(payment_request),
+            "amount_in_cents": payment_request.Amount,  # Raw amount in cents
+            "itbis_in_cents": payment_request.ITBIS,  # Raw ITBIS in cents
+        }
+    )
 
 
 @app.get("/buy-ticket", response_class=HTMLResponse)
 async def buy_ticket(request: Request):
     """
     Create and return a payment form for Azul Payment Page.
-    
+
     The form will automatically submit to Azul's payment page where
     the user can enter their card details securely.
     """
@@ -75,14 +78,14 @@ async def buy_ticket(request: Request):
         # - Total amount: $1,000.00 = "100000" cents
         # - ITBIS: $180.00 = "18000" cents (18% of base amount)
         payment_request = PaymentPageModel(
-            Amount="100000",     # $1,000.00
-            ITBIS="18000",      # $180.00
+            Amount="100000",  # $1,000.00
+            ITBIS="18000",  # $180.00
             ApprovedUrl="https://www.instagram.com/progressa.group/#",
             DeclineUrl="https://www.progressa.group/",
             CancelUrl="https://www.progressa.group/",
             UseCustomField1="0",
             CustomField1Label="",
-            CustomField1Value=""
+            CustomField1Value="",
         )
 
         # Generate and return the HTML form
@@ -94,6 +97,8 @@ async def buy_ticket(request: Request):
             <p>Failed to create payment form. Please try again later.</p>
         """
 
+
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=8000)

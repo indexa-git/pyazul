@@ -1,4 +1,5 @@
 from enum import Enum
+
 """
 This module contains constants and enums used throughout the Azul API client.
 It defines environment types (DEV/PROD) and endpoint URLs for different environments.
@@ -9,6 +10,7 @@ The constants are used to configure the API client's behavior and routing.
 class Environment(str, Enum):
     DEV = "dev"
     PROD = "prod"
+
 
 class AzulEndpoints:
     DEV_URL = "https://pruebas.azul.com.do/webservices/JSON/Default.aspx"

@@ -1,6 +1,14 @@
+from typing import Any, Dict
+
 from ..core.base import BaseService
-from ..models.schemas import PaymentSchema, RefundTransactionModel, VerifyTransactionModel, VoidTransactionModel, PostSaleTransactionModel
-from typing import Dict, Any
+from ..models.schemas import (
+    PaymentSchema,
+    PostSaleTransactionModel,
+    RefundTransactionModel,
+    VerifyTransactionModel,
+    VoidTransactionModel,
+)
+
 
 class TransactionService(BaseService):
     """
@@ -31,11 +39,8 @@ class TransactionService(BaseService):
         Raises:
             APIError: If the transaction fails or API returns an error
         """
-        return await self.client._async_request(
-            transaction.model_dump(),
-            operation=''
-        )
-    
+        return await self.client._async_request(transaction.model_dump(), operation="")
+
     async def hold(self, transaction: PaymentSchema) -> Dict[str, Any]:
         """
         Create an authorization hold on a card.
@@ -53,11 +58,8 @@ class TransactionService(BaseService):
         Raises:
             APIError: If the hold fails or API returns an error
         """
-        return await self.client._async_request(
-            transaction.model_dump(),
-            operation=''
-        )
-    
+        return await self.client._async_request(transaction.model_dump(), operation="")
+
     async def refund(self, transaction: RefundTransactionModel) -> Dict[str, Any]:
         """
         Process a refund for a previous transaction.
@@ -73,40 +75,34 @@ class TransactionService(BaseService):
         Raises:
             APIError: If the refund fails or API returns an error
         """
-        return await self.client._async_request(
-            transaction.model_dump(),
-            operation=''
-        )
-    
+        return await self.client._async_request(transaction.model_dump(), operation="")
+
     async def verify(self, transaction: VerifyTransactionModel) -> Dict[str, Any]:
         """
         Verify a transaction by checking its status.
 
         Args:
-            transaction (VerifyTransactionModel): Transaction data including order ID   
+            transaction (VerifyTransactionModel): Transaction data including order ID
         """
         return await self.client._async_request(
-            transaction.model_dump(),
-            operation='VerifyPayment'
+            transaction.model_dump(), operation="VerifyPayment"
         )
-    
+
     async def void(self, transaction: VoidTransactionModel) -> Dict[str, Any]:
         """
         Void a transaction.
 
         Args:
-            transaction (VoidTransactionModel): Transaction data including order ID 
+            transaction (VoidTransactionModel): Transaction data including order ID
         """
         return await self.client._async_request(
-            transaction.model_dump(),
-            operation='ProcessVoid'
+            transaction.model_dump(), operation="ProcessVoid"
         )
-    
+
     async def post_sale(self, transaction: PostSaleTransactionModel) -> Dict[str, Any]:
         """
         Process a post sale transaction.
         """
         return await self.client._async_request(
-            transaction.model_dump(),
-            operation='ProcessPost'
+            transaction.model_dump(), operation="ProcessPost"
         )
