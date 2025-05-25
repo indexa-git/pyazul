@@ -99,7 +99,7 @@
 
     <form id="payment-form">
       <div class="form-group">
-        <label for="card">Tarjeta de Prueba:</label>
+        <label for="card">Test Card:</label>
         <select id="card" name="card_number" required>
           {% for card in cards %}
           <option value="{{ card.number }}">
@@ -110,7 +110,7 @@
       </div>
 
       <div class="form-group">
-        <label for="amount">Monto:</label>
+        <label for="amount">Amount:</label>
         <input
           type="number"
           id="amount"
@@ -133,7 +133,7 @@
         />
       </div>
 
-      <button type="submit">Procesar Pago</button>
+      <button type="submit">Process Payment</button>
     </form>
 
     <div id="result-container"></div>
@@ -186,22 +186,22 @@
         switch (status) {
           case "success":
             statusText =
-              '<h2 style="color: #28a745">✓ Transacción Exitosa</h2>';
+              '<h2 style="color: #28a745">✓ Transaction Successful</h2>';
             break;
           case "error":
             statusText =
-              '<h2 style="color: #dc3545">✗ Error en la Transacción</h2>';
+              '<h2 style="color: #dc3545">✗ Transaction Error</h2>';
             // Agregar detalles del error si están disponibles
             if (cleanResult.ErrorDescription) {
               errorDetails = `<div class="error-details" style="margin-top: 10px; padding: 10px; background: #fff1f0; border-left: 4px solid #dc3545; margin-bottom: 15px;">
-                            <strong>Detalles del error:</strong><br>
+                            <strong>Error Details:</strong><br>
                             ${cleanResult.ErrorDescription}
                         </div>`;
             }
             break;
           default:
             statusText =
-              '<h2 style="color: #17a2b8">⟳ Procesando Transacción</h2>';
+              '<h2 style="color: #17a2b8">⟳ Processing Transaction</h2>';
             if (cleanResult.message) {
               processingDetails = `<div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-left: 4px solid #17a2b8; margin-bottom: 15px;">
                             ${cleanResult.message}
@@ -255,7 +255,7 @@
                 // Intentamos parsear como JSON
                 challengeResult = JSON.parse(responseText);
               } catch (e) {
-                // Si no es JSON, asumimos que es un mensaje de error
+                // If it's not JSON, we assume it's an error message
                 showResult(
                   {
                     ResponseMessage: "ERROR",
@@ -274,7 +274,7 @@
                 const errorMessage =
                   challengeResult.error ||
                   challengeResult.detail ||
-                  "Error desconocido en la transacción";
+                  "Unknown error in transaction";
                 showResult(
                   {
                     ResponseMessage: "ERROR",
@@ -329,7 +329,7 @@
                       ResponseMessage: "ERROR",
                       IsoCode: "ERROR",
                       ErrorDescription:
-                        "No se encontró el formulario 3DS en la respuesta",
+                        "3DS form not found",
                     },
                     "error",
                   );
@@ -367,7 +367,7 @@
           const formData = new FormData(e.target);
           try {
             showResult(
-              { message: "Iniciando proceso de pago..." },
+              { message: "Starting payment process..." },
               "processing",
             );
 
@@ -394,7 +394,7 @@
 
             if (result.redirect && result.html) {
               showResult(
-                { message: "Iniciando verificación 3D Secure..." },
+                { message: "Starting 3D Secure verification..." },
                 "processing",
               );
 
@@ -431,7 +431,7 @@
                       ResponseMessage: "ERROR",
                       IsoCode: "ERROR",
                       ErrorDescription:
-                        "No se encontró el formulario 3DS en la respuesta",
+                        "3DS form not found",
                     },
                     "error",
                   );
@@ -456,7 +456,7 @@
           }
         });
 
-      // Escuchar mensajes de la ventana de desafío 3DS
+      // Listen for messages from the 3DS challenge window
       window.addEventListener("message", function (event) {
         if (
           event.data &&
@@ -471,7 +471,7 @@
               result.ResponseMessage === "APROBADA" || result.IsoCode === "00";
             showResult(result, isSuccess ? "success" : "error");
 
-            // Si hay una ventana de desafío abierta, cerrarla
+            // If there is a challenge window open, close it
             const challengeContainer = document.querySelector(
               '[style*="position: fixed"]',
             );
@@ -479,7 +479,7 @@
               challengeContainer.remove();
             }
 
-            // Si hay una ventana popup abierta, cerrarla después de 3 segundos
+            // If there is a popup window open, close it after 3 seconds
             if (event.source && event.source !== window) {
               setTimeout(() => {
                 event.source.close();

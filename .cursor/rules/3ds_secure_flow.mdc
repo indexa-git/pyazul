@@ -3,7 +3,6 @@ description:
 globs: 
 alwaysApply: false
 ---
-\
 # PyAzul 3D Secure (3DS) Implementation Guide
 
 This guide details the 3D Secure flow implementation within the `pyazul` library.

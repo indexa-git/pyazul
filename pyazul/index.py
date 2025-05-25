@@ -24,36 +24,27 @@ from .services.transaction import TransactionService
 
 class PyAzul:
     """
-    Cliente principal para la integración con Azul Payment Gateway.
+    Main client for integration with Azul Payment Gateway.
 
-    Esta clase proporciona acceso centralizado a todos los servicios de Azul:
-    - Procesamiento de pagos directos y 3D Secure
-    - Tokenización de tarjetas (DataVault)
-    - Página de pago
-    - Verificación de transacciones
-    - Reembolsos y anulaciones
-    - Retención/captura de transacciones
+    This class provides a unified interface to all Azul services.
+
+    Key Features:
+        - Direct payment processing and 3D Secure
+        - Card tokenization (DataVault)
+        - Payment Page
+        - Transaction verification
+        - Refunds and voids
+        - Hold/capture of transactions
 
     Example:
         >>> from pyazul import PyAzul
-        >>> azul = PyAzul()  # Usa variables de entorno para la configuración
-        >>>
-        >>> # Procesar un pago
-        >>> response = await azul.transaction.sale({
-        ...     "Channel": "EC",
-        ...     "Store": "39038540035",
-        ...     "CardNumber": "4111111111111111",
-        ...     "Expiration": "202812",
-        ...     "CVC": "123",
-        ...     "Amount": "100000"  # $1,000.00
-        ... })
-        >>>
-        >>> # Tokenizar una tarjeta
-        >>> token_response = await azul.datavault.create({
-        ...     "CardNumber": "4111111111111111",
-        ...     "Expiration": "202812",
-        ...     "store": "39038540035"
-        ... })
+        >>> azul = PyAzul() # Uses environment variables for configuration
+        >>> # Process a payment
+        >>> response = await azul.sale(...)
+        >>> # Tokenize a card
+        >>> token_response = await azul.create_token(...)
+        >>> # Use token for a 3DS payment
+        >>> secure_response = await azul.secure_token_sale(...)
     """
 
     def __init__(
@@ -61,20 +52,20 @@ class PyAzul:
         settings: Optional[AzulSettings] = None,
     ):
         """
-        Inicializa el cliente PyAzul.
+        Initializes the PyAzul client.
 
         Args:
-            settings: Configuración personalizada opcional. Si no se proporciona,
-                     se utilizarán las variables de entorno.
+            settings: Optional custom settings. If not provided,
+                     environment variables will be used.
         """
         if settings is None:
             settings = get_azul_settings()
         self.settings = settings
 
-        # Crear cliente API compartido
+        # Create shared API client
         self.api = AzulAPI(settings=self.settings)
 
-        # Inicializar servicios con el cliente API, configuraciones y session_store
+        # Initialize services with the API client, settings, and session_store
         self.transaction = TransactionService(
             settings=self.settings, api_client=self.api
         )
@@ -83,82 +74,76 @@ class PyAzul:
         self.secure = SecureService(api_client=self.api)
 
     async def sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Procesa un pago directo con tarjeta."""
+        """Processes a direct card payment."""
         return await self.transaction.sale(SaleTransactionModel(**data))
 
     async def hold(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Realiza una retención en una tarjeta (pre-autorización)."""
+        """Performs a hold on a card (pre-authorization)."""
         return await self.transaction.hold(HoldTransactionModel(**data))
 
     async def refund(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Procesa un reembolso de una transacción anterior."""
+        """Processes a refund for a previous transaction."""
         return await self.transaction.refund(RefundTransactionModel(**data))
 
     async def void(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Anula (cancela) una transacción."""
+        """Voids a previous transaction."""
         return await self.transaction.void(VoidTransactionModel(**data))
 
-    async def post_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Completa una transacción previamente retenida."""
-        return await self.transaction.post_sale(PostSaleTransactionModel(**data))
+    async def post_auth(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Captures a previously held amount (post-authorization)."""
+        return await self.transaction.post_auth(PostSaleTransactionModel(**data))
 
-    async def verify(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Verifica el estado de una transacción."""
+    async def verify_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Verifies the status of a transaction."""
         return await self.transaction.verify(VerifyTransactionModel(**data))
 
     async def create_token(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Crea un token de tarjeta en DataVault."""
+        """Creates a card token in DataVault."""
         return await self.datavault.create(DataVaultCreateModel(**data))
 
     async def delete_token(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Elimina un token de DataVault."""
+        """Deletes a token from DataVault."""
         return await self.datavault.delete(DataVaultDeleteModel(**data))
 
     async def token_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Procesa un pago usando un token de DataVault."""
-        return await self.transaction.sale(TokenSaleModel(**data))
+        """Processes a sale using a token (without 3DS)."""
+        return await self.transaction.token_sale(TokenSaleModel(**data))
 
-    def create_payment_page(self, data: Dict[str, Any]) -> str:
-        """
-        Crea el HTML del formulario para la página de pago de Azul.
+    def payment_page(self, data: Dict[str, Any]) -> str:
+        """Generates HTML for Azul's hosted payment page."""
+        return self.payment_page.generate_payment_page(PaymentPageModel(**data))
 
-        Returns:
-            str: HTML del formulario listo para ser renderizado y auto-enviado.
-        """
-        return self.payment_page.create_payment_form(PaymentPageModel(**data))
-
-    # --- Métodos Seguros (3D Secure) ---
+    # --- Secure Methods (3D Secure) ---
 
     async def secure_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Procesa un pago con tarjeta utilizando autenticación 3D Secure."""
+        """Processes a card payment using 3D Secure authentication."""
         return await self.secure.process_sale(SecureSaleRequest(**data))
 
     async def secure_token_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Procesa un pago con token utilizando autenticación 3D Secure."""
+        """Processes a tokenized card payment using 3D Secure authentication."""
         return await self.secure.process_token_sale(SecureTokenSale(**data))
 
     async def secure_hold(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Realiza una retención en una tarjeta (pre-autorización) con 3D Secure."""
+        """Performs a hold on a card (pre-authorization) with 3D Secure."""
         # SecureService process_hold expects SecureSaleRequest model
         return await self.secure.process_hold(SecureSaleRequest(**data))
 
-    async def secure_3ds_method(
+    async def process_3ds_method(
         self, azul_order_id: str, method_notification_status: str
     ) -> Dict[str, Any]:
-        """Procesa la notificación del método 3D Secure."""
+        """Processes the 3DS method notification received from ACS."""
         return await self.secure.process_3ds_method(
             azul_order_id, method_notification_status
         )
 
-    async def secure_challenge(self, secure_id: str, cres: str) -> Dict[str, Any]:
-        """Procesa el resultado del desafío 3D Secure."""
-        return await self.secure.process_challenge(secure_id, cres)
+    async def process_challenge(
+        self, session_id: str, challenge_response: str
+    ) -> Dict[str, Any]:
+        """Processes the 3DS challenge response received from ACS."""
+        return await self.secure.process_challenge(session_id, challenge_response)
 
-    def create_challenge_form(
-        self, creq: str, term_url: str, redirect_post_url: str
-    ) -> str:
-        """
-        Crea el HTML del formulario para el desafío 3DS.
-        Este es un método de conveniencia que llama al método estático en SecureService.
-        """
-        return SecureService._create_challenge_form(creq, term_url, redirect_post_url)
+    async def get_secure_session_info(
+        self, session_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """Retrieves information about an active 3DS session."""
+        return self.secure.get_session_info(session_id)

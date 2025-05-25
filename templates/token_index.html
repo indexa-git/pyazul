@@ -151,18 +151,18 @@
     <h1>Azul Token Payment Demo</h1>
 
     <div class="steps">
-      <div id="step1" class="step active">1. Crear Token</div>
-      <div id="step2" class="step">2. Procesar Pago con Token</div>
-      <div id="step3" class="step">3. Resultado</div>
+      <div id="step1" class="step active">1. Create Token</div>
+      <div id="step2" class="step">2. Process Payment with Token</div>
+      <div id="step3" class="step">3. Result</div>
     </div>
 
     <!-- Step 1: Create Token -->
     <div id="tab1" class="tab-content active">
       <div class="card">
-        <h2>Crear Token de Tarjeta</h2>
+        <h2>Create Card Token</h2>
         <form id="token-form">
           <div class="form-group">
-            <label for="card">Tarjeta de Prueba:</label>
+            <label for="card">Test Card:</label>
             <select id="card" name="card_number" required>
               {% for card in cards %}
               <option value="{{ card.number }}">
@@ -173,7 +173,7 @@
           </div>
 
           <div class="form-group">
-            <label for="amount">Monto:</label>
+            <label for="amount">Amount:</label>
             <input
               type="number"
               id="amount"
@@ -196,7 +196,7 @@
             />
           </div>
 
-          <button type="submit" class="btn-primary">Crear Token</button>
+          <button type="submit" class="btn-primary">Create Token</button>
         </form>
       </div>
     </div>
@@ -204,20 +204,20 @@
     <!-- Step 2: Process Payment -->
     <div id="tab2" class="tab-content">
       <div class="card">
-        <h2>Procesar Pago con Token</h2>
+        <h2>Process Payment with Token</h2>
 
         <div id="token-info" class="token-info">
-          <h3>Información del Token</h3>
+          <h3>Token Information</h3>
           <p><strong>Token ID:</strong> <span id="token-id"></span></p>
-          <p><strong>Tarjeta:</strong> <span id="masked-card"></span></p>
-          <p><strong>Marca:</strong> <span id="card-brand"></span></p>
+          <p><strong>Card:</strong> <span id="masked-card"></span></p>
+          <p><strong>Brand:</strong> <span id="card-brand"></span></p>
         </div>
 
         <form id="payment-form">
           <input type="hidden" id="token_id" name="token_id" />
 
           <div class="form-group">
-            <label for="payment-amount">Monto a Cobrar:</label>
+            <label for="payment-amount">Amount to Charge:</label>
             <input
               type="number"
               id="payment-amount"
@@ -241,17 +241,17 @@
           </div>
 
           <div class="form-group">
-            <label for="challenge_indicator">Indicador de Desafío:</label>
+            <label for="challenge_indicator">Challenge Indicator:</label>
             <select id="challenge_indicator" name="challenge_indicator">
-              <option value="02">02 - Sin Desafío (Frictionless)</option>
-              <option value="03" selected>03 - Con Desafío (Challenge)</option>
+              <option value="02">02 - No Challenge (Frictionless)</option>
+              <option value="03" selected>03 - With Challenge (Challenge)</option>
               <option value="04">04 - Shared Data</option>
             </select>
           </div>
 
-          <button type="submit" class="btn-primary">Procesar Pago</button>
+          <button type="submit" class="btn-primary">Process Payment</button>
           <button type="button" id="back-to-token" class="btn-secondary">
-            Volver a Crear Token
+            Back to Create Token
           </button>
         </form>
       </div>
@@ -309,24 +309,24 @@
         switch (status) {
           case "success":
             statusText =
-              '<h2 style="color: #28a745">✓ Transacción Exitosa</h2>';
+              '<h2 style="color: #28a745">✓ Transaction Successful</h2>';
             break;
           case "error":
             statusText =
-              '<h2 style="color: #dc3545">✗ Error en la Transacción</h2>';
+              '<h2 style="color: #dc3545">✗ Transaction Error</h2>';
             // Agregar detalles del error si están disponibles
             if (cleanResult.error || cleanResult.ErrorDescription) {
               const errorMessage =
                 cleanResult.error || cleanResult.ErrorDescription;
               errorDetails = `<div class="error-details" style="margin-top: 10px; padding: 10px; background: #fff1f0; border-left: 4px solid #dc3545; margin-bottom: 15px;">
-                            <strong>Detalles del error:</strong><br>
+                            <strong>Error Details:</strong><br>
                             ${errorMessage}
                         </div>`;
             }
             break;
           default:
             statusText =
-              '<h2 style="color: #17a2b8">⟳ Procesando Transacción</h2>';
+              '<h2 style="color: #17a2b8">⟳ Processing Transaction</h2>';
             if (cleanResult.message) {
               processingDetails = `<div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-left: 4px solid #17a2b8; margin-bottom: 15px;">
                             ${cleanResult.message}
@@ -382,7 +382,7 @@
           const formData = new FormData(e.target);
           try {
             showResult(
-              { message: "Creando token de tarjeta..." },
+              { message: "Creating token..." },
               "processing",
             );
 
@@ -426,7 +426,7 @@
             // Mostrar mensaje de éxito
             showResult(
               {
-                message: "Token creado exitosamente",
+                message: "Token created successfully",
                 token_id: result.token_id,
                 masked_card: result.masked_card,
                 brand: result.brand,
@@ -453,7 +453,7 @@
           const formData = new FormData(e.target);
           try {
             showResult(
-              { message: "Procesando pago con token..." },
+              { message: "Processing payment with token..." },
               "processing",
             );
 
@@ -481,7 +481,7 @@
 
             if (result.redirect && result.html) {
               showResult(
-                { message: "Iniciando verificación 3D Secure..." },
+                { message: "Starting 3D Secure verification..." },
                 "processing",
               );
 
@@ -515,7 +515,7 @@
                 } else {
                   showResult(
                     {
-                      error: "No se encontró el formulario 3DS en la respuesta",
+                      error: "3DS form not found in response",
                     },
                     "error",
                   );
@@ -577,7 +577,7 @@
                 // Intentamos parsear como JSON
                 challengeResult = JSON.parse(responseText);
               } catch (e) {
-                // Si no es JSON, asumimos que es un mensaje de error
+                // If it's not JSON, we assume it's an error message
                 showResult(
                   {
                     error: responseText,
@@ -594,7 +594,7 @@
                 const errorMessage =
                   challengeResult.error ||
                   challengeResult.detail ||
-                  "Error desconocido en la transacción";
+                  "Unknown error in transaction";
                 showResult(
                   {
                     error: errorMessage,
@@ -644,7 +644,7 @@
                 } else {
                   showResult(
                     {
-                      error: "No se encontró el formulario 3DS en la respuesta",
+                      error: "3DS form not found in response",
                     },
                     "error",
                   );
@@ -663,7 +663,7 @@
         } else {
           showResult(
             {
-              error: "No se encontró el formulario 3DS",
+              error: "3DS form not found",
             },
             "error",
           );
@@ -675,7 +675,7 @@
         goToStep(1);
       });
 
-      // Escuchar mensajes de la ventana de desafío 3DS
+      // Listen for messages from the 3DS challenge window
       window.addEventListener("message", function (event) {
         if (
           event.data &&

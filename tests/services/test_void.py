@@ -22,7 +22,7 @@ async def test_void_transaction(transaction_service):
     """
     Test the hold and void transaction methods.
     """
-    # Primero realizamos una transacción hold
+    # First, we perform a hold transaction
     hold_transaction = HoldTransactionModel(
         CardNumber="5413330089600119",
         Expiration="202812",
@@ -36,10 +36,10 @@ async def test_void_transaction(transaction_service):
     assert hold_result["IsoCode"] == "00", "Hold transaction should be successful"
     azul_order_id = hold_result["AzulOrderId"]
 
-    # Esperamos 2 segundos para asegurar que la transacción hold se ha procesado completamente
+    # We wait for 2 seconds to ensure the hold transaction is fully processed
     await asyncio.sleep(2)
 
-    # Luego intentamos anular la transacción
+    # Then we attempt to void the transaction
     transaction = VoidTransactionModel(
         AzulOrderId=azul_order_id, store=transaction_service.settings.MERCHANT_ID
     )

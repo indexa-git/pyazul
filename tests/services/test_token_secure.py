@@ -1,10 +1,10 @@
 """
 Tests for Token Secure Integration
 
-Este módulo contiene pruebas para verificar el flujo completo de pago con token y 3DS:
-1. Crear un token de tarjeta (DataVault)
-2. Procesar una venta con token utilizando 3DS
-3. Probar diferentes escenarios de 3DS: challenge, direct approval, method
+This module contains tests to verify the complete token payment and 3DS flow:
+1. Create a card token (DataVault)
+2. Process a token sale using 3DS
+3. Test different 3DS scenarios: challenge, direct approval, method
 """
 
 import uuid

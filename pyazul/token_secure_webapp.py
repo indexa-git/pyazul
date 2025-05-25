@@ -1,8 +1,8 @@
 """
-Mini aplicación FastAPI para demostrar el flujo completo de pagos con token y 3DS:
-1. Crea un token a partir de una tarjeta de prueba
-2. Usa el token para procesar un pago con autenticación 3DS
-3. Maneja el flujo completo de 3DS (método y desafío)
+Mini FastAPI application to demonstrate the complete flow of token payments and 3DS:
+1. Create a token from a test card
+2. Use the token to process a payment with 3DS authentication
+3. Handle the complete 3DS flow (method and challenge)
 """
 
 import json
@@ -16,33 +16,39 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
 from pyazul.api.client import AzulAPI
-from pyazul.core.config import get_azul_settings
+from pyazul.core.config import AzulSettings, get_azul_settings
 from pyazul.core.exceptions import AzulError
-from pyazul.models.schemas import DataVaultCreateModel
-from pyazul.models.secure import CardHolderInfo, SecureTokenSale
+from pyazul.models import (
+    CardHolderInfo,
+    DataVaultCreateModel,
+    SecureChallengeRequest,
+    SecureSessionID,
+    SecureTokenSale,
+)
 from pyazul.services.datavault import DataVaultService
 from pyazul.services.secure import SecureService
 
-# Configurar logging
+# Configure logging
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# Inicializar la aplicación FastAPI
+# Initialize FastAPI application
 app = FastAPI(title="Azul Token Payment Demo")
 templates = Jinja2Templates(directory="templates")
 
-# Inicializar servicios compartidos (singleton)
-api_client = AzulAPI()
-secure_service = SecureService(api_client)
-datavault_service = DataVaultService(get_azul_settings())
+# Initialize shared services (singleton)
+settings: AzulSettings = get_azul_settings()
+api_client: AzulAPI = AzulAPI(settings=settings)
+secure_service: SecureService = SecureService(api_client=api_client)
+datavault_service: DataVaultService = DataVaultService(api_client=api_client)
 
-# Tarjetas de prueba para 3DS
+# Test cards for 3DS
 TEST_CARDS = [
     {
         "number": "4265880000000007",
-        "label": "Frictionless con 3DSMethod",
+        "label": "Frictionless with 3DSMethod",
         "expiration": "202812",
         "cvv": "123",
         "force_no_3ds": "0",
@@ -50,7 +56,7 @@ TEST_CARDS = [
     },
     {
         "number": "4147463011110117",
-        "label": "Frictionless sin 3DSMethod",
+        "label": "Frictionless without 3DSMethod",
         "expiration": "202812",
         "cvv": "123",
         "force_no_3ds": "1",
@@ -58,7 +64,7 @@ TEST_CARDS = [
     },
     {
         "number": "4005520000000129",
-        "label": "Challenge con 3DSMethod (Límite RD$ 50)",
+        "label": "Challenge with 3DSMethod (Limit RD$ 50)",
         "expiration": "202812",
         "cvv": "123",
         "force_no_3ds": "0",
@@ -67,7 +73,7 @@ TEST_CARDS = [
     },
     {
         "number": "4147463011110059",
-        "label": "Challenge sin 3DSMethod",
+        "label": "Challenge without 3DSMethod",
         "expiration": "202812",
         "cvv": "123",
         "force_no_3ds": "0",
@@ -75,13 +81,13 @@ TEST_CARDS = [
     },
 ]
 
-# Almacenamiento de tokens (en memoria para este demo)
+# Token storage (in-memory for this demo)
 token_storage: Dict[str, Dict[str, Any]] = {}
 
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Página principal con formulario de pago"""
+    """Main page with payment form"""
     return templates.TemplateResponse(
         "token_index.html", {"request": request, "cards": TEST_CARDS}
     )
@@ -94,42 +100,55 @@ async def create_token(
     amount: float = Form(...),
     itbis: float = Form(...),
 ):
-    """Crear un token a partir de los datos de la tarjeta"""
+    """Create a token from card details"""
     try:
-        # Buscar la tarjeta seleccionada
+        # Find the selected card
         card = next((c for c in TEST_CARDS if c["number"] == card_number), None)
         if not card:
-            return JSONResponse(status_code=400, content={"error": "Tarjeta no válida"})
+            return JSONResponse(status_code=400, content={"error": "Invalid card"})
 
-        # Preparar datos para crear el token
+        # Prepare data to create the token
         datavault_data = {
             "Channel": "EC",
             "PosInputMode": "E-Commerce",
-            "Amount": str(int(amount * 100)),  # Convertir a centavos
-            "Itbis": str(int(itbis * 100)),  # Convertir a centavos
+            "Amount": str(int(amount * 100)),  # Convert to cents
+            "Itbis": str(int(itbis * 100)),  # Convert to cents
             "CardNumber": card["number"],
             "Expiration": card["expiration"],
             "CustomOrderId": f"web-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            "store": get_azul_settings().MERCHANT_ID,
+            "store": settings.MERCHANT_ID,
         }
 
-        # Crear el token - usar el servicio global
+        # Create the token - use the global service
         payment = DataVaultCreateModel(**datavault_data)
-        response = await datavault_service.create(payment)
+        response: Dict[str, Any] = await datavault_service.create(payment)
 
         logger.info(f"Token Creation Response: {json.dumps(response)}")
 
-        if response.get("IsoCode") != "00":
+        if (
+            not isinstance(response, dict)
+            or response.get("ResponseMessage") != "Approved"
+        ):
+            error_message = (
+                response.get("ResponseMessage", "Unknown error")
+                if isinstance(response, dict)
+                else "Invalid response format"
+            )
             return JSONResponse(
                 status_code=400,
-                content={
-                    "error": f"Error al crear token: {response.get('ResponseMessage')}"
-                },
+                content={"error": f"Error creating token: {error_message}"},
             )
 
-        # Guardar datos del token
-        token_id = response.get("DataVaultToken")
-        token_data = {
+        # Save token data
+        token_id: Optional[Any] = response.get("DataVaultToken")
+        if not token_id or not isinstance(token_id, str):
+            logger.error("Invalid token_id received from DataVault")
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Failed to retrieve a valid token ID"},
+            )
+
+        token_data: Dict[str, Any] = {
             "token": token_id,
             "expiration": datavault_data["Expiration"],
             "brand": response.get("Brand", ""),
@@ -139,25 +158,23 @@ async def create_token(
             "created_at": datetime.now().isoformat(),
         }
 
-        # Guardar en el almacenamiento temporal
+        # Save in temporary storage
         token_storage[token_id] = token_data
 
-        # Devolver los datos del token
+        # Return token data
         return {
             "token_id": token_id,
             "masked_card": response.get("CardNumber", ""),
             "brand": response.get("Brand", ""),
-            "message": "Token creado exitosamente",
+            "message": "Token created successfully",
         }
 
     except AzulError as e:
-        logger.error(f"Error en Azul al crear token: {str(e)}")
+        logger.error(f"Azul error creating token: {str(e)}")
         return JSONResponse(status_code=400, content={"error": str(e)})
     except Exception as e:
-        logger.error(f"Error inesperado al crear token: {str(e)}")
-        return JSONResponse(
-            status_code=500, content={"error": "Error interno del servidor"}
-        )
+        logger.error(f"Unexpected error creating token: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 
 @app.post("/process-token-payment")
@@ -168,25 +185,27 @@ async def process_token_payment(
     itbis: float = Form(...),
     challenge_indicator: Optional[str] = Form("03"),
 ):
-    """Procesar un pago utilizando un token existente con 3DS"""
+    """Process a payment using an existing token with 3DS"""
     try:
-        # Verificar que el token exista
+        # Verify that the token exists
         if token_id not in token_storage:
             return JSONResponse(
-                status_code=400, content={"error": "Token no válido o expirado"}
+                status_code=400, content={"error": "Invalid or expired token"}
             )
 
-        # Obtener datos del token
+        # Get token data
         token_data = token_storage[token_id]
         card_data = token_data.get("card_data", {})
+        if not isinstance(card_data, dict):
+            card_data = {}
 
-        # Generar un número de orden único
-        order_number = f"TOKEN-{datetime.now().strftime('%Y%m%')}"
+        # Generate a unique order number
+        order_number = f"TOKEN-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
 
-        # URL base para callbacks 3DS
+        # Base URL for 3DS callbacks
         base_url = str(request.base_url).rstrip("/")
 
-        # Crear datos del titular de la tarjeta
+        # Create cardholder data
         cardholder_info = CardHolderInfo(
             BillingAddressCity="Santo Domingo",
             BillingAddressCountry="DO",
@@ -202,12 +221,12 @@ async def process_token_payment(
             ShippingAddressZip="10148",
         )
 
-        # Crear datos para la venta
-        sale_data = {
+        # Create data for the sale
+        sale_data_dict: Dict[str, Any] = {
             "DataVaultToken": token_id,
-            "Expiration": "",  # No es necesario con token
-            "Amount": int(amount * 100),  # Convertir a centavos
-            "ITBIS": int(itbis * 100),  # Convertir a centavos
+            "Expiration": "",
+            "Amount": int(amount * 100),
+            "ITBIS": int(itbis * 100),
             "OrderNumber": order_number,
             "TrxType": "Sale",
             "AcquirerRefData": "1",
@@ -217,160 +236,163 @@ async def process_token_payment(
             "cardHolderInfo": cardholder_info.model_dump(),
             "threeDSAuth": {
                 "TermUrl": f"{base_url}/post-3ds",
-                "MethodNotificationUrl": f"{base_url}/capture-3ds",
+                "MethodNotificationUrl": f"{base_url}/capture-3ds-method",
                 "RequestChallengeIndicator": challenge_indicator
                 or card_data.get("challenge_indicator", "03"),
             },
         }
 
-        # Procesar la venta con token usando el servicio global
         logger.info(f"Processing token sale: {token_id}, Order: {order_number}")
-        data = SecureTokenSale(**sale_data)
+        data = SecureTokenSale(**sale_data_dict)
 
-        # Registrar las sesiones antes de la llamada
         logger.info(
             f"Secure sessions before call: {list(secure_service.secure_sessions.keys())}"
         )
-
         response = await secure_service.process_token_sale(data)
-
-        # Registrar las sesiones después de la llamada
         logger.info(
             f"Secure sessions after call: {list(secure_service.secure_sessions.keys())}"
         )
 
-        # Si hay un ID de sesión en la respuesta, registrarlo
-        if "id" in response:
-            logger.info(f"Response includes session ID: {response['id']}")
-
-            # Verificar si la sesión existe en secure_service
-            session_exists = response["id"] in secure_service.secure_sessions
+        if isinstance(response, dict) and "id" in response and response.get("id"):
+            session_id_from_response = response["id"]
+            logger.info(f"Response includes session ID: {session_id_from_response}")
+            session_exists = session_id_from_response in secure_service.secure_sessions
             logger.info(f"Session exists in secure_sessions: {session_exists}")
-
             if session_exists:
-                # Imprimir la información de la sesión
-                session_info = secure_service.secure_sessions[response["id"]]
+                session_info = secure_service.secure_sessions[session_id_from_response]
                 logger.info(
                     f"Session info: azul_order_id={session_info.get('azul_order_id')}"
                 )
 
-        # Loguear la respuesta
         logger.info(f"Token Sale Response: {json.dumps(response)}")
-
-        # Devolver la respuesta
         return response
 
     except AzulError as e:
-        logger.error(f"Error en Azul al procesar pago: {str(e)}")
+        logger.error(f"Azul error processing payment: {str(e)}")
         return JSONResponse(status_code=400, content={"error": str(e)})
     except Exception as e:
-        logger.error(f"Error inesperado al procesar pago: {str(e)}")
-        return JSONResponse(
-            status_code=500, content={"error": "Error interno del servidor"}
-        )
+        logger.error(f"Unexpected error processing payment: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 
-@app.post("/capture-3ds")
-async def capture_3ds(
-    request: Request, secure_id: Optional[str] = None, sid: Optional[str] = None
-):
+@app.post("/capture-3ds-method")
+async def capture_3ds_method_route(request: Request, data: SecureSessionID):
     """
-    Manejar la notificación del método 3DS.
-
-    Este endpoint recibe la respuesta del ACS (Access Control Server)
-    después de que se ha completado el método 3DS.
+    Handle 3DS method notification.
+    This endpoint receives the response from the ACS (Access Control Server)
+    after the 3DS method has completed.
     """
-    # Usar el primer ID disponible
-    session_id = secure_id or sid
+    session_id = data.session_id
 
     if not session_id:
         return JSONResponse(
             status_code=400,
-            content={"error": "No se proporcionó un identificador de sesión"},
+            content={"error": "No session identifier provided"},
         )
 
-    logger.info(f"3DS notification received for session: {session_id}")
-
-    # Registrar las sesiones activas
+    logger.info(f"3DS method notification received for session: {session_id}")
     logger.info(
         f"Active secure sessions: {list(secure_service.secure_sessions.keys())}"
     )
 
     try:
-        # Obtener la sesión usando el servicio global
         session = secure_service.secure_sessions.get(session_id)
-        if not session:
-            logger.error(f"Session not found: {session_id}")
-            return JSONResponse(status_code=400, content={"error": "Sesión no válida"})
+        if not session or not isinstance(session, dict):
+            logger.error(f"Session not found or invalid: {session_id}")
+            return JSONResponse(status_code=400, content={"error": "Invalid session"})
 
-        # Procesar el método 3DS
         azul_order_id = session.get("azul_order_id", "")
+        if not azul_order_id or not isinstance(azul_order_id, str):
+            logger.error(f"Azul Order ID not found/invalid in session: {session_id}")
+            return JSONResponse(
+                status_code=500,
+                content={
+                    "error": "Internal error: Missing/invalid order ID in session"
+                },
+            )
+
         logger.info(f"Processing 3DS method for order: {azul_order_id}")
-
-        result = await secure_service.process_3ds_method(
-            azul_order_id,
-            "RECEIVED",  # Método 3DS completado
-        )
-
+        result = await secure_service.process_3ds_method(azul_order_id, "RECEIVED")
         logger.info(f"3DS Method result: {json.dumps(result)}")
 
-        # Si la transacción ya fue procesada, devolver OK
-        if result.get("ResponseMessage") == "ALREADY_PROCESSED":
+        if (
+            isinstance(result, dict)
+            and result.get("ResponseMessage") == "ALREADY_PROCESSED"
+        ):
             return {"status": "ok"}
 
-        # Verificar si se requiere un desafío adicional
-        if result.get("ResponseMessage") == "3D_SECURE_CHALLENGE":
+        if (
+            isinstance(result, dict)
+            and result.get("ResponseMessage") == "3D_SECURE_CHALLENGE"
+        ):
             logger.info("Additional 3DS challenge required")
+            challenge_data = result.get("ThreeDSChallenge")
+            term_url = session.get("term_url")
+
+            if (
+                not isinstance(challenge_data, dict)
+                or not term_url
+                or not isinstance(term_url, str)
+            ):
+                logger.error(
+                    "3DS Challenge data or TermUrl missing/malformed in response/session."
+                )
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": "Error processing 3DS challenge data"},
+                )
+
+            creq = challenge_data.get("CReq", "")
+            redirect_post_url = challenge_data.get("RedirectPostUrl", "")
+
+            if not isinstance(creq, str) or not isinstance(redirect_post_url, str):
+                logger.error(
+                    "CReq or RedirectPostUrl missing/malformed in challenge data."
+                )
+                return JSONResponse(
+                    status_code=500,
+                    content={"error": "Error processing 3DS challenge parameters"},
+                )
+
             return {
                 "redirect": True,
                 "html": secure_service._create_challenge_form(
-                    result["ThreeDSChallenge"]["CReq"],
-                    session["term_url"],
-                    result["ThreeDSChallenge"]["RedirectPostUrl"],
+                    creq, term_url, redirect_post_url
                 ),
             }
 
         return result
 
     except AzulError as e:
-        logger.error(f"Error en Azul al procesar método 3DS: {str(e)}")
+        logger.error(f"Azul error processing 3DS method: {str(e)}")
         return JSONResponse(status_code=400, content={"error": str(e)})
     except Exception as e:
-        logger.error(f"Error inesperado al procesar método 3DS: {str(e)}")
-        return JSONResponse(
-            status_code=500, content={"error": "Error interno del servidor"}
-        )
+        logger.error(f"Unexpected error processing 3DS method: {str(e)}")
+        return JSONResponse(status_code=500, content={"error": "Internal server error"})
 
 
 @app.post("/post-3ds")
-async def post_3ds(
-    request: Request,
-    secure_id: Optional[str] = None,
-    sid: Optional[str] = None,
-    cres: Optional[str] = Form(None),
-):
+async def post_3ds(request: Request, data: SecureChallengeRequest):
     """
-    Manejar la respuesta del desafío 3DS.
-
-    Este endpoint recibe la respuesta del desafío del ACS
-    después de que el titular de la tarjeta completa la autenticación.
+    Handle the 3DS challenge response.
+    This endpoint receives the challenge response from the ACS
+    after the cardholder completes authentication.
     """
-    session_id = secure_id or sid
+    session_id = data.session_id
+    cres = data.cres
 
-    if not session_id:
+    if not session_id or not cres:
+        missing_fields = []
+        if not session_id:
+            missing_fields.append("session_id")
+        if not cres:
+            missing_fields.append("cres")
         return JSONResponse(
             status_code=400,
-            content={"error": "No se proporcionó un identificador de sesión"},
-        )
-
-    if not cres:
-        return JSONResponse(
-            status_code=400,
-            content={"error": "No se proporcionó respuesta del desafío"},
+            content={"error": f"Missing required fields: {', '.join(missing_fields)}"},
         )
 
     try:
-        # Procesar el desafío usando el servicio global
         logger.info(f"Processing 3DS challenge for session: {session_id}")
         result = await secure_service.process_challenge(session_id, cres)
         logger.info(f"Challenge result: {json.dumps(result)}")
@@ -379,17 +401,17 @@ async def post_3ds(
             "result.html", {"request": request, "result": result}
         )
     except AzulError as e:
-        logger.error(f"Error en Azul al procesar desafío: {str(e)}")
+        logger.error(f"Azul error processing challenge: {str(e)}")
         return templates.TemplateResponse(
             "error.html", {"request": request, "error": str(e)}
         )
     except Exception as e:
-        logger.error(f"Error inesperado al procesar desafío: {str(e)}")
+        logger.error(f"Unexpected error processing challenge: {str(e)}")
         return templates.TemplateResponse(
             "error.html",
             {
                 "request": request,
-                "error": "Error inesperado al procesar la autenticación",
+                "error": "Unexpected error processing authentication",
             },
         )
 

@@ -1,19 +1,25 @@
 """
-PyAzul - Cliente Python para Azul Payment Gateway
+PyAzul - Python Client for Azul Payment Gateway
 
-Este paquete proporciona una interfaz completa para interactuar con los servicios de Azul:
-- Procesamiento de pagos directos
-- Tokenización de tarjetas (DataVault)
-- Página de pago
-- Verificación de transacciones
-- Reembolsos y anulaciones
-- Retención/captura de transacciones
+This package provides a complete interface to interact with Azul services:
+- Direct payment processing
+- Card tokenization (DataVault)
+- Payment Page
+- Transaction verification
+- Refunds and voids
+- Hold/capture of transactions
+
+Features:
+    - Direct payments (Sale, Hold)
+    - Refunds (Refund), Voids (Void), Post-Authorizations (PostAuth)
+    - Card tokenization (DataVault)
+    - Hosted payment page generation
 
 Example:
     >>> from pyazul import PyAzul
-    >>> azul = PyAzul()  # Usa variables de entorno para la configuración
+    >>> azul = PyAzul()  # Uses environment variables for configuration
     >>>
-    >>> # Procesar un pago
+    >>> # Process a payment
     >>> response = await azul.sale({
     ...     "Channel": "EC",
     ...     "Store": "39038540035",
@@ -56,17 +62,17 @@ from .services.transaction import TransactionService
 # from .services.secure import SecureService # Will be exposed if needed, or via PyAzul
 
 __all__ = [
-    # Clase principal
+    # Main class
     "PyAzul",
-    # Configuración
+    # Configuration
     "get_azul_settings",
     "AzulSettings",
     "AzulError",
-    # Servicios (Consider if all services need to be public if PyAzul is the main entry)
+    # Services (Consider if all services need to be public if PyAzul is the main entry)
     "DataVaultService",
     "TransactionService",
     "PaymentPageService",
-    # Modelos
+    # Models
     "AzulBaseModel",
     "SaleTransactionModel",
     "HoldTransactionModel",
