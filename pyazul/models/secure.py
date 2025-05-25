@@ -142,3 +142,16 @@ class SecureTokenSale(BaseModel):
     forceNo3DS: Literal["0", "1"] = Field("0", description="Force no 3DS flag")
     cardHolderInfo: CardHolderInfo
     threeDSAuth: ThreeDSAuth
+
+
+class SecureSessionID(BaseModel):
+    """Model for requests that only need a session ID."""
+
+    session_id: str = Field(..., description="Secure session identifier")
+
+
+class SecureChallengeRequest(BaseModel):
+    """Model for the 3DS challenge response."""
+
+    session_id: str = Field(..., description="Secure session identifier")
+    cres: str = Field(..., description="Challenge Response (CRes) from ACS")

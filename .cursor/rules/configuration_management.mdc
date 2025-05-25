@@ -3,6 +3,7 @@ description:
 globs: 
 alwaysApply: true
 ---
+\
 # PyAzul Configuration Management
 
 Configuration for the `pyazul` library is managed through the `AzulSettings` Pydantic model, defined in `[pyazul/core/config.py](mdc:pyazul/core/config.py)`.

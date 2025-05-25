@@ -22,8 +22,10 @@ from .schemas import (
 from .secure import (
     CardHolderInfo,
     ChallengeIndicator,
+    SecureChallengeRequest,
     SecureSaleRequest,
-    SecureTokenSale,  # Added SecureTokenSale
+    SecureSessionID,
+    SecureTokenSale,
     ThreeDSAuth,
 )
 
@@ -42,8 +44,10 @@ __all__ = [
     "PaymentPageModel",
     # From secure.py
     "SecureSaleRequest",
-    "SecureTokenSale",  # Added SecureTokenSale
+    "SecureTokenSale",
     "CardHolderInfo",
     "ThreeDSAuth",
     "ChallengeIndicator",
+    "SecureSessionID",
+    "SecureChallengeRequest",
 ]

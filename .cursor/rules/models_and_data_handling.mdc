@@ -11,7 +11,10 @@ This document describes how data is modeled and handled in `pyazul`.
 *   **Core Principle**: `pyazul` uses Pydantic models for defining the structure of request and response data, ensuring validation and type safety.
 *   **Location**:
     *   Standard transaction models (e.g., `SaleTransactionModel`, `HoldTransactionModel`) are defined in `[pyazul/models/schemas.py](mdc:pyazul/models/schemas.py)`.
-    *   3D Secure specific models (e.g., `SecureSaleRequest`, `CardHolderInfo`) are defined in `[pyazul/models/secure.py](mdc:pyazul/models/secure.py)`.
+    *   3D Secure specific models (e.g., `SecureSaleRequest`, `CardHolderInfo`, `SecureTokenSale`, `SecureSessionID`, `SecureChallengeRequest`) are defined in `[pyazul/models/secure.py](mdc:pyazul/models/secure.py)`.
+        *   `SecureTokenSale` enables 3DS-authenticated sales using tokenized cards.
+        *   `SecureSessionID` is used for operations that only require the unique 3DS session identifier (`secure_id`).
+        *   `SecureChallengeRequest` models the data (`secure_id` and `CRes`) received from the ACS after a cardholder challenge, crucial for completing the authentication.
 *   **Centralized Export**: All user-facing Pydantic models are re-exported from `[pyazul/models/__init__.py](mdc:pyazul/models/__init__.py)`. Users should import models directly from `pyazul.models`.
     *   Example: `from pyazul.models import SaleTransactionModel, SecureSaleRequest`
 *   **Usage in `PyAzul` Facade**:
