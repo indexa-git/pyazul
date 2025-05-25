@@ -1,5 +1,5 @@
 """
-PyAzul - Python Client for Azul Payment Gateway
+PyAzul - Python Client for Azul Payment Gateway.
 
 This package provides a complete interface to interact with Azul services:
 - Direct payment processing
@@ -46,20 +46,16 @@ from .models import (
     PostSaleTransactionModel,
     RefundTransactionModel,
     SaleTransactionModel,
-    SecureSaleRequest,  # Added Secure Models
-    SecureTokenSale,  # Added Secure Models
-    ThreeDSAuth,  # Added Secure Models
+    SecureSaleRequest,
+    SecureTokenSale,
+    ThreeDSAuth,
     TokenSaleModel,
     VerifyTransactionModel,
     VoidTransactionModel,
 )
-
-# Services - SecureService will be added when PyAzul is updated
 from .services.datavault import DataVaultService
 from .services.payment_page import PaymentPageService
 from .services.transaction import TransactionService
-
-# from .services.secure import SecureService # Will be exposed if needed, or via PyAzul
 
 __all__ = [
     # Main class
@@ -68,7 +64,7 @@ __all__ = [
     "get_azul_settings",
     "AzulSettings",
     "AzulError",
-    # Services (Consider if all services need to be public if PyAzul is the main entry)
+    # Services
     "DataVaultService",
     "TransactionService",
     "PaymentPageService",

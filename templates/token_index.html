@@ -244,7 +244,9 @@
             <label for="challenge_indicator">Challenge Indicator:</label>
             <select id="challenge_indicator" name="challenge_indicator">
               <option value="02">02 - No Challenge (Frictionless)</option>
-              <option value="03" selected>03 - With Challenge (Challenge)</option>
+              <option value="03" selected>
+                03 - With Challenge (Challenge)
+              </option>
               <option value="04">04 - Shared Data</option>
             </select>
           </div>
@@ -312,8 +314,7 @@
               '<h2 style="color: #28a745">✓ Transaction Successful</h2>';
             break;
           case "error":
-            statusText =
-              '<h2 style="color: #dc3545">✗ Transaction Error</h2>';
+            statusText = '<h2 style="color: #dc3545">✗ Transaction Error</h2>';
             // Agregar detalles del error si están disponibles
             if (cleanResult.error || cleanResult.ErrorDescription) {
               const errorMessage =
@@ -381,10 +382,7 @@
 
           const formData = new FormData(e.target);
           try {
-            showResult(
-              { message: "Creating token..." },
-              "processing",
-            );
+            showResult({ message: "Creating token..." }, "processing");
 
             const response = await fetch("/create-token", {
               method: "POST",

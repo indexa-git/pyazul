@@ -1,13 +1,8 @@
 """
-feat(secure): Implement 3DS secure payment service with session management
+Service for handling 3D Secure (3DS) authenticated payments with Azul.
 
-- Added SecureService for handling 3DS authenticated payments
-- Implemented process_sale for initiating secure transactions
-- Added support for 3DSMethod and challenge handling
-- Improved session and form management with UI feedback
-- Implemented tracking system for 3DS methods
-- Optimized authentication flow and error handling
-- Added detailed logging for debugging
+This service manages the 3DS flow, including initiating secure sales/holds,
+processing 3DS method notifications, handling challenges, and managing sessions.
 """
 
 import asyncio
@@ -28,13 +23,17 @@ logger = logging.getLogger(__name__)
 
 
 class SecureService:
+    """Manages 3D Secure (3DS) payment flows."""
+
     def __init__(self, api_client: AzulAPI):
+        """Initialize the SecureService with an AzulAPI client."""
         self.api_client = api_client
         self.secure_sessions: Dict[str, Dict[str, Any]] = {}
         self.processed_methods: Dict[str, bool] = {}  # Track processed 3DS methods
         self.transaction_states: Dict[str, str] = {}  # Track transaction states
 
     async def process_sale(self, request: SecureSaleRequest) -> Dict[str, Any]:
+        """Process a secure sale transaction with 3DS authentication."""
         secure_id = str(uuid4())
         logger.info("=" * 50)
         logger.info(f"STARTING SECURE SALE PROCESS - ID: {secure_id}")
@@ -45,7 +44,10 @@ class SecureService:
 
             # Ensure URLs have secure_id as query parameter
             term_url = f"{request_dict['threeDSAuth']['TermUrl']}?secure_id={secure_id}"
-            method_notification_url = f"{request_dict['threeDSAuth']['MethodNotificationUrl']}?secure_id={secure_id}"
+            method_notification_url = (
+                f"{request_dict['threeDSAuth']['MethodNotificationUrl']}"
+                f"?secure_id={secure_id}"
+            )
 
             sale_data = {
                 "Store": self.api_client.settings.MERCHANT_ID,
@@ -141,11 +143,11 @@ class SecureService:
 
     async def process_token_sale(self, request: SecureTokenSale) -> Dict[str, Any]:
         """
-        Process a secure token sale transaction.
-        This method is similar to process_sale but specifically for token sales.
-        It includes detailed logging and session management.
-        """
+        Process a secure token sale transaction with 3DS.
 
+        This method handles tokenized payments that require 3DS authentication,
+        including session management and detailed logging.
+        """
         secure_id = str(uuid4())
         logger.info("=" * 50)
         logger.info(f"STARTING SECURE TOKEN SALE PROCESS - ID: {secure_id}")
@@ -156,7 +158,10 @@ class SecureService:
 
             # Ensure URLs have secure_id as query parameter
             term_url = f"{request_dict['threeDSAuth']['TermUrl']}?secure_id={secure_id}"
-            method_notification_url = f"{request_dict['threeDSAuth']['MethodNotificationUrl']}?secure_id={secure_id}"
+            method_notification_url = (
+                f"{request_dict['threeDSAuth']['MethodNotificationUrl']}"
+                f"?secure_id={secure_id}"
+            )
 
             sale_data = {
                 "Store": self.api_client.settings.MERCHANT_ID,
@@ -248,9 +253,10 @@ class SecureService:
 
     async def process_hold(self, request: SecureSaleRequest) -> Dict[str, Any]:
         """
-        Process a secure hold transaction con 3DS.
-        This method is similar to process_sale but specifically for hold transactions.
-        It includes detailed logging and session management.
+        Process a secure hold transaction with 3DS.
+
+        Similar to a secure sale, but performs a pre-authorization (hold)
+        on the card, including 3DS authentication steps.
         """
         secure_id = str(uuid4())
         logger.info("=" * 50)
@@ -262,7 +268,10 @@ class SecureService:
 
             # Ensure URLs have secure_id as query parameter
             term_url = f"{request_dict['threeDSAuth']['TermUrl']}?secure_id={secure_id}"
-            method_notification_url = f"{request_dict['threeDSAuth']['MethodNotificationUrl']}?secure_id={secure_id}"
+            method_notification_url = (
+                f"{request_dict['threeDSAuth']['MethodNotificationUrl']}"
+                f"?secure_id={secure_id}"
+            )
 
             hold_data = {
                 "Store": self.api_client.settings.MERCHANT_ID,
@@ -360,8 +369,10 @@ class SecureService:
         self, azul_order_id: str, method_notification_status: str
     ) -> Dict[str, Any]:
         """
-        Process 3DS method notification.
-        Implements mechanism to avoid duplicate processing.
+        Process a 3DS method notification from the ACS.
+
+        Marks the method as processed to prevent duplicates and updates
+        the transaction state based on the notification.
         """
         # Check if we already processed this order
         if self.processed_methods.get(azul_order_id):
@@ -409,6 +420,7 @@ class SecureService:
             ) from e
 
     async def process_challenge(self, secure_id: str, cres: str) -> Dict[str, Any]:
+        """Process the 3DS challenge response (CRes) from the ACS."""
         session = self.secure_sessions.get(secure_id)
         if not session:
             raise AzulError("Invalid secure session ID")
@@ -464,8 +476,8 @@ class SecureService:
 
                     # Return a more friendly message
                     result["ErrorDescription"] = (
-                        "The transaction could not be completed because it expired or was previously processed. "
-                        "Please try the payment again."
+                        "The transaction could not be completed because it expired or "
+                        "was previously processed. Please try the payment again."
                     )
 
             return result
@@ -477,20 +489,19 @@ class SecureService:
             # Improve error message for user
             if "Wrong transaction state" in error_msg:
                 error_msg = (
-                    "The transaction could not be completed because it expired or was previously processed. "
-                    "Please try the payment again."
+                    "The transaction could not be completed because it expired or "
+                    "was previously processed. Please try the payment again."
                 )
 
             raise AzulError(f"Error processing 3DS challenge: {error_msg}") from e
 
     @staticmethod
     def _create_challenge_form(creq: str, term_url: str, redirect_post_url: str) -> str:
-        """
-        Create HTML form for 3DS challenge with visual feedback of the result.
-        """
-        return f"""
-                <form id="form3ds" action="{redirect_post_url}" method="POST" style="display: none;">
-                    <input type="hidden" name="creq" value="{creq}" />
-                    <input type="hidden" name="TermUrl" value="{term_url}" />
-                </form>
-        """
+        """Create an HTML form for the 3DS challenge redirect."""
+        return (
+            f'<form id="form3ds" action="{redirect_post_url}" method="POST" '
+            f'style="display: none;">'
+            f'    <input type="hidden" name="creq" value="{creq}" />'
+            f'    <input type="hidden" name="TermUrl" value="{term_url}" />'
+            f"</form>"
+        )

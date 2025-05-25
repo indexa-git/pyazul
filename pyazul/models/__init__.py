@@ -1,11 +1,12 @@
 """
 Models module for PyAzul.
+
 Contains data models and schemas for all services.
 """
 
 # Import from schemas.py
+from .schemas import AzulBaseModel  # Base model, might be useful
 from .schemas import (
-    AzulBaseModel,  # Base model, might be useful
     DataVaultCreateModel,
     DataVaultDeleteModel,
     HoldTransactionModel,

@@ -2,6 +2,7 @@
 parent: Architectural Decisions
 nav_order: 9
 ---
+
 # Use Plain JUnit5 for advanced test assertions
 
 ## Context and Problem Statement
@@ -11,9 +12,9 @@ How to write readable test assertions for advanced tests?
 
 ## Considered Options
 
-* Plain JUnit5
-* Hamcrest
-* AssertJ
+- Plain JUnit5
+- Hamcrest
+- AssertJ
 
 ## Decision Outcome
 
@@ -21,16 +22,16 @@ Chosen option: "Plain JUnit5", because comes out best (see "Pros and Cons of the
 
 ### Consequences
 
-* Good, because tests are more readable
-* Good, because more easy to write tests
-* Good, because more readable assertions
-* Bad, because more complicated testing leads to more complicated assertions
+- Good, because tests are more readable
+- Good, because more easy to write tests
+- Good, because more readable assertions
+- Bad, because more complicated testing leads to more complicated assertions
 
 ### Confirmation
 
-* Check project dependencies, JUnit5 should appear (and be the only test assertion library).
-* Collect experience with JUnit5 in sprint reviews and retrospectives: does the gained experience match the pros and cons evaluation below?
-* Decide whether and when to review the decision (this is the 'R' in the [ecADR definition of done]
+- Check project dependencies, JUnit5 should appear (and be the only test assertion library).
+- Collect experience with JUnit5 in sprint reviews and retrospectives: does the gained experience match the pros and cons evaluation below?
+- Decide whether and when to review the decision (this is the 'R' in the [ecADR definition of done]
   (<https://medium.com/olzzio/a-definition-of-done-for-architectural-decisions-426cf5a952b9>) for ADs).
 
 ## Pros and Cons of the Options
@@ -51,17 +52,17 @@ assertTrue(actual.contains("> rest"));
 assertFalse(actual.contains("\n"));
 ```
 
-* Good, because Junit5 is "common Java knowledge"
-* Bad, because complex assertions tend to get hard to read
-* Bad, because no fluent API
+- Good, because Junit5 is "common Java knowledge"
+- Bad, because complex assertions tend to get hard to read
+- Bad, because no fluent API
 
 ### Hamcrest
 
 Homepage: <https://github.com/hamcrest/JavaHamcrest>
 
-* Good, because offers advanced matchers (such as `contains`)
-* Bad, because not full fluent API
-* Bad, because entry barrier is increased
+- Good, because offers advanced matchers (such as `contains`)
+- Bad, because not full fluent API
+- Bad, because entry barrier is increased
 
 ### AssertJ
 
@@ -78,13 +79,13 @@ assertThat(markdownFormatter.format(source))
         .doesNotContain("\n");
 ```
 
-* Good, because offers fluent assertions
-* Good, because allows partial string testing to focus on important parts
-* Good, because assertions are more readable
-* Bad, because not commonly used
-* Bad, because newcomers have to learn an additional language to express test cases
-* Bad, because entry barrier is increased
-* Bad, because expressions of test cases vary from unit test to unit test
+- Good, because offers fluent assertions
+- Good, because allows partial string testing to focus on important parts
+- Good, because assertions are more readable
+- Bad, because not commonly used
+- Bad, because newcomers have to learn an additional language to express test cases
+- Bad, because entry barrier is increased
+- Bad, because expressions of test cases vary from unit test to unit test
 
 ## More Information
 

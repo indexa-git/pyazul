@@ -1,53 +1,40 @@
+"""Tests for post-authorization (capture) transaction functionalities."""
+
 import pytest
 
-from pyazul.core.config import get_azul_settings
-from pyazul.models.schemas import HoldTransactionModel, PostSaleTransactionModel
+from pyazul.models.schemas import PostSaleTransactionModel
 from pyazul.services.transaction import TransactionService
 
 
 @pytest.fixture
-def transaction_service():
-    """
-    Fixture that provides a configured TransactionService instance.
-    """
-    settings = get_azul_settings()
+def transaction_service(settings):
+    """Provide a TransactionService instance for testing post-auths."""
     return TransactionService(settings)
 
 
-@pytest.mark.asyncio
-async def test_post_sale_transaction(transaction_service):
-    """
-    Test the post sale transaction method.
-    """
-    # Step 1: Create a hold transaction
-    hold_transaction = HoldTransactionModel(
-        CardNumber="5413330089600119",
-        Expiration="202812",
-        CVC="979",
-        Amount="1000",
-        Itbis="100",
-        TrxType="Hold",
-        CustomOrderId="hold_test_to_post",
-    )
-    hold_result = await transaction_service.hold(hold_transaction)
-    assert hold_result["IsoCode"] == "00", "Hold transaction should be successful"
-    azul_order_id = hold_result["AzulOrderId"]
+@pytest.fixture
+def post_transaction_data(completed_hold):
+    """Provide data for a post-authorization transaction, using a prior hold."""
+    return {
+        "AzulOrderId": completed_hold["AzulOrderId"],
+        "ApprovedUrl": "https://example.com/approved",
+        "DeclinedUrl": "https://example.com/declined",
+        "CancelUrl": "https://example.com/cancelled",
+        "UseCustomField1": "0",
+        "CardNumber": "5413330089600119",
+        "Expiration": "202812",
+        "CVC": "979",
+        "Amount": "1000",
+        "Itbis": "100",
+    }
 
-    # Step 2: Use the AzulOrderId from hold for the post transaction
-    post_transaction = PostSaleTransactionModel(
-        AzulOrderId=azul_order_id,
-        ApprovedUrl="https://example.com/approved",
-        DeclinedUrl="https://example.com/declined",
-        CancelUrl="https://example.com/cancelled",
-        UseCustomField1="0",
-        CardNumber="5413330089600119",
-        Expiration="202812",
-        CVC="979",
-        Amount="1000",
-        Itbis="100",
-    )
-    post_result = await transaction_service.post_sale(post_transaction)
+
+@pytest.mark.asyncio
+async def test_post_transaction(transaction_service, post_transaction_data):
+    """Test a post-authorization (capture) transaction."""
+    payment = PostSaleTransactionModel(**post_transaction_data)
+    post_result = await transaction_service.post_sale(payment)
     print(post_result)
-    assert post_result["IsoCode"] == "00", (
-        "Post transaction should be processed successfully"
-    )
+    assert (
+        post_result["IsoCode"] == "00"
+    ), "Post transaction should be processed successfully"

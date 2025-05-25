@@ -1,32 +1,29 @@
+"""Tests for hold transaction functionalities of the PyAzul SDK."""
+
 import pytest
 
-from pyazul.core.config import get_azul_settings
 from pyazul.models.schemas import HoldTransactionModel
 from pyazul.services.transaction import TransactionService
 
 
 @pytest.fixture
-def transaction_service():
+def transaction_service(settings):
     """
-    Fixture that provides a configured TransactionService instance.
-    Used for processing hold/authorization transactions.
+    Provide a TransactionService instance for testing.
+
+    This fixture is scoped to the session to reuse the same service instance
+    across multiple tests, improving efficiency.
     """
-    settings = get_azul_settings()
     return TransactionService(settings)
 
 
 @pytest.fixture
-def hold_payment_data():
+def hold_transaction_data():
     """
-    Fixture providing test data for hold transactions.
-    A hold (also known as authorization) reserves funds on a card
-    without capturing them immediately.
+    Provide test data for a hold transaction.
 
-    Returns:
-        dict: Test data including:
-            - Card details (test card number)
-            - Amount to hold
-            - Transaction identifiers
+    Includes card details, amount, and other necessary fields for creating
+    a hold (pre-authorization) on a card.
     """
     return {
         "Channel": "EC",
@@ -43,24 +40,14 @@ def hold_payment_data():
 
 
 @pytest.mark.asyncio
-async def test_hold_payment(transaction_service, hold_payment_data):
+async def test_hold_transaction(transaction_service, hold_transaction_data):
     """
-    Test card authorization/hold transaction.
+    Test creating a hold transaction.
 
-    This test verifies that:
-    1. We can successfully place a hold on a card
-    2. The hold reserves the specified amount
-    3. We receive proper authorization codes
-
-    Expected outcomes:
-    - Response should have IsoCode '00' (success)
-    - Should receive an authorization code
-    - Should receive a reference number (RRN)
-
-    Note: Holds are typically used in scenarios where the final
-    amount might change (hotels, car rentals, etc.)
+    Verifies that a hold can be successfully placed on a card,
+    resulting in an IsoCode of '00' (success).
     """
-    payment = HoldTransactionModel(**hold_payment_data)
+    payment = HoldTransactionModel(**hold_transaction_data)
     response = await transaction_service.hold(payment)
 
     print("Hold Response:", response)

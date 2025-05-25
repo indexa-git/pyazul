@@ -24,10 +24,9 @@ jobs:
       - uses: hynek/build-and-inspect-python-package@v2.12.0
         id: build-package
         with:
-          attest-build-provenance-github: 'true'
+          attest-build-provenance-github: "true"
     outputs:
       package-version: ${{ steps.build-package.outputs.package_version }}
-
 
   # Upload to Test PyPI on every commit on main.
   release-test-pypi:

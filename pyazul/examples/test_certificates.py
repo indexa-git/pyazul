@@ -1,3 +1,5 @@
+"""Tests for SSL certificate loading functionalities in PyAzul."""
+
 import asyncio
 import os
 
@@ -5,10 +7,12 @@ from pyazul.core.config import get_azul_settings
 
 
 def print_separator():
+    """Print a separator line to the console."""
     print("\n" + "=" * 60 + "\n")
 
 
 async def test_certificates():
+    """Tests the loading and verification of SSL certificates."""
     print_separator()
     print("1. Iniciando prueba de certificados...")
 

@@ -1,3 +1,11 @@
+"""
+PyAzul: The Python SDK for Azul Payment Gateway.
+
+This module provides the main `PyAzul` class, which serves as the primary entry point
+for interacting with all services offered by the Azul Payment Gateway, including
+payments, 3D Secure, DataVault (tokenization), and Payment Page generation.
+"""
+
 from typing import Any, Dict, Optional
 
 from .api.client import AzulAPI
@@ -52,7 +60,7 @@ class PyAzul:
         settings: Optional[AzulSettings] = None,
     ):
         """
-        Initializes the PyAzul client.
+        Initialize the PyAzul client.
 
         Args:
             settings: Optional custom settings. If not provided,
@@ -74,64 +82,64 @@ class PyAzul:
         self.secure = SecureService(api_client=self.api)
 
     async def sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Processes a direct card payment."""
+        """Process a direct card payment."""
         return await self.transaction.sale(SaleTransactionModel(**data))
 
     async def hold(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Performs a hold on a card (pre-authorization)."""
+        """Perform a hold on a card (pre-authorization)."""
         return await self.transaction.hold(HoldTransactionModel(**data))
 
     async def refund(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Processes a refund for a previous transaction."""
+        """Process a refund for a previous transaction."""
         return await self.transaction.refund(RefundTransactionModel(**data))
 
     async def void(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Voids a previous transaction."""
+        """Void a previous transaction."""
         return await self.transaction.void(VoidTransactionModel(**data))
 
     async def post_auth(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Captures a previously held amount (post-authorization)."""
+        """Capture a previously held amount (post-authorization)."""
         return await self.transaction.post_auth(PostSaleTransactionModel(**data))
 
     async def verify_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Verifies the status of a transaction."""
+        """Verify the status of a transaction."""
         return await self.transaction.verify(VerifyTransactionModel(**data))
 
     async def create_token(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Creates a card token in DataVault."""
+        """Create a card token in DataVault."""
         return await self.datavault.create(DataVaultCreateModel(**data))
 
     async def delete_token(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Deletes a token from DataVault."""
+        """Delete a token from DataVault."""
         return await self.datavault.delete(DataVaultDeleteModel(**data))
 
     async def token_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Processes a sale using a token (without 3DS)."""
+        """Process a sale using a token (without 3DS)."""
         return await self.transaction.token_sale(TokenSaleModel(**data))
 
     def payment_page(self, data: Dict[str, Any]) -> str:
-        """Generates HTML for Azul's hosted payment page."""
+        """Generate HTML for Azul's hosted payment page."""
         return self.payment_page.generate_payment_page(PaymentPageModel(**data))
 
     # --- Secure Methods (3D Secure) ---
 
     async def secure_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Processes a card payment using 3D Secure authentication."""
+        """Process a card payment using 3D Secure authentication."""
         return await self.secure.process_sale(SecureSaleRequest(**data))
 
     async def secure_token_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Processes a tokenized card payment using 3D Secure authentication."""
+        """Process a tokenized card payment using 3D Secure authentication."""
         return await self.secure.process_token_sale(SecureTokenSale(**data))
 
     async def secure_hold(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Performs a hold on a card (pre-authorization) with 3D Secure."""
+        """Perform a hold on a card (pre-authorization) with 3D Secure."""
         # SecureService process_hold expects SecureSaleRequest model
         return await self.secure.process_hold(SecureSaleRequest(**data))
 
     async def process_3ds_method(
         self, azul_order_id: str, method_notification_status: str
     ) -> Dict[str, Any]:
-        """Processes the 3DS method notification received from ACS."""
+        """Process the 3DS method notification received from ACS."""
         return await self.secure.process_3ds_method(
             azul_order_id, method_notification_status
         )
@@ -139,11 +147,11 @@ class PyAzul:
     async def process_challenge(
         self, session_id: str, challenge_response: str
     ) -> Dict[str, Any]:
-        """Processes the 3DS challenge response received from ACS."""
+        """Process the 3DS challenge response received from ACS."""
         return await self.secure.process_challenge(session_id, challenge_response)
 
     async def get_secure_session_info(
         self, session_id: str
     ) -> Optional[Dict[str, Any]]:
-        """Retrieves information about an active 3DS session."""
+        """Retrieve information about an active 3DS session."""
         return self.secure.get_session_info(session_id)

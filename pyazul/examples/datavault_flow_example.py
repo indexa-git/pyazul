@@ -1,3 +1,5 @@
+"""Example demonstrating the DataVault tokenization flow with PyAzul."""
+
 import asyncio
 
 from pyazul.core.config import get_azul_settings

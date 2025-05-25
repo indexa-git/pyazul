@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: false
 ---
 # PyAzul Pydantic Models and Data Handling
@@ -21,7 +21,7 @@ This document describes how data is modeled and handled in `pyazul`.
     *   Methods on the `PyAzul` object (see `[pyazul/index.py](mdc:pyazul/index.py)`) primarily accept Python dictionaries as input for convenience. These dictionaries are then parsed into the respective Pydantic models internally before being passed to the service layer.
         ```python
         # payment_data is a dict
-        response = await azul.sale(payment_data) 
+        response = await azul.sale(payment_data)
         # Internally, PyAzul does something like:
         # model_instance = SaleTransactionModel(**payment_data)
         # await self.transaction.sale(model_instance)

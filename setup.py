@@ -1,3 +1,9 @@
+"""
+Setup script for the PyAzul package.
+
+This script is used by setuptools to build and distribute the PyAzul library.
+"""
+
 from setuptools import find_packages, setup
 
 setup(

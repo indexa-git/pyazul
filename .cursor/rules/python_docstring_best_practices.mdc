@@ -1,0 +1,150 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# Python Best Practice: Writing Meaningful Docstrings
+
+Docstrings (documentation strings) are essential for creating understandable, maintainable, and usable Python code. They provide a convenient way to associate documentation with Python modules, functions, classes, and methods.
+
+## Why Docstrings Matter
+- **Readability & Understanding**: They explain what the code does, its parameters, what it returns, and any exceptions it might raise.
+- **Auto-documentation**: Tools like Sphinx can automatically generate project documentation from docstrings.
+- **IDE Integration**: Modern IDEs use docstrings to provide context help and type information.
+- **`help()` function**: Python's built-in `help()` function displays docstrings.
+- **Team Collaboration**: Essential for a shared understanding of the codebase.
+
+## What to Document
+Every public module, function, class, and method should have a docstring. Internal (private) components can also benefit from docstrings, especially if their logic is complex.
+
+## Structure of a Good Docstring
+
+While there are several conventions (Google, NumPy, reStructuredText), they generally share common elements:
+
+1.  **Summary Line**:
+    *   A concise, one-line summary of the object's purpose.
+    *   Should begin with a capital letter and end with a period.
+    *   For functions/methods, it should be in the imperative mood (e.g., "Return the sum..." not "Returns the sum...").
+    *   If the docstring is multi-line, the summary line should be followed by a blank line.
+
+2.  **Extended Description (Optional)**:
+    *   One or more paragraphs elaborating on the summary.
+    *   Explain algorithms, edge cases, or important details.
+
+3.  **Parameters/Arguments Section** (for functions and methods):
+    *   List each parameter by name.
+    *   Provide its type (e.g., `param_name (type): Description.`).
+    *   Explain its purpose and if it's optional or has a default value.
+
+4.  **Returns Section** (for functions and methods that return a value):
+    *   Describe the type and meaning of the returned value (e.g., `Returns:
+          type: Description.`).
+    *   If multiple values are returned (e.g., in a tuple), document each.
+
+5.  **Attributes Section** (for classes):
+    *   Document public attributes, their types, and their purpose.
+
+6.  **Raises Section** (Optional):
+    *   List exceptions that the function/method can explicitly raise and under what conditions.
+
+7.  **Examples (Highly Recommended)**:
+    *   Short, runnable code snippets demonstrating how to use the function/class (often using `doctest` format).
+
+## Common Docstring Formats
+
+Choose **one** format and use it consistently throughout the project.
+
+*   **Google Style**:
+    ```python
+    def example_function(param1: int, param2: str) -> bool:
+        """Does something interesting.
+
+        This function demonstrates the Google docstring format. It takes two
+        parameters and returns a boolean.
+
+        Args:
+            param1: The first parameter, an integer.
+            param2: The second parameter, a string.
+
+        Returns:
+            True if successful, False otherwise.
+
+        Raises:
+            ValueError: If param1 is negative.
+        """
+        if param1 < 0:
+            raise ValueError("param1 cannot be negative")
+        return True
+    ```
+
+*   **reStructuredText (Sphinx-friendly)**:
+    ```python
+    def example_function(param1: int, param2: str) -> bool:
+        """Does something interesting.
+
+        This function demonstrates the reStructuredText docstring format.
+        It is commonly used with Sphinx for documentation generation.
+
+        :param param1: The first parameter, an integer.
+        :type param1: int
+        :param param2: The second parameter, a string.
+        :type param2: str
+        :raises ValueError: If param1 is negative.
+        :returns: True if successful, False otherwise.
+        :rtype: bool
+        """
+        if param1 < 0:
+            raise ValueError("param1 cannot be negative")
+        return True
+    ```
+
+*   **NumPy/SciPy Style**:
+    ```python
+    def example_function(param1: int, param2: str) -> bool:
+        """Does something interesting.
+
+        This function demonstrates the NumPy/SciPy docstring format.
+        It includes a Parameters, Returns, and optionally an Examples section.
+
+        Parameters
+        ----------
+        param1 : int
+            The first parameter.
+        param2 : str
+            The second parameter.
+
+        Returns
+        -------
+        bool
+            True if successful, False otherwise.
+
+        Raises
+        ------
+        ValueError
+            If param1 is negative.
+
+        Examples
+        --------
+        >>> example_function(5, "hello")
+        True
+        """
+        if param1 < 0:
+            raise ValueError("param1 cannot be negative")
+        return True
+    ```
+
+## Tools for Docstrings
+- **Linters** (Pylint, Flake8 with plugins like `flake8-docstrings`, `pydocstyle`):
+  Can check for missing docstrings and adherence to style conventions (e.g., PEP 257).
+- **Coverage Tools** (`interrogate`):
+  Checks your codebase for docstring coverage percentage.
+- **Formatters** (some might offer limited docstring formatting).
+
+## General Tips
+- Write docstrings for all public APIs.
+- Keep docstrings up-to-date with code changes.
+- Use clear and concise language.
+- Don't state the obvious if the code is self-explanatory (e.g., for simple getters/setters, a short summary might suffice).
+- Focus on *what* the code does and *why*, not *how* (unless the *how* is critical for usage).
+
+Refer to [PEP 257 -- Docstring Conventions](mdc:https:/peps.python.org/pep-0257) for the foundational guidelines.

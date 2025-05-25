@@ -1,3 +1,5 @@
+"""Example demonstrating how to perform a card verification with PyAzul."""
+
 import asyncio
 
 from pyazul.core.config import get_azul_settings
@@ -6,6 +8,7 @@ from pyazul.services.transaction import TransactionService
 
 
 async def main():
+    """Perform a card verification transaction."""
     settings = get_azul_settings()
     transaction_service = TransactionService(settings)
 

@@ -1,0 +1,12 @@
+[flake8]
+max-line-length = 88
+
+# pydocstyle configurations through flake8-docstrings
+# For pydocstyle convention and ignore, these are typically passed as CLI or in its own config.
+# However, flake8-docstrings might pick up some, or you might need a separate pydocstyle config.
+# For now, we'll set what's directly supported by flake8 or common plugins.
+
+# The `match` and `add_ignore` for pydocstyle are specific to pydocstyle's own config or CLI.
+# If flake8-docstrings doesn't translate these directly, a separate pydocstyle config might be needed
+# or you'd rely on pydocstyle's defaults/direct CLI invocation if used outside flake8.
+# We will keep the pydocstyle section in pyproject.toml for now and revisit if needed.

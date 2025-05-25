@@ -1,10 +1,3 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse, JSONResponse
-
-from pyazul.core.config import get_azul_settings
-from pyazul.models.schemas import PaymentPageModel
-from pyazul.services.payment_page import PaymentPageService
-
 """
 Example server for Azul Payment Page integration.
 
@@ -19,6 +12,13 @@ Amounts format:
 - For zero ITBIS use "000"
 """
 
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse, JSONResponse
+
+from pyazul.core.config import get_azul_settings
+from pyazul.models.schemas import PaymentPageModel
+from pyazul.services.payment_page import PaymentPageService
+
 # Initialize FastAPI app and payment service
 app = FastAPI()
 payment_page_service = PaymentPageService(get_azul_settings())
@@ -26,7 +26,7 @@ payment_page_service = PaymentPageService(get_azul_settings())
 
 @app.get("/", response_class=HTMLResponse)
 async def home():
-    """Serve home page with payment options"""
+    """Serve home page with payment options."""
     return """
         <form action="/buy-ticket" method="GET">
             <input type="submit" value="Pay now" />
@@ -42,6 +42,7 @@ async def home():
 async def view_amounts():
     """
     View payment amounts in different formats.
+
     Shows both the raw amounts (in cents) and formatted amounts (in USD).
     """
     payment_request = PaymentPageModel(

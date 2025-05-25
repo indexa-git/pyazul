@@ -1,6 +1,6 @@
 ---
-description: 
-globs: 
+description:
+globs:
 alwaysApply: true
 ---
 # PyAzul Error Handling Conventions
@@ -24,7 +24,7 @@ All custom exceptions inherit from `pyazul.core.exceptions.AzulError`.
 ## Best Practices for Using and Raising Exceptions
 *   **Catch Specific Exceptions**: When handling errors from `pyazul`, catch more specific exceptions first, then broader ones.
     ```python
-    from pyazul import AzulError, AzulResponseError, SSLError 
+    from pyazul import AzulError, AzulResponseError, SSLError
     # from pyazul.core.exceptions import APIError (if needing to catch it separately)
 
     try:

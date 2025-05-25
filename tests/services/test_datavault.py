@@ -1,3 +1,5 @@
+"""Tests for DataVault (tokenization) functionalities of the PyAzul SDK."""
+
 import pytest
 
 from pyazul.core.config import get_azul_settings
@@ -13,7 +15,8 @@ from pyazul.services.transaction import TransactionService
 @pytest.fixture
 def transaction_service():
     """
-    Fixture that provides a configured TransactionService instance.
+    Provide a configured TransactionService instance.
+
     Used for processing payments and token-based transactions.
     """
     settings = get_azul_settings()
@@ -23,7 +26,8 @@ def transaction_service():
 @pytest.fixture
 def datavault_service():
     """
-    Fixture that provides a configured DataVaultService instance.
+    Provide a configured DataVaultService instance.
+
     Used for token creation and management operations.
     """
     settings = get_azul_settings()
@@ -33,11 +37,12 @@ def datavault_service():
 @pytest.fixture
 def datavault_payment_data():
     """
-    Fixture providing test card data for DataVault operations.
+    Provide test card data for DataVault operations.
+
     Uses a test card number provided by Azul for integration testing.
 
     Returns:
-        dict: Test data including card details and merchant information
+        dict: Test data including card details and merchant information.
     """
     return {
         "Channel": "EC",
@@ -56,11 +61,12 @@ def datavault_payment_data():
 async def test_create_datavault(datavault_service, datavault_payment_data):
     """
     Test token creation in DataVault.
+
     Verifies that a card can be successfully tokenized.
 
     Expected outcome:
-    - Response should have IsoCode '00' (success)
-    - Should receive a valid DataVaultToken
+    - Response should have IsoCode '00' (success).
+    - Should receive a valid DataVaultToken.
     """
     payment = DataVaultCreateModel(**datavault_payment_data)
     response = await datavault_service.create(payment)
@@ -74,11 +80,12 @@ async def test_create_datavault(datavault_service, datavault_payment_data):
 async def test_create_sale_datavault(transaction_service, completed_datavault):
     """
     Test sale transaction using a previously created token.
+
     Verifies that a token can be used for payment processing.
 
     Expected outcome:
-    - Transaction should be successful (IsoCode '00')
-    - Should be able to process payment without full card details
+    - Transaction should be successful (IsoCode '00').
+    - Should be able to process payment without full card details.
     """
     token = completed_datavault.get("DataVaultToken")
 
@@ -102,11 +109,12 @@ async def test_create_sale_datavault(transaction_service, completed_datavault):
 @pytest.fixture
 async def completed_datavault(datavault_service, datavault_payment_data):
     """
-    Fixture that creates a token and returns the creation response.
+    Create a token and return the creation response.
+
     Used by other tests that need a pre-existing token.
 
     Returns:
-        dict: API response containing the created token
+        dict: API response containing the created token.
     """
     payment = DataVaultCreateModel(**datavault_payment_data)
     return await datavault_service.create(payment)
@@ -117,14 +125,15 @@ async def test_delete_and_sale_datavault(
     datavault_service, transaction_service, completed_datavault
 ):
     """
-    Test the complete token lifecycle:
-    1. Delete an existing token
-    2. Attempt a sale with the deleted token
+    Test the complete token lifecycle.
+
+    1. Delete an existing token.
+    2. Attempt a sale with the deleted token.
 
     Expected outcomes:
-    - Token deletion should be successful
-    - Subsequent sale attempt should fail with 'TokenId does not exist'
-    - Should handle errors appropriately
+    - Token deletion should be successful.
+    - Subsequent sale attempt should fail with 'TokenId does not exist'.
+    - Should handle errors appropriately.
     """
     token = completed_datavault.get("DataVaultToken")
 
@@ -135,9 +144,9 @@ async def test_delete_and_sale_datavault(
         )
         delete_response = await datavault_service.delete(delete_payment)
         print("Delete response:", delete_response)
-        assert delete_response.get("IsoCode") == "00", (
-            "Token deletion should be successful"
-        )
+        assert (
+            delete_response.get("IsoCode") == "00"
+        ), "Token deletion should be successful"
     except Exception as e:
         print(f"Error during token deletion: {str(e)}")
         assert "does not exist" in str(e), "Error should indicate token doesn't exist"
@@ -159,6 +168,6 @@ async def test_delete_and_sale_datavault(
         assert False, "Sale should not succeed with deleted token"
     except Exception as e:
         print(f"Expected error with deleted token: {str(e)}")
-        assert "TokenId does not exist" in str(e), (
-            "Error should indicate token is invalid"
-        )
+        assert "TokenId does not exist" in str(
+            e
+        ), "Error should indicate token is invalid"

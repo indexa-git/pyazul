@@ -1,3 +1,5 @@
+"""Tests for standard payment (sale) and refund transaction functionalities."""
+
 import pytest
 
 from pyazul.core.config import get_azul_settings
@@ -8,7 +10,8 @@ from pyazul.services.transaction import TransactionService
 @pytest.fixture
 def transaction_service():
     """
-    Fixture that provides a configured TransactionService instance.
+    Provide a configured TransactionService instance.
+
     Used for processing direct card payments and refunds.
     """
     settings = get_azul_settings()
@@ -18,14 +21,12 @@ def transaction_service():
 @pytest.fixture
 def card_payment_data():
     """
-    Fixture providing test data for card payment transactions.
+    Provide test data for card payment transactions.
+
     Uses a test card provided by Azul for integration testing.
 
     Returns:
-        dict: Test data including:
-            - Card details (test card number)
-            - Transaction amount and tax
-            - Merchant identifiers
+        dict: Test data including card details, amount, and merchant IDs.
     """
     return {
         "Channel": "EC",
@@ -46,15 +47,12 @@ async def test_card_payment(transaction_service, card_payment_data):
     """
     Test direct card payment transaction.
 
-    This test verifies that:
-    1. We can successfully process a card payment
-    2. The transaction is approved
-    3. We receive proper authorization codes
+    Verifies successful card payment processing, approval, and auth codes.
 
     Expected outcomes:
-    - Response should have IsoCode '00' (success)
-    - Should receive proper authorization codes
-    - Transaction amount should match request
+    - Response IsoCode '00' (success).
+    - Receive proper authorization codes.
+    - Transaction amount matches request.
     """
     payment = SaleTransactionModel(**card_payment_data)
     response = await transaction_service.sale(payment)
@@ -66,11 +64,12 @@ async def test_card_payment(transaction_service, card_payment_data):
 @pytest.fixture
 async def completed_payment(transaction_service, card_payment_data):
     """
-    Fixture that creates a successful payment and returns the response.
-    Used by refund tests that need a previous successful transaction.
+    Create a successful payment and return the response.
+
+    Used by refund tests needing a previous successful transaction.
 
     Returns:
-        dict: API response containing the transaction details needed for refund
+        dict: API response with transaction details for refund.
     """
     payment = SaleTransactionModel(**card_payment_data)
     return await transaction_service.sale(payment)
@@ -79,17 +78,15 @@ async def completed_payment(transaction_service, card_payment_data):
 @pytest.fixture
 def refund_payment_data(completed_payment):
     """
-    Fixture providing test data for refund transactions.
-    Uses the AzulOrderId from a previous successful payment.
+    Provide test data for refund transactions.
+
+    Uses AzulOrderId from a previous successful payment.
 
     Args:
-        completed_payment: Response from a successful payment transaction
+        completed_payment: Response from a successful payment.
 
     Returns:
-        dict: Test data including:
-            - Original transaction reference
-            - Refund amount (must match original payment)
-            - Required merchant identifiers
+        dict: Test data with original transaction ref, refund amount, and merchant IDs.
     """
     return {
         "Channel": "EC",
@@ -108,18 +105,14 @@ async def test_refund(transaction_service, refund_payment_data):
     """
     Test refund transaction for a previous payment.
 
-    This test verifies that:
-    1. We can successfully refund a previous transaction
-    2. The refund is approved
-    3. The refund amount matches the original payment
+    Verifies successful refund, approval, and matching amount.
 
     Expected outcomes:
-    - Response should have IsoCode '00' (success)
-    - Should be able to refund the full amount
-    - Should receive proper reference numbers
+    - Response IsoCode '00' (success).
+    - Able to refund the full amount.
+    - Receive proper reference numbers.
 
-    Note: Refunds can only be processed for successful transactions
-    and must match the original amount.
+    Note: Refunds are for successful transactions and must match the original amount.
     """
     payment = RefundTransactionModel(**refund_payment_data)
     response = await transaction_service.refund(payment)

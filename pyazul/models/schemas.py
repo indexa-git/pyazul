@@ -1,43 +1,32 @@
+"""
+Data models and schemas for Azul payment gateway integration.
+
+This module defines Pydantic models for various Azul API operations,
+ensuring data validation and consistency.
+"""
+
 from datetime import datetime
 from typing import Literal, Optional, Union
 
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl, RootModel, field_validator
 
-"""
-This module defines the data models and schemas for the Azul payment gateway integration.
-It contains Pydantic models that handle:
-- Payment transactions (sales, holds, refunds, Post, Void, Verify)
-- DataVault operations (token creation and deletion)
-- Card tokenization
-- Input validation and type checking
-- Payment Page transactions
-
-These models ensure data consistency and proper formatting when communicating with 
-the Azul API endpoints. Each model includes field validations and descriptions
-to maintain compliance with Azul's API specifications.
-"""
-
 
 class AzulBaseModel(BaseModel):
-    """
-    Base model for all Azul payment operations.
-    """
+    """Base model for all Azul payment operations."""
 
     Channel: str = Field("EC", description="Payment channel provided by AZUL")
     PosInputMode: str = Field("E-Commerce", description="Entry mode provided by AZUL")
     Amount: str = Field(
         "",
-        description="Total amount (including taxes). Format: no decimals, e.g., 1000 = $10.00",
+        description="Total amount (incl. taxes). No decimals, e.g., 1000 = $10.00",
     )
     Itbis: Optional[str] = Field(
-        None, description="Tax value (ITBIS). Same format as amount"
+        None, description="Tax value (ITBIS). Same format as amount."
     )
 
 
 class SaleTransactionModel(AzulBaseModel):
-    """
-    Model for processing sales transactions.
-    """
+    """Model for processing sales transactions."""
 
     CardNumber: str = Field(..., description="Card number without special characters")
     Expiration: str = Field(..., description="Expiration date in YYYYMM format")
@@ -49,9 +38,7 @@ class SaleTransactionModel(AzulBaseModel):
 
 
 class HoldTransactionModel(AzulBaseModel):
-    """
-    Model for processing hold transactions.
-    """
+    """Model for processing hold transactions."""
 
     CardNumber: str = Field(..., description="Card number without special characters")
     Expiration: str = Field(..., description="Expiration date in YYYYMM format")
@@ -62,18 +49,14 @@ class HoldTransactionModel(AzulBaseModel):
 
 
 class RefundTransactionModel(AzulBaseModel):
-    """
-    Model for processing refund transactions.
-    """
+    """Model for processing refund transactions."""
 
     AzulOrderId: str = Field(..., description="Order number provided by AZUL")
     TrxType: Literal["Refund"] = "Refund"
 
 
 class DataVaultCreateModel(AzulBaseModel):
-    """
-    Model for creating DataVault tokens.
-    """
+    """Model for creating DataVault tokens."""
 
     CardNumber: str = Field(..., description="Card number without special characters")
     Expiration: str = Field(..., description="Expiration date in YYYYMM format")
@@ -83,9 +66,7 @@ class DataVaultCreateModel(AzulBaseModel):
 
 
 class DataVaultDeleteModel(AzulBaseModel):
-    """
-    Model for deleting DataVault tokens.
-    """
+    """Model for deleting DataVault tokens."""
 
     DataVaultToken: str = Field(..., description="DataVault token to delete")
     TrxType: Literal["DELETE"] = "DELETE"
@@ -93,9 +74,7 @@ class DataVaultDeleteModel(AzulBaseModel):
 
 
 class TokenSaleModel(AzulBaseModel):
-    """
-    Model for processing token sales.
-    """
+    """Model for processing token sales."""
 
     DataVaultToken: str = Field(..., description="DataVault token for the transaction")
     Expiration: str = Field("", description="Expiration date in YYYYMM format")
@@ -107,9 +86,7 @@ class TokenSaleModel(AzulBaseModel):
 
 
 class PostSaleTransactionModel(HoldTransactionModel):
-    """
-    Model for processing post sale transactions.
-    """
+    """Model for processing post sale transactions."""
 
     TrxType: Literal["Post"] = "Post"
     AzulOrderId: str = Field(..., description="Order number provided by AZUL")
@@ -128,28 +105,22 @@ class PostSaleTransactionModel(HoldTransactionModel):
 
 
 class VerifyTransactionModel(AzulBaseModel):
-    """
-    Model for verifying transactions.
-    """
+    """Model for verifying transactions."""
 
     CustomOrderId: str = Field(
-        ..., description="identifier merge with transaction to verify"
+        ..., description="Identifier to merge with transaction to verify."
     )
 
 
 class VoidTransactionModel(AzulBaseModel):
-    """
-    Model for voiding transactions.
-    """
+    """Model for voiding transactions."""
 
     AzulOrderId: str = Field(..., description="Order number provided by AZUL")
     store: str = Field(..., description="Merchant ID provided by AZUL")
 
 
 class PaymentSchema(RootModel):
-    """
-    Root model for combining payment operations.
-    """
+    """Root model for combining payment operations."""
 
     root: Union[
         SaleTransactionModel,
@@ -161,14 +132,13 @@ class PaymentSchema(RootModel):
     ]
 
     @classmethod
-    def validate(
-        cls, value: dict
-    ) -> Union[
+    def validate(cls, value: dict) -> Union[
         SaleTransactionModel,
         HoldTransactionModel,
         RefundTransactionModel,
         DataVaultCreateModel,
     ]:
+        """Validate and determine the appropriate model for the payment data."""
         if "data_vault_token" in value and value["data_vault_token"]:
             return DataVaultCreateModel(**value)
         return SaleTransactionModel(**value)
@@ -176,14 +146,14 @@ class PaymentSchema(RootModel):
 
 class PaymentPageModel(BaseModel):
     """
-    Model for Azul Payment Page transactions.
+    Define the model for Azul Payment Page transactions.
 
     This model handles the payment form data and validation for Azul's Payment Page.
     It ensures all data is formatted according to Azul's specifications.
 
     Amount format:
-    - All amounts must be sent without commas or decimal points
-    - Last two digits represent decimals
+    - All amounts must be sent without commas or decimal points.
+    - Last two digits represent decimals.
     - Examples:
       * 1000 = $10.00
       * 1748321 = $17,483.21
@@ -193,9 +163,9 @@ class PaymentPageModel(BaseModel):
         payment = PaymentPageModel(
             Amount="100000",      # $1,000.00
             ITBIS="18000",       # $180.00
-            ApprovedUrl="https://example.com/approved",
-            DeclineUrl="https://example.com/declined",
-            CancelUrl="https://example.com/cancel"
+            ApprovedUrl=HttpUrl("https://example.com/approved"),
+            DeclineUrl=HttpUrl("https://example.com/declined"),
+            CancelUrl=HttpUrl("https://example.com/cancel")
         )
     """
 
@@ -251,13 +221,7 @@ class PaymentPageModel(BaseModel):
 
     @field_validator("Amount", "ITBIS")
     def validate_amounts(cls, v: str, info) -> str:
-        """
-        Validate amount format.
-
-        Rules:
-        - Must be a valid number without decimals
-        - For ITBIS = 0, must use "000"
-        """
+        """Validate amount format."""
         # Si es número, convertirlo a string
         if isinstance(v, (int, float)):
             v = str(int(v))
@@ -274,7 +238,7 @@ class PaymentPageModel(BaseModel):
 
     @field_validator("CustomField1Label", "CustomField1Value")
     def validate_custom_field1(cls, v: str, info) -> str:
-        """Validate that custom field 1 values are provided when enabled"""
+        """Validate that custom field 1 values are provided when enabled."""
         if info.data.get("UseCustomField1") == "1" and not v:
             field_name = info.field_name
             raise ValueError(
@@ -284,7 +248,7 @@ class PaymentPageModel(BaseModel):
 
     @field_validator("CustomField2Label", "CustomField2Value")
     def validate_custom_field2(cls, v: str, info) -> str:
-        """Validate that custom field 2 values are provided when enabled"""
+        """Validate that custom field 2 values are provided when enabled."""
         if info.data.get("UseCustomField2") == "1" and not v:
             field_name = info.field_name
             raise ValueError(
@@ -293,10 +257,7 @@ class PaymentPageModel(BaseModel):
         return v
 
     def __str__(self) -> str:
-        """
-        String representation with formatted amounts in USD.
-        Example: "Payment Request - Amount: $1,000.00, ITBIS: $180.00"
-        """
+        """Return a string representation with formatted amounts in USD."""
         amount = float(self.Amount) / 100
         itbis = float(self.ITBIS) / 100 if self.ITBIS != "000" else 0.00
         return f"Payment Request - Amount: ${amount:.2f}, ITBIS: ${itbis:.2f}"

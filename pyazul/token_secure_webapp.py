@@ -1,8 +1,10 @@
 """
-Mini FastAPI application to demonstrate the complete flow of token payments and 3DS:
-1. Create a token from a test card
-2. Use the token to process a payment with 3DS authentication
-3. Handle the complete 3DS flow (method and challenge)
+Mini FastAPI app for demonstrating token payments and 3DS flow with PyAzul.
+
+This application showcases:
+1. Creating a token from a test card.
+2. Using the token for a 3DS-authenticated payment.
+3. Handling the complete 3DS flow (method and challenge).
 """
 
 import json
@@ -87,7 +89,7 @@ token_storage: Dict[str, Dict[str, Any]] = {}
 
 @app.get("/", response_class=HTMLResponse)
 async def home(request: Request):
-    """Main page with payment form"""
+    """Serve the main page with a payment form."""
     return templates.TemplateResponse(
         "token_index.html", {"request": request, "cards": TEST_CARDS}
     )
@@ -100,7 +102,7 @@ async def create_token(
     amount: float = Form(...),
     itbis: float = Form(...),
 ):
-    """Create a token from card details"""
+    """Create a token from card details."""
     try:
         # Find the selected card
         card = next((c for c in TEST_CARDS if c["number"] == card_number), None)
@@ -185,7 +187,7 @@ async def process_token_payment(
     itbis: float = Form(...),
     challenge_indicator: Optional[str] = Form("03"),
 ):
-    """Process a payment using an existing token with 3DS"""
+    """Process a payment using an existing token with 3DS."""
     try:
         # Verify that the token exists
         if token_id not in token_storage:
@@ -246,7 +248,7 @@ async def process_token_payment(
         data = SecureTokenSale(**sale_data_dict)
 
         logger.info(
-            f"Secure sessions before call: {list(secure_service.secure_sessions.keys())}"
+            f"Secure sessions before call: {list(secure_service.secure_sessions.keys())}"  # noqa: E501
         )
         response = await secure_service.process_token_sale(data)
         logger.info(
@@ -279,8 +281,8 @@ async def process_token_payment(
 async def capture_3ds_method_route(request: Request, data: SecureSessionID):
     """
     Handle 3DS method notification.
-    This endpoint receives the response from the ACS (Access Control Server)
-    after the 3DS method has completed.
+
+    This endpoint receives the response from the ACS after the 3DS method completes.
     """
     session_id = data.session_id
 
@@ -335,7 +337,7 @@ async def capture_3ds_method_route(request: Request, data: SecureSessionID):
                 or not isinstance(term_url, str)
             ):
                 logger.error(
-                    "3DS Challenge data or TermUrl missing/malformed in response/session."
+                    "3DS Challenge data or TermUrl missing/malformed in response/session."  # noqa: E501
                 )
                 return JSONResponse(
                     status_code=500,
@@ -375,8 +377,8 @@ async def capture_3ds_method_route(request: Request, data: SecureSessionID):
 async def post_3ds(request: Request, data: SecureChallengeRequest):
     """
     Handle the 3DS challenge response.
-    This endpoint receives the challenge response from the ACS
-    after the cardholder completes authentication.
+
+    This endpoint receives the CRes from the ACS after cardholder authentication.
     """
     session_id = data.session_id
     cres = data.cres

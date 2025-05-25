@@ -1,11 +1,4 @@
-"""
-Tests for Token Secure Integration
-
-This module contains tests to verify the complete token payment and 3DS flow:
-1. Create a card token (DataVault)
-2. Process a token sale using 3DS
-3. Test different 3DS scenarios: challenge, direct approval, method
-"""
+"""Tests for secure token sale functionalities of the PyAzul SDK."""
 
 import uuid
 from unittest.mock import AsyncMock, Mock

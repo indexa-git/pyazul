@@ -1,11 +1,4 @@
-"""
-Tests for SecureService
-
-This module contains tests for the SecureService class, covering:
-- process_sale: Testing different 3DS scenarios
-- process_3ds_method: Testing method notification handling
-- process_challenge: Testing challenge response processing
-"""
+"""Tests for 3D Secure functionalities of the PyAzul SDK."""
 
 import uuid
 from unittest.mock import AsyncMock, Mock

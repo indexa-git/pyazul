@@ -1,3 +1,5 @@
+"""Example demonstrating a standard payment transaction with PyAzul."""
+
 import asyncio
 
 from pyazul.core.config import get_azul_settings

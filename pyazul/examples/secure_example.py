@@ -1,13 +1,14 @@
 """
-feat(example): Implement 3DS payment demo with complete flow
+Example demonstrating the 3D Secure payment flow with PyAzul using FastAPI.
 
-- Created FastAPI application for 3DS payment demonstration
-- Added test cards with different configurations
-- Implemented endpoints for payment processing
-- Added custom error handling and user feedback
-- Implemented complete 3DS flow with method and challenge support
-- Improved session handling with secure_id
-- Added visual feedback system for transaction states
+This example includes:
+- A FastAPI application to simulate a merchant's backend.
+- Test card data for different 3DS scenarios (frictionless, challenge).
+- Endpoints to initiate payments (/process-payment, /process-hold).
+- Callbacks for 3DS method notification (/capture-3ds) and challenge completion
+(/post-3ds).
+- Basic HTML templates for user interaction and displaying results/errors.
+- Session handling using the `secure_id` provided by the library.
 """
 
 import logging
@@ -97,7 +98,6 @@ async def process_payment(
     itbis: float = Form(...),
 ):
     """Process a secure payment with 3D Secure authentication."""
-
     card = next((c for c in TEST_CARDS if c["number"] == card_number), None)
     if not card:
         logger.error(f"Invalid card: {card_number}")
@@ -152,7 +152,10 @@ async def process_payment(
         logger.error(f"Error in payment process: {str(e)}")
         error_message = str(e)
         if "BIN NOT FOUND" in error_message:
-            error_message = "The card used is not registered in the test environment. Please use one of the provided test cards."
+            error_message = (
+                "The card used is not registered in the test environment. "
+                "Please use one of the provided test cards."
+            )
         return templates.TemplateResponse(
             "error.html", {"request": request, "error": error_message}
         )
@@ -175,7 +178,6 @@ async def process_hold(
     itbis: float = Form(...),
 ):
     """Process a secure payment with 3D Secure authentication."""
-
     card = next((c for c in TEST_CARDS if c["number"] == card_number), None)
     if not card:
         logger.error(f"Invalid card: {card_number}")
@@ -231,7 +233,10 @@ async def process_hold(
         logger.error(f"Error in payment process: {str(e)}")
         error_message = str(e)
         if "BIN NOT FOUND" in error_message:
-            error_message = "The card used is not registered in the test environment. Please use one of the provided test cards."
+            error_message = (
+                "The card used is not registered in the test environment. "
+                "Please use one of the provided test cards."
+            )
         return templates.TemplateResponse(
             "error.html", {"request": request, "error": error_message}
         )
@@ -283,7 +288,10 @@ async def capture_3ds(
             logger.error(f"Error in 3DS process: {str(e)}")
             error_message = str(e)
             if "BIN NOT FOUND" in error_message:
-                error_message = "The card used is not registered in the test environment. Please use one of the provided test cards."
+                error_message = (
+                    "The card used is not registered in the test environment. "
+                    "Please use one of the provided test cards."
+                )
             return templates.TemplateResponse(
                 "error.html", {"request": request, "error": error_message}
             )
@@ -360,7 +368,8 @@ async def post_3ds(
             "error.html",
             {
                 "request": request,
-                "error": "Unexpected error processing authentication. Please try again.",
+                "error": "Unexpected error processing authentication. "
+                "Please try again.",
             },
         )
 

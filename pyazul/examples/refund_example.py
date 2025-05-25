@@ -1,3 +1,5 @@
+"""Example demonstrating how to perform a refund transaction with PyAzul."""
+
 import asyncio
 
 from pyazul.core.config import get_azul_settings

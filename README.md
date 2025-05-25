@@ -184,121 +184,121 @@ The 3DS process requires multiple steps, all accessible via the `PyAzul` instanc
 It's common for applications to manage some state across the 3DS callback steps (e.g., linking `secure_id` to an internal order or `azul_order_id`). The example below includes a simple dictionary (`app_level_session_store`) to illustrate this concept; replace this with your application's actual session management.
 
 1. **Transaction Initiation**:
-    Initiate a 3DS sale (or hold, or token sale). PyAzul automatically appends a unique `secure_id` to your callback URLs (`TermUrl`, `MethodNotificationUrl`) for session tracking.
+   Initiate a 3DS sale (or hold, or token sale). PyAzul automatically appends a unique `secure_id` to your callback URLs (`TermUrl`, `MethodNotificationUrl`) for session tracking.
 
-    ```python
-    from fastapi import FastAPI, Request, Form, Query
-    from fastapi.responses import HTMLResponse, JSONResponse
-    from pyazul import PyAzul, AzulError
-    # from pyazul.models import SecureSaleRequest # Optional: use Pydantic model
+   ```python
+   from fastapi import FastAPI, Request, Form, Query
+   from fastapi.responses import HTMLResponse, JSONResponse
+   from pyazul import PyAzul, AzulError
+   # from pyazul.models import SecureSaleRequest # Optional: use Pydantic model
 
-    app = FastAPI()
-    azul = PyAzul() # Ensure AUTH1_3D, AUTH2_3D are in your .env or settings
+   app = FastAPI()
+   azul = PyAzul() # Ensure AUTH1_3D, AUTH2_3D are in your .env or settings
 
-    # Example: In-memory store for application-level linking of 3DS IDs and data.
-    # Replace with your application's session/state management solution.
-    app_level_session_store = {}
+   # Example: In-memory store for application-level linking of 3DS IDs and data.
+   # Replace with your application's session/state management solution.
+   app_level_session_store = {}
 
-    @app.post("/initiate-3ds-payment")
-    async def initiate_3ds_payment(request_data: dict): # Assuming data comes in request body
-        original_term_url = request_data.get("threeDSAuth", {}).get("TermUrl", "")
+   @app.post("/initiate-3ds-payment")
+   async def initiate_3ds_payment(request_data: dict): # Assuming data comes in request body
+       original_term_url = request_data.get("threeDSAuth", {}).get("TermUrl", "")
 
-        try:
-            response = await azul.secure_sale(request_data)
+       try:
+           response = await azul.secure_sale(request_data)
 
-            secure_id = response.get("id")
-            # `azul_order_id` may be in the initial response if directly approved,
-            # otherwise it's primarily managed internally by pyazul linked to `secure_id`.
-            azul_order_id_from_response = response.get("value", {}).get("AzulOrderId")
+           secure_id = response.get("id")
+           # `azul_order_id` may be in the initial response if directly approved,
+           # otherwise it's primarily managed internally by pyazul linked to `secure_id`.
+           azul_order_id_from_response = response.get("value", {}).get("AzulOrderId")
 
-            if secure_id: # Store for your application's reference across callbacks
-                app_level_session_store[secure_id] = {
-                    "original_term_url": original_term_url,
-                    "azul_order_id": azul_order_id_from_response # May be None if redirect flow starts
-                }
+           if secure_id: # Store for your application's reference across callbacks
+               app_level_session_store[secure_id] = {
+                   "original_term_url": original_term_url,
+                   "azul_order_id": azul_order_id_from_response # May be None if redirect flow starts
+               }
 
-            if response.get("redirect"):
-                # This HTML contains the form for 3DS Method URL or Challenge ACS Redirection
-                return HTMLResponse(content=response.get("html"))
-            elif response.get("value", {}).get("ResponseMessage") == "APROBADA":
-                return JSONResponse(content={"status": "approved_without_3ds_flow", "data": response.get("value")})
-            else:
-                return JSONResponse(content={"status": "error_or_declined", "data": response.get("value")}, status_code=400)
-        except AzulError as e:
-            return JSONResponse(content={"status": "api_error", "message": str(e)}, status_code=500)
-    ```
+           if response.get("redirect"):
+               # This HTML contains the form for 3DS Method URL or Challenge ACS Redirection
+               return HTMLResponse(content=response.get("html"))
+           elif response.get("value", {}).get("ResponseMessage") == "APROBADA":
+               return JSONResponse(content={"status": "approved_without_3ds_flow", "data": response.get("value")})
+           else:
+               return JSONResponse(content={"status": "error_or_declined", "data": response.get("value")}, status_code=400)
+       except AzulError as e:
+           return JSONResponse(content={"status": "api_error", "message": str(e)}, status_code=500)
+   ```
 
 2. **3DS Method Processing (Callback)**:
-    This endpoint (`MethodNotificationUrl`) is called by the ACS/PSP. PyAzul handles session state internally using `secure_id`.
+   This endpoint (`MethodNotificationUrl`) is called by the ACS/PSP. PyAzul handles session state internally using `secure_id`.
 
-    ```python
-    @app.post("/capture-3ds-method") # Ensure this matches your MethodNotificationUrl path
-    async def capture_3ds_method_callback(request: Request, secure_id: str = Query(...)): # secure_id from query param
-        try:
-            # Retrieve necessary data linked to secure_id from your application's state.
-            app_session_data = app_level_session_store.get(secure_id)
-            if not app_session_data:
-                return JSONResponse(content={"error": "Application session data not found for secure_id"}, status_code=400)
+   ```python
+   @app.post("/capture-3ds-method") # Ensure this matches your MethodNotificationUrl path
+   async def capture_3ds_method_callback(request: Request, secure_id: str = Query(...)): # secure_id from query param
+       try:
+           # Retrieve necessary data linked to secure_id from your application's state.
+           app_session_data = app_level_session_store.get(secure_id)
+           if not app_session_data:
+               return JSONResponse(content={"error": "Application session data not found for secure_id"}, status_code=400)
 
-            azul_order_id = app_session_data.get("azul_order_id")
-            original_term_url = app_session_data.get("original_term_url")
+           azul_order_id = app_session_data.get("azul_order_id")
+           original_term_url = app_session_data.get("original_term_url")
 
-            # If azul_order_id wasn't in the initial `secure_sale` response (e.g. because it went straight to redirect),
-            # pyazul has stored it internally. `secure_3ds_method` requires it. The current library version
-            # expects the user to provide it. Future versions might offer helpers.
-            if not azul_order_id:
-                 # This indicates a need to fetch the AzulOrderId linked to secure_id from pyazul's internal session,
-                 # or ensure it was captured and stored by the application earlier.
-                 # For this example, we assume it must have been captured if this flow is to work as PyAzul expects.
-                 # As a fallback, you might re-query the initial transaction if your app stored OrderNumber/CustomOrderId.
-                 # However, pyazul's SecureService *does* store azul_order_id against secure_id internally.
-                 # This example proceeds assuming `azul_order_id` was obtained and stored by the app.
-                 return JSONResponse(content={"error": "Azul Order ID not available from initial app session for secure_id"}, status_code=400)
+           # If azul_order_id wasn't in the initial `secure_sale` response (e.g. because it went straight to redirect),
+           # pyazul has stored it internally. `secure_3ds_method` requires it. The current library version
+           # expects the user to provide it. Future versions might offer helpers.
+           if not azul_order_id:
+                # This indicates a need to fetch the AzulOrderId linked to secure_id from pyazul's internal session,
+                # or ensure it was captured and stored by the application earlier.
+                # For this example, we assume it must have been captured if this flow is to work as PyAzul expects.
+                # As a fallback, you might re-query the initial transaction if your app stored OrderNumber/CustomOrderId.
+                # However, pyazul's SecureService *does* store azul_order_id against secure_id internally.
+                # This example proceeds assuming `azul_order_id` was obtained and stored by the app.
+                return JSONResponse(content={"error": "Azul Order ID not available from initial app session for secure_id"}, status_code=400)
 
-            if not original_term_url:
-                 return JSONResponse(content={"error": "Original TermUrl not available from initial app session for secure_id"}, status_code=400)
+           if not original_term_url:
+                return JSONResponse(content={"error": "Original TermUrl not available from initial app session for secure_id"}, status_code=400)
 
-            result = await azul.secure_3ds_method(
-                azul_order_id=azul_order_id,
-                method_notification_status="RECEIVED"
-            )
+           result = await azul.secure_3ds_method(
+               azul_order_id=azul_order_id,
+               method_notification_status="RECEIVED"
+           )
 
-            if result.get("ResponseMessage") == "3D_SECURE_CHALLENGE":
-                form_html = azul.create_challenge_form(
-                    result["ThreeDSChallenge"]["CReq"],
-                    original_term_url, # Use the TermUrl you originally sent to Azul
-                    result["ThreeDSChallenge"]["RedirectPostUrl"]
-                )
-                return HTMLResponse(content=form_html)
-            elif result.get("ResponseMessage") == "APROBADA":
-                return JSONResponse(content={"status": "approved_after_method", "data": result})
-            else:
-                # Other responses (e.g. RECHAZADA, ERROR, or waiting for challenge via TermUrl)
-                return JSONResponse(content={"status": "pending_or_error", "data": result})
-        except AzulError as e:
-            return JSONResponse(content={"status": "api_error", "message": str(e)}, status_code=500)
-    ```
+           if result.get("ResponseMessage") == "3D_SECURE_CHALLENGE":
+               form_html = azul.create_challenge_form(
+                   result["ThreeDSChallenge"]["CReq"],
+                   original_term_url, # Use the TermUrl you originally sent to Azul
+                   result["ThreeDSChallenge"]["RedirectPostUrl"]
+               )
+               return HTMLResponse(content=form_html)
+           elif result.get("ResponseMessage") == "APROBADA":
+               return JSONResponse(content={"status": "approved_after_method", "data": result})
+           else:
+               # Other responses (e.g. RECHAZADA, ERROR, or waiting for challenge via TermUrl)
+               return JSONResponse(content={"status": "pending_or_error", "data": result})
+       except AzulError as e:
+           return JSONResponse(content={"status": "api_error", "message": str(e)}, status_code=500)
+   ```
 
 3. **3DS Challenge Processing (Callback)**:
-    This is your `TermUrl` endpoint. It receives the `CRes` (Challenge Response) from the ACS, typically via a POST request.
+   This is your `TermUrl` endpoint. It receives the `CRes` (Challenge Response) from the ACS, typically via a POST request.
 
-    ```python
+   ```python
 
-    @app.post("/post-3ds-callback") # Ensure this matches your TermUrl path
-    async def post_3ds_challenge_callback(
-        secure_id: str = Query(...), # secure_id from TermUrl query parameter
-        CRes: str = Form(...)
-    ):
-        try:
-            final_result = await azul.secure_challenge(secure_id=secure_id, cres=CRes)
+   @app.post("/post-3ds-callback") # Ensure this matches your TermUrl path
+   async def post_3ds_challenge_callback(
+       secure_id: str = Query(...), # secure_id from TermUrl query parameter
+       CRes: str = Form(...)
+   ):
+       try:
+           final_result = await azul.secure_challenge(secure_id=secure_id, cres=CRes)
 
-            if final_result.get("ResponseMessage") == "APROBADA":
-                return JSONResponse(content={"status": "approved_after_challenge", "data": final_result})
-            else:
-                return JSONResponse(content={"status": "declined_or_error_after_challenge", "data": final_result}, status_code=400)
-        except AzulError as e:
-            return JSONResponse(content={"status": "api_error", "message": str(e)}, status_code=500)
-    ```
+           if final_result.get("ResponseMessage") == "APROBADA":
+               return JSONResponse(content={"status": "approved_after_challenge", "data": final_result})
+           else:
+               return JSONResponse(content={"status": "declined_or_error_after_challenge", "data": final_result}, status_code=400)
+       except AzulError as e:
+           return JSONResponse(content={"status": "api_error", "message": str(e)}, status_code=500)
+   ```
 
 ### Important Notes on 3DS
 

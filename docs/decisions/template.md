@@ -11,17 +11,18 @@ story: {description or link to contextual issue}
 ## Context & Problem Statement
 
 2-3 sentences explaining the problem, and what are the forces influencing the decision.
+
 <!-- The language in this section is value-neutral. It is simply describing facts. -->
 
 ## Priorities & Constraints <!-- optional -->
 
-* {list of concerns}
-* {that are influencing the decision}
+- {list of concerns}
+- {that are influencing the decision}
 
 ## Considered Options
 
-* Option 1: Thing
-* Option 2: Another
+- Option 1: Thing
+- Option 2: Another
 
 ## Decision Outcome
 
@@ -31,7 +32,7 @@ Chosen option [Option 1: Thing]
 
 ### Expected Consequences <!-- optional -->
 
-* List of unrelated outcomes this decision creates.
+- List of unrelated outcomes this decision creates.
 <!-- Positive, negative, and/or neutral consequences, as lll of them affect the team and project in the future. -->
 
 ## More Information <!-- optional -->

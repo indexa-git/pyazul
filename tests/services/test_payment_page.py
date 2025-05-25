@@ -1,3 +1,5 @@
+"""Tests for Payment Page functionalities of the PyAzul SDK."""
+
 import pytest
 from pydantic import ValidationError
 

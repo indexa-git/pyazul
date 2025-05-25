@@ -1,3 +1,9 @@
+"""
+Service for Azul Payment Page interactions.
+
+Handles payment form generation, auth hash calculation, and environment URLs.
+"""
+
 import hashlib
 import hmac
 
@@ -5,56 +11,29 @@ from pyazul.api.constants import AzulEndpoints, Environment
 from pyazul.core.config import AzulSettings
 from pyazul.models.schemas import PaymentPageModel
 
-"""
-Azul Payment Page Service Module
-
-This module provides the service layer for interacting with Azul's Payment Page.
-It handles:
-- Payment form generation
-- Authentication hash calculation
-- Environment-specific configurations (including primary and alternate production URLs)
-- Form field formatting and validation
-
-The payment page allows secure card processing by redirecting users to Azul's hosted payment form.
-"""
-
 
 class PaymentPageService:
     """
     Service for handling Azul Payment Page Operations.
 
-    This service provides methods to:
-    1. Generate secure payment forms for primary or alternate production URLs.
-    2. Calculate authentication hashes.
-    3. Handle environment-specific URLs.
-
-    Usage example:
-        settings = get_azul_settings() # Or your custom AzulSettings instance
-        service = PaymentPageService(settings)
-        # For primary URL
-        form_primary = service.create_payment_form(payment_request)
-        # For alternate URL in production if needed
-        form_alternate = service.create_payment_form(payment_request, use_alternate_url=True)
+    Provides methods to generate secure payment forms, calculate auth hashes,
+    and manage environment-specific URLs for primary or alternate production.
     """
 
     def __init__(self, settings: AzulSettings):
-        """
-        Initialize PaymentPage Service.
-
-        Args:
-            settings: Azul configuration settings instance.
-        """
+        """Initialize PaymentPage Service with Azul configuration settings."""
         self.settings = settings
 
     def _get_base_url(self, use_alternate_url: bool = False) -> str:
         """
-        Get the base URL for Payment Page based on environment and alternate flag.
+        Get the base URL for Payment Page.
 
         Args:
-            use_alternate_url (bool): If True and in 'prod' environment, returns the alternate URL.
+            use_alternate_url (bool): If True and in 'prod' environment,
+                                      returns the alternate URL.
 
         Returns:
-            str: Base URL for the payment page
+            str: Base URL for the payment page.
         """
         if self.settings.ENVIRONMENT == Environment.DEV:
             return AzulEndpoints.DEV_URL_PAYMEMT
@@ -68,9 +47,7 @@ class PaymentPageService:
         return AzulEndpoints.PROD_URL_PAYMEMT
 
     def _generate_auth_hash(self, payment_request: PaymentPageModel) -> str:
-        """
-        Generate authentication hash for the payment request.
-        """
+        """Generate authentication hash for the payment request."""
         if self.settings.AZUL_MERCHANT_ID is None:
             raise ValueError(
                 "AZUL_MERCHANT_ID must be set for payment page hash generation."
@@ -127,13 +104,14 @@ class PaymentPageService:
     ) -> str:
         """
         Create HTML form for Payment Page redirect.
+
         Can specify to use the alternate production URL.
 
         Args:
             payment_request: Payment page request model.
             use_alternate_url (bool): If True and in 'prod' environment,
-                                      the form will post to the alternate payment page URL.
-                                      Defaults to False (uses primary URL).
+                                      the form will post to the alternate
+                                      payment page URL. Defaults to False.
         Returns:
             str: HTML form ready for automatic submission.
         """
@@ -143,29 +121,49 @@ class PaymentPageService:
         form_action_url = self._get_base_url(use_alternate_url=use_alternate_url)
 
         form_fields = [
-            f'<input type="hidden" id="MerchantId" name="MerchantId" value="{self.settings.AZUL_MERCHANT_ID}" />',
-            f'<input type="hidden" id="MerchantName" name="MerchantName" value="{self.settings.MERCHANT_NAME}" />',
-            f'<input type="hidden" id="MerchantType" name="MerchantType" value="{self.settings.MERCHANT_TYPE}" />',
-            f'<input type="hidden" id="CurrencyCode" name="CurrencyCode" value="{payment_request.CurrencyCode}" />',
-            f'<input type="hidden" id="OrderNumber" name="OrderNumber" value="{payment_request.OrderNumber}" />',
-            f'<input type="hidden" id="Amount" name="Amount" value="{payment_request.Amount}" />',
-            f'<input type="hidden" id="ITBIS" name="ITBIS" value="{payment_request.ITBIS}" />',
-            f'<input type="hidden" id="ApprovedUrl" name="ApprovedUrl" value="{payment_request.ApprovedUrl}" />',
-            f'<input type="hidden" id="DeclinedUrl" name="DeclinedUrl" value="{payment_request.DeclineUrl}" />',
-            f'<input type="hidden" id="CancelUrl" name="CancelUrl" value="{payment_request.CancelUrl}" />',
-            f'<input type="hidden" id="UseCustomField1" name="UseCustomField1" value="{payment_request.UseCustomField1}" />',
-            f'<input type="hidden" id="CustomField1Label" name="CustomField1Label" value="{payment_request.CustomField1Label}" />',
-            f'<input type="hidden" id="CustomField1Value" name="CustomField1Value" value="{payment_request.CustomField1Value}" />',
-            f'<input type="hidden" id="UseCustomField2" name="UseCustomField2" value="{payment_request.UseCustomField2}" />',
-            f'<input type="hidden" id="CustomField2Label" name="CustomField2Label" value="{payment_request.CustomField2Label}" />',
-            f'<input type="hidden" id="CustomField2Value" name="CustomField2Value" value="{payment_request.CustomField2Value}" />',
-            f'<input type="hidden" id="ShowTransactionResult" name="ShowTransactionResult" value="{payment_request.ShowTransactionResult}" />',
-            f'<input type="hidden" id="Locale" name="Locale" value="{payment_request.Locale}" />',
+            f'<input type="hidden" id="MerchantId" name="MerchantId" '
+            f'value="{self.settings.AZUL_MERCHANT_ID}" />',
+            f'<input type="hidden" id="MerchantName" name="MerchantName" '
+            f'value="{self.settings.MERCHANT_NAME}" />',
+            f'<input type="hidden" id="MerchantType" name="MerchantType" '
+            f'value="{self.settings.MERCHANT_TYPE}" />',
+            f'<input type="hidden" id="CurrencyCode" name="CurrencyCode" '
+            f'value="{payment_request.CurrencyCode}" />',
+            f'<input type="hidden" id="OrderNumber" name="OrderNumber" '
+            f'value="{payment_request.OrderNumber}" />',
+            f'<input type="hidden" id="Amount" name="Amount" '
+            f'value="{payment_request.Amount}" />',
+            f'<input type="hidden" id="ITBIS" name="ITBIS" '
+            f'value="{payment_request.ITBIS}" />',
+            f'<input type="hidden" id="ApprovedUrl" name="ApprovedUrl" '
+            f'value="{payment_request.ApprovedUrl}" />',
+            f'<input type="hidden" id="DeclinedUrl" name="DeclinedUrl" '
+            f'value="{payment_request.DeclineUrl}" />',
+            f'<input type="hidden" id="CancelUrl" name="CancelUrl" '
+            f'value="{payment_request.CancelUrl}" />',
+            f'<input type="hidden" id="UseCustomField1" name="UseCustomField1" '
+            f'value="{payment_request.UseCustomField1}" />',
+            f'<input type="hidden" id="CustomField1Label" name="CustomField1Label" '
+            f'value="{payment_request.CustomField1Label}" />',
+            f'<input type="hidden" id="CustomField1Value" name="CustomField1Value" '
+            f'value="{payment_request.CustomField1Value}" />',
+            f'<input type="hidden" id="UseCustomField2" name="UseCustomField2" '
+            f'value="{payment_request.UseCustomField2}" />',
+            f'<input type="hidden" id="CustomField2Label" name="CustomField2Label" '
+            f'value="{payment_request.CustomField2Label}" />',
+            f'<input type="hidden" id="CustomField2Value" name="CustomField2Value" '
+            f'value="{payment_request.CustomField2Value}" />',
+            f'<input type="hidden" id="ShowTransactionResult" name="ShowTransactionResult" '  # noqa: E501
+            f'value="{payment_request.ShowTransactionResult}" />',
+            f'<input type="hidden" id="Locale" name="Locale" '
+            f'value="{payment_request.Locale}" />',
         ]
 
         if payment_request.SaveToDataVault is not None:
             form_fields.append(
-                f'<input type="hidden" id="SaveToDataVault" name="SaveToDataVault" value="{payment_request.SaveToDataVault}" />'
+                f'<input type="hidden" id="SaveToDataVault" name="SaveToDataVault" '
+                f'value="{payment_request.SaveToDataVault}"'
+                f" />"
             )
 
         form_fields.append(
