@@ -30,6 +30,7 @@ env:
   MERCHANT_ID: ${{ secrets.MERCHANT_ID }}
   AZUL_CERT: ${{ secrets.AZUL_CERT }}
   AZUL_KEY: ${{ secrets.AZUL_KEY }}
+  MERCHANT_NAME: indexa
 
 jobs:
   integration-tests:

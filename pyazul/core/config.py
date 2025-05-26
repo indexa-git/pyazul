@@ -95,17 +95,19 @@ class AzulSettings(BaseSettings):
         def is_base64(s: str) -> bool:
             """Check if a string is a base64 encoded PEM content."""
             try:
-                decoded = base64.b64decode(s.rstrip("%")).decode("utf-8")
+                decoded = base64.b64decode(s).decode("utf-8")
                 return is_pem_content(decoded) or is_pem_content(decoded, "PRIVATE KEY")
             except Exception:
                 return False
 
-        def write_cert(path: Path, content: str, is_base64: bool = False) -> None:
+        def write_cert(
+            path: Path, content: str, is_base64_encoded: bool = False
+        ) -> None:
             """Write certificate content to a file with restricted permissions."""
             try:
                 data = (
-                    base64.b64decode(content.rstrip("%"))
-                    if is_base64
+                    base64.b64decode(content)
+                    if is_base64_encoded
                     else content.encode("utf-8")
                 )
                 with open(path, "wb") as f:
@@ -120,6 +122,8 @@ class AzulSettings(BaseSettings):
             cert_path = Path(cert_value)
         elif is_pem_content(cert_value):
             write_cert(cert_path, cert_value)
+        elif is_base64(cert_value):
+            write_cert(cert_path, cert_value, True)
         else:
             raise ValueError(
                 "Invalid certificate format: Must be a valid file path, PEM content, "
@@ -145,16 +149,38 @@ class AzulSettings(BaseSettings):
     @model_validator(mode="after")
     def _ensure_required_fields_are_set(self) -> Self:
         """Validate that all required configuration fields are set."""
-        # Always required fields
-        always_required_fields = {
-            "AUTH1": self.AUTH1,
-            "AUTH2": self.AUTH2,
-            "MERCHANT_ID": self.MERCHANT_ID,
-        }
+        missing_fields = []
 
-        missing_fields = [
-            name for name, value in always_required_fields.items() if value is None
-        ]
+        # Always required fields
+        if self.AUTH1 is None:
+            missing_fields.append("AUTH1")
+        if self.AUTH2 is None:
+            missing_fields.append("AUTH2")
+        if self.MERCHANT_ID is None:
+            missing_fields.append("MERCHANT_ID")
+
+        # Environment-specific URL checks (only if CUSTOM_URL is not set)
+        if not self.CUSTOM_URL:
+            if self.ENVIRONMENT == "prod" and self.PROD_URL is None:
+                missing_fields.append(
+                    "PROD_URL (for prod environment when CUSTOM_URL is not set)"
+                )
+            elif self.ENVIRONMENT == "dev" and self.DEV_URL is None:
+                missing_fields.append(
+                    "DEV_URL (for dev environment when CUSTOM_URL is not set)"
+                )
+
+        # Certificate settings are now validated by their presence after
+        # _load_certificates effectively runs by pydantic calling our getter
+        # logic indirectly or if they are set directly. We need to ensure
+        # these attributes are non-None before API client tries to use them.
+        if self.AZUL_CERT is None:
+            missing_fields.append(
+                "AZUL_CERT"
+            )  # This implies it was not a valid path, PEM, or b64
+        if self.AZUL_KEY is None:
+            missing_fields.append("AZUL_KEY")  # Same for key
+
         if missing_fields:
             raise ValueError(
                 "The following required settings are missing or not set in the "
