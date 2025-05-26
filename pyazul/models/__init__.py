@@ -7,8 +7,7 @@ Contains data models and schemas for all services.
 # Import from schemas.py
 from .schemas import AzulBaseModel  # Base model, might be useful
 from .schemas import (
-    DataVaultCreateModel,
-    DataVaultDeleteModel,
+    DataVaultRequestModel,
     HoldTransactionModel,
     PaymentPageModel,
     PostSaleTransactionModel,
@@ -36,8 +35,7 @@ __all__ = [
     "SaleTransactionModel",
     "HoldTransactionModel",
     "RefundTransactionModel",
-    "DataVaultCreateModel",
-    "DataVaultDeleteModel",
+    "DataVaultRequestModel",
     "TokenSaleModel",
     "PostSaleTransactionModel",
     "VerifyTransactionModel",

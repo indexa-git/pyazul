@@ -46,7 +46,6 @@ repos:
             -I,
             tests/,
             -I,
-            pyazul/token_secure_webapp.py,
             --ignore-init-module,
             --ignore-init-method,
             --ignore-magic,

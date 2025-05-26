@@ -27,7 +27,7 @@ class SecureService:
 
     def __init__(self, api_client: AzulAPI):
         """Initialize the SecureService with an AzulAPI client."""
-        self.api_client = api_client
+        self.api = api_client
         self.secure_sessions: Dict[str, Dict[str, Any]] = {}
         self.processed_methods: Dict[str, bool] = {}  # Track processed 3DS methods
         self.transaction_states: Dict[str, str] = {}  # Track transaction states
@@ -50,7 +50,7 @@ class SecureService:
             )
 
             sale_data = {
-                "Store": self.api_client.settings.MERCHANT_ID,
+                "Store": self.api.settings.MERCHANT_ID,
                 "Channel": "EC",
                 "CardNumber": request_dict["CardNumber"],
                 "Expiration": request_dict["Expiration"],
@@ -78,7 +78,7 @@ class SecureService:
             logger.info("-" * 50)
             logger.info(json.dumps(sale_data, indent=2))
             logger.info("-" * 50)
-            result = await self.api_client._async_request(
+            result = await self.api._async_request(
                 data=sale_data,
                 is_secure=True,  # Indicate this is a 3DS request
             )
@@ -164,7 +164,7 @@ class SecureService:
             )
 
             sale_data = {
-                "Store": self.api_client.settings.MERCHANT_ID,
+                "Store": self.api.settings.MERCHANT_ID,
                 "Channel": "EC",
                 "DataVaultToken": request_dict["DataVaultToken"],
                 "Expiration": "",
@@ -192,9 +192,7 @@ class SecureService:
             logger.info("-" * 50)
             logger.info(json.dumps(sale_data, indent=2))
             logger.info("-" * 50)
-            result = await self.api_client._async_request(
-                data=sale_data, is_secure=True
-            )
+            result = await self.api._async_request(data=sale_data, is_secure=True)
 
             # Detailed response logging
             logger.info("AZUL RESPONSE:")
@@ -274,7 +272,7 @@ class SecureService:
             )
 
             hold_data = {
-                "Store": self.api_client.settings.MERCHANT_ID,
+                "Store": self.api.settings.MERCHANT_ID,
                 "Channel": "EC",
                 "CardNumber": request_dict["CardNumber"],
                 "Expiration": request_dict["Expiration"],
@@ -302,7 +300,7 @@ class SecureService:
             logger.info("-" * 50)
             logger.info(json.dumps(hold_data, indent=2))
             logger.info("-" * 50)
-            result = await self.api_client._async_request(
+            result = await self.api._async_request(
                 data=hold_data,
                 is_secure=True,  # Indicate this is a 3DS request
             )
@@ -386,7 +384,7 @@ class SecureService:
             self.processed_methods[azul_order_id] = True
             data = {
                 "Channel": "EC",
-                "Store": self.api_client.settings.MERCHANT_ID,
+                "Store": self.api.settings.MERCHANT_ID,
                 "AzulOrderId": azul_order_id,
                 "MethodNotificationStatus": method_notification_status,
             }
@@ -396,7 +394,7 @@ class SecureService:
             logger.info(json.dumps(data, indent=2))
             logger.info("-" * 50)
 
-            result = await self.api_client._async_request(
+            result = await self.api._async_request(
                 data, operation="processthreedsmethod"
             )
 
@@ -436,7 +434,7 @@ class SecureService:
 
         data = {
             "Channel": "EC",
-            "Store": self.api_client.settings.MERCHANT_ID,
+            "Store": self.api.settings.MERCHANT_ID,
             "AzulOrderId": azul_order_id,
             "CRes": cres,
         }
@@ -454,7 +452,7 @@ class SecureService:
         logger.info("-" * 50)
 
         try:
-            result = await self.api_client._async_request(
+            result = await self.api._async_request(
                 data, operation="processthreedschallenge", is_secure=True
             )
 

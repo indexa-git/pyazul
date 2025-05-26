@@ -11,8 +11,7 @@ from typing import Any, Dict, Optional
 from .api.client import AzulAPI
 from .core.config import AzulSettings, get_azul_settings
 from .models import (
-    DataVaultCreateModel,
-    DataVaultDeleteModel,
+    DataVaultRequestModel,
     HoldTransactionModel,
     PaymentPageModel,
     PostSaleTransactionModel,
@@ -74,10 +73,8 @@ class PyAzul:
         self.api = AzulAPI(settings=self.settings)
 
         # Initialize services with the API client, settings, and session_store
-        self.transaction = TransactionService(
-            settings=self.settings, api_client=self.api
-        )
-        self.datavault = DataVaultService(settings=self.settings, api_client=self.api)
+        self.transaction = TransactionService(api_client=self.api)
+        self.datavault = DataVaultService(api_client=self.api)
         self.payment_page_service = PaymentPageService(settings=self.settings)
         self.secure = SecureService(api_client=self.api)
 
@@ -107,11 +104,11 @@ class PyAzul:
 
     async def create_token(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Create a card token in DataVault."""
-        return await self.datavault.create(DataVaultCreateModel(**data))
+        return await self.datavault.create(DataVaultRequestModel(**data))
 
     async def delete_token(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Delete a token from DataVault."""
-        return await self.datavault.delete(DataVaultDeleteModel(**data))
+        return await self.datavault.delete(DataVaultRequestModel(**data))
 
     async def token_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a sale using a token (without 3DS)."""

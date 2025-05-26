@@ -7,7 +7,6 @@ This includes sales, holds, refunds, voids, and transaction verifications.
 from typing import Any, Dict, Union
 
 from ..api.client import AzulAPI
-from ..core.config import AzulSettings
 from ..models.schemas import (
     HoldTransactionModel,
     PostSaleTransactionModel,
@@ -22,16 +21,14 @@ from ..models.schemas import (
 class TransactionService:
     """Service for handling payment transactions (sales, refunds, etc.)."""
 
-    def __init__(self, settings: AzulSettings, api_client: AzulAPI):
+    def __init__(self, api_client: AzulAPI):
         """
         Initialize TransactionService.
 
         Args:
-            settings: Configuration settings for Azul.
             api_client: An instance of AzulAPI for making requests.
         """
-        self.settings = settings
-        self.client = api_client
+        self.api = api_client
 
     async def sale(
         self, transaction: Union[SaleTransactionModel, TokenSaleModel]
@@ -49,7 +46,7 @@ class TransactionService:
             APIError: If the transaction fails or API returns an error.
         """
         payload = transaction.model_dump(exclude_none=True)
-        return await self.client._async_request(payload)
+        return await self.api._async_request(payload)
 
     async def hold(
         self,
@@ -70,7 +67,7 @@ class TransactionService:
             APIError: If the hold fails or API returns an error.
         """
         payload = transaction.model_dump(exclude_none=True)
-        return await self.client._async_request(payload)
+        return await self.api._async_request(payload)
 
     async def refund(
         self,
@@ -89,20 +86,18 @@ class TransactionService:
             APIError: If the refund fails or API returns an error.
         """
         payload = transaction.model_dump(exclude_none=True)
-        return await self.client._async_request(payload)
+        return await self.api._async_request(payload)
 
     async def verify(
         self,
         transaction: VerifyTransactionModel,
     ) -> Dict[str, Any]:
         """Verify a transaction by checking its status."""
-        return await self.client._async_request(transaction.model_dump())
+        return await self.api._async_request(transaction.model_dump())
 
     async def void(self, transaction: VoidTransactionModel) -> Dict[str, Any]:
         """Void a transaction."""
-        return await self.client._async_request(
-            transaction.model_dump(exclude_none=True)
-        )
+        return await self.api._async_request(transaction.model_dump(exclude_none=True))
 
     async def post_sale(
         self,
@@ -110,4 +105,4 @@ class TransactionService:
     ) -> Dict[str, Any]:
         """Process a post sale transaction (capture a hold)."""
         payload = transaction.model_dump(exclude_none=True)
-        return await self.client._async_request(payload)
+        return await self.api._async_request(payload)

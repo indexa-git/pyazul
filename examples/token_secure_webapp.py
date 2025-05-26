@@ -22,7 +22,7 @@ from pyazul.core.config import AzulSettings, get_azul_settings
 from pyazul.core.exceptions import AzulError
 from pyazul.models import (
     CardHolderInfo,
-    DataVaultCreateModel,
+    DataVaultRequestModel,
     SecureChallengeRequest,
     SecureSessionID,
     SecureTokenSale,
@@ -44,9 +44,7 @@ templates = Jinja2Templates(directory="templates")
 settings: AzulSettings = get_azul_settings()
 api_client: AzulAPI = AzulAPI(settings=settings)
 secure_service: SecureService = SecureService(api_client=api_client)
-datavault_service: DataVaultService = DataVaultService(
-    api_client=api_client, settings=settings
-)
+datavault_service: DataVaultService = DataVaultService(api_client=api_client)
 
 # Test cards for 3DS
 TEST_CARDS: List[Dict[str, Any]] = [
@@ -111,21 +109,19 @@ async def create_token(
         if not card:
             return JSONResponse(status_code=400, content={"error": "Invalid card"})
 
-        # Prepare data to create the token
-        datavault_data = {
-            "Channel": "EC",
-            "PosInputMode": "E-Commerce",
-            "Amount": str(int(amount * 100)),  # Convert to cents
-            "Itbis": str(int(itbis * 100)),  # Convert to cents
-            "CardNumber": card["number"],
-            "Expiration": card["expiration"],
-            "CustomOrderId": f"web-{datetime.now().strftime('%Y%m%d%H%M%S')}",
-            "store": settings.MERCHANT_ID,
-        }
-
         # Create the token - use the global service
-        payment = DataVaultCreateModel(**datavault_data)
-        response: Dict[str, Any] = await datavault_service.create(payment)
+        # Ensure TrxType is set correctly for DataVaultRequestModel
+        assert settings.MERCHANT_ID is not None, "MERCHANT_ID must be set in settings"
+        create_token_payload = DataVaultRequestModel(
+            Channel="EC",
+            Store=settings.MERCHANT_ID,  # Access store from settings
+            TrxType="CREATE",
+            CardNumber=card["number"],
+            Expiration=card["expiration"],
+            CVC=None,  # Explicitly set optional CVC to None
+            DataVaultToken=None,  # Explicitly set DataVaultToken to None for CREATE
+        )
+        response: Dict[str, Any] = await datavault_service.create(create_token_payload)
 
         logger.info(f"Token Creation Response: {json.dumps(response)}")
 
@@ -154,7 +150,7 @@ async def create_token(
 
         token_data: Dict[str, Any] = {
             "token": token_id,
-            "expiration": datavault_data["Expiration"],
+            "expiration": card["expiration"],
             "brand": response.get("Brand", ""),
             "masked_card": response.get("CardNumber", ""),
             "has_cvv": response.get("HasCVV", False),
