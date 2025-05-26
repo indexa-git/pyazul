@@ -14,10 +14,10 @@ classifiers = [
   "Operating System :: OS Independent",
 ]
 dependencies = [
-  "httpx[http2]",
-  "pydantic>=2.0.0",
-  "pydantic-settings>=2.0.0",
-  "aiohttp>=3.11.0",
+  "httpx[http2]>=0.28.1",
+  "pydantic>=2.11.5",
+  "pydantic-settings>=2.9.1",
+  "python-dotenv>=1.1.0",
 ]
 requires-python = ">=3.12"
 readme = "README.md"
@@ -29,21 +29,21 @@ Homepage = "https://github.com/indexa-git/pyazul/"
 include = ["pyazul", "pyazul.*"]
 
 [project.optional-dependencies]
-testing = [
-  "pytest",
-  "pytest-dotenv",
-  "pytest-cov",
-  "pytest-asyncio",
-  "python-multipart",
-  "jinja2",
-]
-linting = [
+dev = [
+  "pytest>=8.3.5",
+  "pytest-dotenv>=0.5.2",
+  "pytest-cov>=6.1.1",
+  "pytest-asyncio>=1.0.0",
+  "python-multipart>=0.0.9",
+  "jinja2>=3.1.6",
+  "fastapi>=0.115.12",
   "flake8>=7.2.0",
   "flake8-docstrings>=1.7.0",
   "pydocstyle[toml]>=6.3.0",
   "interrogate>=1.7.0",
   "black>=25.1.0",
   "isort>=6.0.1",
+  "uvicorn>=0.34.2",
 ]
 
 [tool.pytest.ini_options]
