@@ -69,6 +69,8 @@ async def test_datavault_flow():
             "Itbis": "180",
             "DataVaultToken": token,
             "OrderNumber": "003004005006007",
+            "CVC": "123",
+            "ForceNo3DS": "1",
         }
         sale_response = await azul.token_sale(token_sale_data)
         print(f"Sale response: {sale_response}")
@@ -96,7 +98,18 @@ async def test_datavault_flow():
         # 4. Verify token is invalid
         print("\n4. Verifying deleted token...")
         try:
-            await azul.token_sale(token_sale_data)
+            verify_token_sale_data = {
+                "Channel": "EC",
+                "Store": settings.MERCHANT_ID,
+                "PosInputMode": "E-Commerce",
+                "Amount": "1000",
+                "Itbis": "180",
+                "DataVaultToken": token,
+                "OrderNumber": "003004005006007",
+                "CVC": "123",
+                "ForceNo3DS": "1",
+            }
+            await azul.token_sale(verify_token_sale_data)
             print("Warning: Payment with deleted token succeeded unexpectedly")
         except Exception as e:
             print(f"Expected error when using deleted token: {str(e)}")

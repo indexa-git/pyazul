@@ -103,11 +103,11 @@ def _validate_itbis_field(v: Union[str, int, float, None], info) -> Optional[str
 class AzulBaseModel(BaseModel):
     """Base model for Azul payment operations."""
 
-    Channel: str = Field(
-        "EC", description="Payment channel (e.g., 'EC'), provided by AZUL. (X(3))"
+    Channel: Optional[str] = Field(
+        None, description="Payment channel (e.g., 'EC'), provided by AZUL. (X(3))"
     )
-    Store: str = Field(
-        ..., description="Unique merchant ID (MID), provided by AZUL. (X(11))"
+    Store: Optional[str] = Field(
+        None, description="Unique merchant ID (MID), provided by AZUL. (X(11))"
     )
     PosInputMode: str = Field(
         "E-Commerce",
@@ -174,7 +174,9 @@ class HoldTransactionModel(AzulBaseModel):
     )
     Expiration: str = Field(..., description="Expiration date in YYYYMM format. (N(6))")
     CVC: str = Field(..., description="Card security code (CVV2 or CVC). (N(3))")
-    TrxType: Literal["Hold"] = "Hold"
+    TrxType: Literal["Hold"] = Field(
+        "Hold", description="Transaction type, fixed Hold."
+    )
     OrderNumber: str = Field(
         ..., description="Merchant order number. Empty if not applicable. (X(15))"
     )
@@ -307,6 +309,13 @@ class TokenSaleModel(BaseModel):
         description="CVC (optional with token, E-comm mandatory if configured). (N(3))",
         min_length=3,
         max_length=4,
+    )
+    CardNumber: Optional[str] = Field(
+        default="", description="Card number, empty for token sales. (N(19))"
+    )
+    Expiration: Optional[str] = Field(
+        default="",
+        description="Expiration date (YYYYMM), empty for token sales. (N(6))",
     )
     CustomOrderId: Optional[str] = Field(
         None, description="Custom merchant order ID. (X(75))"

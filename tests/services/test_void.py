@@ -1,7 +1,9 @@
 """Tests for void transaction functionalities of the PyAzul SDK."""
 
 import asyncio
-import uuid
+
+# import uuid # Removed unused import
+from datetime import datetime
 
 import pytest
 
@@ -30,12 +32,12 @@ async def completed_hold_for_void(transaction_service):
         dict: The API response from the hold transaction.
     """
     store_id = transaction_service.api.settings.MERCHANT_ID
-    unique_id = uuid.uuid4().hex[:10]
+    unique_order_id = datetime.now().strftime("%Y%m%d%H%M%S%f")[:15]
 
     # Fields required by Pydantic model (no default or Optional without default)
     hold_data = HoldTransactionModel(
         Store=store_id,
-        OrderNumber=f"hold-fix-{unique_id}",
+        OrderNumber=unique_order_id,
         CardNumber="5413330089600119",
         Expiration="202812",
         CVC="979",
@@ -46,14 +48,14 @@ async def completed_hold_for_void(transaction_service):
         PosInputMode="E-Commerce",
         TrxType="Hold",
         AcquirerRefData="1",
-        CustomOrderId=f"custom-hold-fix-{unique_id}",
+        CustomOrderId=f"custom-void-{unique_order_id}",
         # Explicitly providing remaining Optional fields or fields with defaults that linter flags # noqa: E501
         DataVaultToken=None,
         SaveToDataVault="0",  # Model default is "0"
         CustomerServicePhone=None,
         ECommerceURL=None,
         AltMerchantName=None,
-        ForceNo3DS=None,
+        ForceNo3DS="1",
     )
     hold_result = await transaction_service.hold(hold_data)
     assert hold_result is not None, "Hold result from fixture should not be None"

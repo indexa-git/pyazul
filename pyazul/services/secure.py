@@ -55,7 +55,7 @@ class SecureService:
                 "TrxType": "Sale",
                 "AcquirerRefData": request_dict["AcquirerRefData"],
                 "Amount": str(request_dict["Amount"]),
-                "Itbis": str(request_dict["ITBIS"]),
+                "Itbis": str(request_dict["Itbis"]),
                 "OrderNumber": request_dict["OrderNumber"],
                 "Currency": "DOP",
                 "ThreeDSAuth": {
@@ -92,7 +92,7 @@ class SecureService:
                 "expiration": request_dict["Expiration"],
                 "cvc": request_dict["CVC"],
                 "amount": request_dict["Amount"],
-                "itbis": request_dict["ITBIS"],
+                "itbis": request_dict["Itbis"],
                 "order_number": request_dict["OrderNumber"],
                 "term_url": term_url,  # Store term_url in session
             }
@@ -168,7 +168,7 @@ class SecureService:
                 "TrxType": "Sale",
                 "AcquirerRefData": request_dict["AcquirerRefData"],
                 "Amount": str(request_dict["Amount"]),
-                "Itbis": str(request_dict["ITBIS"]),
+                "Itbis": str(request_dict["Itbis"]),
                 "OrderNumber": request_dict["OrderNumber"],
                 "Currency": "DOP",
                 "CustomOrderId": request_dict.get("CustomOrderId", ""),
@@ -200,7 +200,7 @@ class SecureService:
             self.secure_sessions[secure_id] = {
                 "azul_order_id": result.get("AzulOrderId"),
                 "amount": request_dict["Amount"],
-                "itbis": request_dict["ITBIS"],
+                "itbis": request_dict["Itbis"],
                 "order_number": request_dict["OrderNumber"],
                 "term_url": term_url,
             }
@@ -277,7 +277,7 @@ class SecureService:
                 "TrxType": "Hold",
                 "AcquirerRefData": request_dict["AcquirerRefData"],
                 "Amount": str(request_dict["Amount"]),
-                "Itbis": str(request_dict["ITBIS"]),
+                "Itbis": str(request_dict["Itbis"]),
                 "OrderNumber": request_dict["OrderNumber"],
                 "Currency": "DOP",
                 "ThreeDSAuth": {
@@ -314,7 +314,7 @@ class SecureService:
                 "expiration": request_dict["Expiration"],
                 "cvc": request_dict["CVC"],
                 "amount": request_dict["Amount"],
-                "itbis": request_dict["ITBIS"],
+                "itbis": request_dict["Itbis"],
                 "order_number": request_dict["OrderNumber"],
                 "term_url": term_url,  # Store term_url in session
             }

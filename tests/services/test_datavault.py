@@ -56,6 +56,7 @@ def datavault_payment_data():
         "Itbis": "180",  # $1.80 (tax)
         "CardNumber": "5413330089600119",  # Test card provided by Azul
         "Expiration": "202812",
+        "CVC": None,  # Create token WITHOUT CVC
         "CustomOrderId": "datavault-test-001",  # Unique identifier for this test
         "Store": "39038540035",
         "DataVaultToken": "",
@@ -93,6 +94,7 @@ async def test_create_sale_datavault(transaction_service, completed_datavault):
     - Transaction should be successful (IsoCode '00').
     - Should be able to process payment without full card details.
     """
+    print(f"Completed Datavault for Sale: {completed_datavault}")
     token = completed_datavault.get("DataVaultToken")
 
     token_sale_data = {
@@ -101,8 +103,11 @@ async def test_create_sale_datavault(transaction_service, completed_datavault):
         "Amount": "1000",
         "Itbis": "180",  # Optional for TokenSaleModel, but good to test
         "DataVaultToken": token,
+        "OrderNumber": "TSALE-001",
         "CustomOrderId": "token-sale-test-001",
-        "Store": "39038540035",  # Added missing Store key
+        "Store": "39038540035",
+        "CVC": None,  # Token created WITHOUT CVC, sale attempt WITHOUT CVC
+        "ForceNo3DS": "1",  # Attempt to bypass 3DS for a direct response
     }
 
     payment = TokenSaleModel(**token_sale_data)
@@ -179,8 +184,10 @@ async def test_delete_and_sale_datavault(
         "Amount": "1000",
         "Itbis": "180",
         "DataVaultToken": token,
+        "OrderNumber": "TSALE-002",
         "CustomOrderId": "token-sale-test-002",
         "Store": store_id,  # Use the same store_id
+        "ForceNo3DS": "1",
     }
     payment = TokenSaleModel(**token_sale_data)
     try:

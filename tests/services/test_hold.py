@@ -2,6 +2,7 @@
 
 import pytest
 
+from pyazul.api.client import AzulAPI
 from pyazul.models.schemas import HoldTransactionModel
 from pyazul.services.transaction import TransactionService
 
@@ -14,7 +15,8 @@ def transaction_service(settings):
     This fixture is scoped to the session to reuse the same service instance
     across multiple tests, improving efficiency.
     """
-    return TransactionService(settings)
+    api_client = AzulAPI(settings)
+    return TransactionService(api_client)
 
 
 @pytest.fixture
@@ -34,8 +36,11 @@ def hold_transaction_data():
         "CardNumber": "5413330089600119",  # Test card provided by Azul
         "Expiration": "202812",  # Card expiration in YYYYMM format
         "CVC": "979",  # Test card security code
+        "OrderNumber": "order-123",
         "CustomOrderId": "hold-test-001",  # Unique identifier for this test
-        "SaveToDataVault": "2",  # Don't save card to vault for hold operations
+        "SaveToDataVault": "0",  # Changed from "2" to "0"
+        "AcquirerRefData": "1",
+        "ForceNo3DS": "1",  # Added to bypass 3DS for this test
     }
 
 

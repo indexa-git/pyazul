@@ -80,7 +80,7 @@ def token_3ds_sale_request(created_token, mock_api_client):
         PosInputMode="E-Commerce",
         TrxType="Sale",
         forceNo3DS="0",
-        CVC=None,
+        CVC="123",
         CustomOrderId=None,
         AcquirerRefData=None,
         cardHolderInfo=CardHolderInfo(
@@ -146,15 +146,6 @@ async def test_token_sale_with_3ds_challenge(
     assert result["id"] is not None
 
     secure_id = result["id"]
-    await secure_service.session_store.save_session(
-        secure_id,
-        {
-            "azul_order_id": "12345",
-            "token": token_3ds_sale_request.DataVaultToken,
-            "amount": token_3ds_sale_request.Amount,
-            "itbis": token_3ds_sale_request.Itbis,
-        },
-    )
 
     mock_api_client._async_request.return_value = {
         "ResponseMessage": "APROBADA",
@@ -225,7 +216,7 @@ async def test_complete_token_3ds_workflow(
         PosInputMode="E-Commerce",
         TrxType="Sale",
         forceNo3DS="0",
-        CVC=None,
+        CVC="123",
         CustomOrderId=None,
         AcquirerRefData=None,
         cardHolderInfo=CardHolderInfo(
@@ -267,16 +258,6 @@ async def test_complete_token_3ds_workflow(
     sale_result = await secure_service.process_token_sale(token_sale_request)
     assert sale_result["redirect"] is True
     secure_id = sale_result["id"]
-
-    await secure_service.session_store.save_session(
-        secure_id,
-        {
-            "azul_order_id": "12345",
-            "token": token,
-            "amount": token_sale_request.Amount,
-            "itbis": token_sale_request.Itbis,
-        },
-    )
 
     mock_api_client._async_request.return_value = {
         "ResponseMessage": "APROBADA",

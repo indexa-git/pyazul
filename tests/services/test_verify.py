@@ -2,6 +2,7 @@
 
 import pytest
 
+from pyazul.api.client import AzulAPI
 from pyazul.models.schemas import VerifyTransactionModel
 from pyazul.services.transaction import TransactionService
 
@@ -9,17 +10,21 @@ from pyazul.services.transaction import TransactionService
 @pytest.fixture
 def transaction_service(settings):
     """Provide a TransactionService instance for testing verifications."""
-    return TransactionService(settings)
+    api_client = AzulAPI(settings)
+    return TransactionService(api_client)
 
 
 @pytest.fixture
-def verify_transaction_data():
+def verify_transaction_data(settings):
     """
     Provide test data for a transaction verification.
 
     Includes a custom order ID to identify the transaction to verify.
     """
-    return {"CustomOrderId": "sale-test-001"}
+    return {
+        "CustomOrderId": "sale-test-001",
+        "Store": settings.MERCHANT_ID,
+    }
 
 
 @pytest.mark.asyncio

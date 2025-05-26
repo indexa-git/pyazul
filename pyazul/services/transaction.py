@@ -4,6 +4,7 @@ Service for handling standard payment transactions with the Azul API.
 This includes sales, holds, refunds, voids, and transaction verifications.
 """
 
+import logging
 from typing import Any, Dict, Union
 
 from ..api.client import AzulAPI
@@ -16,6 +17,8 @@ from ..models.schemas import (
     VerifyTransactionModel,
     VoidTransactionModel,
 )
+
+_logger = logging.getLogger(__name__)
 
 
 class TransactionService:
@@ -45,7 +48,12 @@ class TransactionService:
         Raises:
             APIError: If the transaction fails or API returns an error.
         """
-        payload = transaction.model_dump(exclude_none=True)
+        payload = transaction.model_dump(
+            exclude_none=True,
+            exclude_defaults=False,  # Keep defaults to include empty values
+            # This is a workaround to an undocumented API quirk.
+            exclude_unset=False,  # Keep unset to include empty CardNumber/Expiration
+        )
         return await self.api._async_request(payload)
 
     async def hold(

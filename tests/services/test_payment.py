@@ -39,8 +39,10 @@ def card_payment_data():
         "CardNumber": "5413330089600119",  # Test card provided by Azul
         "Expiration": "202812",  # Card expiration in YYYYMM format
         "CVC": "979",  # Test card security code
+        "OrderNumber": "sale-order-123",
         "CustomOrderId": "sale-test-001",  # Unique identifier for this test
         "SaveToDataVault": "1",  # Save card to vault for future use
+        "ForceNo3DS": "1",  # Added to bypass 3DS for this test
     }
 
 
@@ -78,7 +80,7 @@ async def completed_payment(transaction_service, card_payment_data):
 
 
 @pytest.fixture
-def refund_payment_data(completed_payment):
+def refund_payment_data(completed_payment, card_payment_data):
     """
     Provide test data for refund transactions.
 
@@ -86,6 +88,7 @@ def refund_payment_data(completed_payment):
 
     Args:
         completed_payment: Response from a successful payment.
+        card_payment_data: Original card payment data fixture.
 
     Returns:
         dict: Test data with original transaction ref, refund amount, and merchant IDs.
@@ -98,6 +101,9 @@ def refund_payment_data(completed_payment):
         "AzulOrderId": completed_payment.get(
             "AzulOrderId"
         ),  # Reference to original transaction
+        "OrderNumber": card_payment_data.get(
+            "OrderNumber"
+        ),  # Use OrderNumber from the original sale data
         "TrxType": "Refund",  # Specifies this is a refund operation
     }
 
