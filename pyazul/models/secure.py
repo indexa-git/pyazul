@@ -11,73 +11,97 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field, field_validator
 
+from .schemas import _validate_amount_field, _validate_itbis_field
+
 
 class ChallengeIndicator(str, Enum):
-    """
-    Define challenge indicator values for 3DS authentication.
-
-    These values indicate the merchant's preference for challenges.
-    """
+    """Challenge indicator values for 3DS authentication."""
 
     NO_PREFERENCE = "01"  # No preference for challenge
     NO_CHALLENGE = "02"  # Prefer no challenge
-    CHALLENGE = "03"  # Request Challenge
+    CHALLENGE = "03"  # Request Challenge (default preference)
     MANDATE_CHALLENGE = "04"  # Challenge required by mandate
 
 
 class CardHolderInfo(BaseModel):
-    """
-    Model cardholder information for 3DS authentication.
+    """Cardholder information for 3DS authentication.
 
-    This information helps the issuing bank assess transaction risk.
+    Helps issuing bank assess transaction risk.
+    All fields are optional - omit fields if information is not available.
+    Ref: Azul Docs "Sub-campos CardHolderInfo"
     """
 
-    BillingAddressCity: str = Field(..., description="Billing address city.")
-    BillingAddressCountry: str = Field(..., description="Billing address country.")
-    BillingAddressLine1: str = Field(..., description="Billing address line 1.")
+    BillingAddressCity: Optional[str] = Field(None, description="Billing address city.")
+    BillingAddressCountry: Optional[str] = Field(
+        None, description="Billing address country (e.g., 'DO')."
+    )
+    BillingAddressLine1: Optional[str] = Field(
+        None, description="Billing address line 1."
+    )
     BillingAddressLine2: Optional[str] = Field(
         None, description="Billing address line 2."
     )
     BillingAddressLine3: Optional[str] = Field(
         None, description="Billing address line 3."
     )
-    BillingAddressState: str = Field(..., description="Billing address state.")
-    BillingAddressZip: str = Field(..., description="Billing address ZIP/postal code.")
-    Email: str = Field(..., description="Cardholder email address.")
-    Name: str = Field(..., description="Cardholder name.")
-    PhoneHome: Optional[str] = Field(None, description="Home phone number.")
-    PhoneMobile: Optional[str] = Field(None, description="Mobile phone number.")
-    PhoneWork: Optional[str] = Field(None, description="Work phone number.")
-    ShippingAddressCity: str = Field(..., description="Shipping address city.")
-    ShippingAddressCountry: str = Field(..., description="Shipping address country.")
-    ShippingAddressLine1: str = Field(..., description="Shipping address line 1.")
+    BillingAddressState: Optional[str] = Field(
+        None, description="Billing address state/province."
+    )
+    BillingAddressZip: Optional[str] = Field(
+        None, description="Billing address ZIP/postal code."
+    )
+    Email: Optional[str] = Field(None, description="Cardholder email address.")
+    Name: Optional[str] = Field(None, description="Cardholder full name.")
+    PhoneHome: Optional[str] = Field(None, description="Cardholder home phone number.")
+    PhoneMobile: Optional[str] = Field(
+        None, description="Cardholder mobile phone number."
+    )
+    PhoneWork: Optional[str] = Field(None, description="Cardholder work phone number.")
+    ShippingAddressCity: Optional[str] = Field(
+        None, description="Shipping address city."
+    )
+    ShippingAddressCountry: Optional[str] = Field(
+        None, description="Shipping address country (e.g., 'DO')."
+    )
+    ShippingAddressLine1: Optional[str] = Field(
+        None, description="Shipping address line 1."
+    )
     ShippingAddressLine2: Optional[str] = Field(
         None, description="Shipping address line 2."
     )
     ShippingAddressLine3: Optional[str] = Field(
         None, description="Shipping address line 3."
     )
-    ShippingAddressState: str = Field(
-        ..., description="Shipping address state/province."
+    ShippingAddressState: Optional[str] = Field(
+        None, description="Shipping address state/province."
     )
-    ShippingAddressZip: str = Field(
-        ..., description="Shipping address ZIP/postal code."
+    ShippingAddressZip: Optional[str] = Field(
+        None, description="Shipping address ZIP/postal code."
     )
+
+    def model_dump(self, **kwargs):
+        """Serialize model, excluding None values as recommended by Azul docs."""
+        data = super().model_dump(**kwargs)
+        # Remove None values to follow Azul's recommendation to omit blank fields
+        return {k: v for k, v in data.items() if v is not None}
 
 
 class ThreeDSAuth(BaseModel):
-    """
-    Model 3DS Authentication parameters.
+    """3DS Authentication parameters.
 
     Contains URLs and preferences for the 3DS authentication process.
+    Ref: Azul Docs "Paso 2: Iniciar un pago", Sub-Campos ThreeDSAuth
     """
 
-    TermUrl: str = Field(..., description="URL for receiving authentication results.")
+    TermUrl: str = Field(
+        ..., description="Merchant URL for ACS authentication results."
+    )
     MethodNotificationUrl: str = Field(
-        ..., description="URL for receiving 3DS method notifications."
+        ..., description="Merchant URL for 3DS Method iframe notification."
     )
     RequestChallengeIndicator: ChallengeIndicator = Field(
-        ChallengeIndicator.CHALLENGE, description="Merchant's challenge preference."
+        ChallengeIndicator.CHALLENGE,
+        description="Merchant preference regarding authentication challenge.",
     )
 
     @field_validator("TermUrl", "MethodNotificationUrl")
@@ -89,70 +113,132 @@ class ThreeDSAuth(BaseModel):
         return v_str
 
     def model_dump(self, **kwargs):
-        """Serialize model to a dictionary, ensuring URLs are strings."""
+        """Serialize model, ensuring URLs and enums are strings."""
         data = super().model_dump(**kwargs)
         return {
             "TermUrl": str(data["TermUrl"]),
             "MethodNotificationUrl": str(data["MethodNotificationUrl"]),
-            "RequestChallengeIndicator": str(data["RequestChallengeIndicator"]),
+            "RequestChallengeIndicator": data["RequestChallengeIndicator"].value,
         }
 
 
 class SecureSaleRequest(BaseModel):
-    """
-    Model a secure sale transaction request.
+    """Secure sale transaction request with 3DS data.
 
-    Combines payment information with 3DS authentication data.
+    Ref: Azul Docs "SALE: Transacción de venta" & "Vista general 3D-Secure 2.0"
     """
 
-    Amount: int = Field(..., description="Transaction amount in cents.")
-    ITBIS: int = Field(..., description="Tax amount in cents.")
-    CardNumber: str = Field(..., description="Card number.")
-    CVC: str = Field(..., description="Card security code.")
-    Expiration: str = Field(..., description="Card expiration in YYYYMM format.")
-    OrderNumber: str = Field(..., description="Unique order identifier.")
-    Channel: str = Field("EC", description="Transaction channel.")
-    PosInputMode: str = Field("E-commerce", description="Entry mode.")
-    AcquirerRefData: Literal["0", "1"] = Field(
-        "1", description="Acquirer reference data."
+    # Core Sale Fields
+    Channel: str = Field("EC", description="Payment channel (e.g., 'EC'). (X(3))")
+    Store: str = Field(..., description="Unique merchant ID (MID). (X(11))")
+    PosInputMode: str = Field(
+        "E-Commerce", description="Transaction entry mode. (A(10))"
     )
-    forceNo3DS: Literal["0", "1"] = Field("0", description="Force no 3DS flag.")
+    Amount: str = Field(  # In cents
+        ...,
+        description="Total amount in cents (e.g. 1000 for $10.00). Serialized to str.",
+    )
+    Itbis: str = Field(  # In cents
+        ...,
+        description="ITBIS tax in cents (e.g. 180 for $1.80, 0 if exempt). To str.",
+    )
+    OrderNumber: str = Field(
+        ..., description="Merchant order number. Empty if not applicable. (X(15))"
+    )
+    CardNumber: str = Field(
+        ..., description="Card number, no special characters. (N(19))"
+    )
+    Expiration: str = Field(..., description="Expiration date in YYYYMM format. (N(6))")
+    CVC: str = Field(..., description="Card security code (CVV2 or CVC). (N(3))")
+    AcquirerRefData: str = Field(
+        "1", description="Acquirer reference. Fixed '1' (AZUL internal use). (N(1))"
+    )
+    CustomOrderId: Optional[str] = Field(
+        None, description="Custom merchant order ID. Used for VerifyPayment. (X(75))"
+    )
+    SaveToDataVault: Optional[str] = Field(
+        "0", description="'1' to save to DataVault, '0' not to. (N(1))"
+    )
+
+    # 3DS Specific Fields
+    forceNo3DS: Literal["0", "1"] = Field(
+        "0", description="'1' to force no 3DS, '0' to use 3DS if configured."
+    )
     cardHolderInfo: CardHolderInfo
     threeDSAuth: ThreeDSAuth
+
+    _validate_amount_values = field_validator("Amount", mode="before")(
+        _validate_amount_field
+    )
+    _validate_itbis_values = field_validator("Itbis", mode="before")(
+        _validate_itbis_field
+    )
 
 
 class SecureTokenSale(BaseModel):
-    """Model for processing token sales with 3DS."""
+    """Secure token sale transaction with 3DS data.
 
-    Amount: int = Field(..., description="Transaction amount in cents.")
-    ITBIS: int = Field(..., description="Tax amount in cents.")
-    Channel: str = Field("EC", description="Transaction channel.")
-    PosInputMode: str = Field("E-commerce", description="Entry mode.")
-    DataVaultToken: str = Field(..., description="DataVault token for the transaction.")
-    Expiration: str = Field(
-        "", description="Expiration date in YYYYMM format (required even with token)."
+    Ref: Azul Docs "Venta utilizando el Token" & "Vista general 3D-Secure 2.0"
+    """
+
+    # Core Token Sale Fields
+    Channel: str = Field("EC", description="Payment channel (e.g., 'EC'). (X(3))")
+    Store: str = Field(..., description="Unique merchant ID (MID). (X(11))")
+    PosInputMode: str = Field(
+        "E-Commerce", description="Transaction entry mode. (A(10))"
     )
-    CardNumber: str = Field("", description="Card number (optional when using token).")
-    OrderNumber: str = Field(..., description="Unique order identifier.")
-    CVC: str = Field("", description="Security code (optional when using token).")
-    TrxType: Literal["Sale"] = "Sale"
+    Amount: str = Field(  # In cents
+        ...,
+        description="Total amount in cents (e.g. 1000 for $10.00). Serialized to str.",
+    )
+    DataVaultToken: str = Field(
+        ..., description="DataVault token for the transaction. (A(100))"
+    )
+    OrderNumber: str = Field(..., description="Merchant order number. (X(15))")
+    TrxType: Literal["Sale"] = Field(
+        "Sale", description="Transaction type, fixed 'Sale'. (A(16))"
+    )
+
+    # Optional fields for Token Sale
+    Itbis: Optional[str] = Field(  # In cents
+        None, description="ITBIS in cents (optional for TokenSale). Serialized to str."
+    )
+    CVC: Optional[str] = Field(
+        None,
+        description="CVC (optional with token, E-comm mandatory if configured). (N(3))",
+        min_length=3,
+        max_length=4,
+    )
     CustomOrderId: Optional[str] = Field(
-        "", description="Merchant-provided identifier."
+        None, description="Custom merchant order ID. (X(75))"
     )
-    AcquirerRefData: str = Field("1", description="AZUL Internal Use")
-    forceNo3DS: Literal["0", "1"] = Field("0", description="Force no 3DS flag.")
+    AcquirerRefData: Optional[str] = Field(
+        "1", description="Acquirer reference. Fixed '1' (AZUL internal use). (N(1))"
+    )
+
+    # 3DS Specific Fields
+    forceNo3DS: Literal["0", "1"] = Field(
+        "0", description="'1' to force no 3DS, '0' to use 3DS if configured."
+    )
     cardHolderInfo: CardHolderInfo
     threeDSAuth: ThreeDSAuth
 
+    _validate_amount_values = field_validator("Amount", mode="before")(
+        _validate_amount_field
+    )
+    _validate_itbis_values = field_validator("Itbis", mode="before")(
+        _validate_itbis_field
+    )
+
 
 class SecureSessionID(BaseModel):
-    """Model for requests that only need a session ID."""
+    """Model for requests needing only a secure session ID."""
 
     session_id: str = Field(..., description="Secure session identifier.")
 
 
 class SecureChallengeRequest(BaseModel):
-    """Model for the 3DS challenge response."""
+    """Model for the 3DS challenge response (CRes)."""
 
     session_id: str = Field(..., description="Secure session identifier.")
-    cres: str = Field(..., description="Challenge Response (CRes) from ACS")
+    cres: str = Field(..., description="Challenge Response (CRes) from ACS.")

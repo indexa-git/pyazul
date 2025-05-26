@@ -10,7 +10,7 @@ This application showcases:
 import json
 import logging
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, List, Optional
 
 import uvicorn
 from fastapi import FastAPI, Form, Request
@@ -44,10 +44,12 @@ templates = Jinja2Templates(directory="templates")
 settings: AzulSettings = get_azul_settings()
 api_client: AzulAPI = AzulAPI(settings=settings)
 secure_service: SecureService = SecureService(api_client=api_client)
-datavault_service: DataVaultService = DataVaultService(api_client=api_client)
+datavault_service: DataVaultService = DataVaultService(
+    api_client=api_client, settings=settings
+)
 
 # Test cards for 3DS
-TEST_CARDS = [
+TEST_CARDS: List[Dict[str, Any]] = [
     {
         "number": "4265880000000007",
         "label": "Frictionless with 3DSMethod",
@@ -208,7 +210,7 @@ async def process_token_payment(
         base_url = str(request.base_url).rstrip("/")
 
         # Create cardholder data
-        cardholder_info = CardHolderInfo(
+        cardholder_info = CardHolderInfo(  # type: ignore[call-arg]
             BillingAddressCity="Santo Domingo",
             BillingAddressCountry="DO",
             BillingAddressLine1="Av. Winston Churchill",

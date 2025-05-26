@@ -2,6 +2,7 @@
 
 import pytest
 
+from pyazul.api.client import AzulAPI
 from pyazul.core.config import get_azul_settings
 from pyazul.models.schemas import (
     DataVaultCreateModel,
@@ -20,7 +21,8 @@ def transaction_service():
     Used for processing payments and token-based transactions.
     """
     settings = get_azul_settings()
-    return TransactionService(settings)
+    api_client = AzulAPI(settings)
+    return TransactionService(settings, api_client)
 
 
 @pytest.fixture
@@ -31,7 +33,8 @@ def datavault_service():
     Used for token creation and management operations.
     """
     settings = get_azul_settings()
-    return DataVaultService(settings)
+    api_client = AzulAPI(settings)
+    return DataVaultService(settings, api_client)
 
 
 @pytest.fixture
@@ -140,7 +143,9 @@ async def test_delete_and_sale_datavault(
     try:
         # Delete token
         delete_payment = DataVaultDeleteModel(
-            DataVaultToken=token, Amount="1000", Itbis="180", store="39038540035"
+            Channel="EC",
+            Store="39038540035",
+            DataVaultToken=token,
         )
         delete_response = await datavault_service.delete(delete_payment)
         print("Delete response:", delete_response)
@@ -165,7 +170,7 @@ async def test_delete_and_sale_datavault(
         sale_response = await transaction_service.sale(payment)
         print("Token used:", token)
         print("Sale response:", sale_response)
-        assert False, "Sale should not succeed with deleted token"
+        raise AssertionError("Sale should not succeed with deleted token")
     except Exception as e:
         print(f"Expected error with deleted token: {str(e)}")
         assert "TokenId does not exist" in str(

@@ -78,7 +78,7 @@ class PyAzul:
             settings=self.settings, api_client=self.api
         )
         self.datavault = DataVaultService(settings=self.settings, api_client=self.api)
-        self.payment_page = PaymentPageService(settings=self.settings)
+        self.payment_page_service = PaymentPageService(settings=self.settings)
         self.secure = SecureService(api_client=self.api)
 
     async def sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
@@ -99,7 +99,7 @@ class PyAzul:
 
     async def post_auth(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Capture a previously held amount (post-authorization)."""
-        return await self.transaction.post_auth(PostSaleTransactionModel(**data))
+        return await self.transaction.post_sale(PostSaleTransactionModel(**data))
 
     async def verify_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Verify the status of a transaction."""
@@ -115,11 +115,11 @@ class PyAzul:
 
     async def token_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a sale using a token (without 3DS)."""
-        return await self.transaction.token_sale(TokenSaleModel(**data))
+        return await self.transaction.sale(TokenSaleModel(**data))
 
     def payment_page(self, data: Dict[str, Any]) -> str:
         """Generate HTML for Azul's hosted payment page."""
-        return self.payment_page.generate_payment_page(PaymentPageModel(**data))
+        return self.payment_page_service.create_payment_form(PaymentPageModel(**data))
 
     # --- Secure Methods (3D Secure) ---
 
@@ -154,4 +154,4 @@ class PyAzul:
         self, session_id: str
     ) -> Optional[Dict[str, Any]]:
         """Retrieve information about an active 3DS session."""
-        return self.secure.get_session_info(session_id)
+        return self.secure.secure_sessions.get(session_id)

@@ -48,7 +48,8 @@ class TransactionService:
         Raises:
             APIError: If the transaction fails or API returns an error.
         """
-        return await self.client._async_request(transaction.model_dump())
+        payload = transaction.model_dump(exclude_none=True)
+        return await self.client._async_request(payload)
 
     async def hold(
         self,
@@ -68,7 +69,8 @@ class TransactionService:
         Raises:
             APIError: If the hold fails or API returns an error.
         """
-        return await self.client._async_request(transaction.model_dump())
+        payload = transaction.model_dump(exclude_none=True)
+        return await self.client._async_request(payload)
 
     async def refund(
         self,
@@ -86,7 +88,8 @@ class TransactionService:
         Raises:
             APIError: If the refund fails or API returns an error.
         """
-        return await self.client._async_request(transaction.model_dump())
+        payload = transaction.model_dump(exclude_none=True)
+        return await self.client._async_request(payload)
 
     async def verify(
         self,
@@ -97,11 +100,14 @@ class TransactionService:
 
     async def void(self, transaction: VoidTransactionModel) -> Dict[str, Any]:
         """Void a transaction."""
-        return await self.client._async_request(transaction.model_dump())
+        return await self.client._async_request(
+            transaction.model_dump(exclude_none=True)
+        )
 
     async def post_sale(
         self,
         transaction: PostSaleTransactionModel,
     ) -> Dict[str, Any]:
         """Process a post sale transaction (capture a hold)."""
-        return await self.client._async_request(transaction.model_dump())
+        payload = transaction.model_dump(exclude_none=True)
+        return await self.client._async_request(payload)

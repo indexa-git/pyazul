@@ -42,7 +42,9 @@ class DataVaultService:
         Raises:
             APIError: If token creation fails or API returns an error
         """
-        return await self.api_client._async_request(token_data.model_dump())
+        return await self.api_client._async_request(
+            token_data.model_dump(exclude_none=True)
+        )
 
     async def delete(self, token_data: DataVaultDeleteModel) -> Dict[str, Any]:
         """
