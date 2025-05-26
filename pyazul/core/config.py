@@ -160,28 +160,11 @@ class AzulSettings(BaseSettings):
             missing_fields.append("AUTH2")
         if self.MERCHANT_ID is None:
             missing_fields.append("MERCHANT_ID")
-
-        # Environment-specific URL checks (only if CUSTOM_URL is not set)
-        if not self.CUSTOM_URL:
-            if self.ENVIRONMENT == "prod" and self.PROD_URL is None:
-                missing_fields.append(
-                    "PROD_URL (for prod environment when CUSTOM_URL is not set)"
-                )
-            elif self.ENVIRONMENT == "dev" and self.DEV_URL is None:
-                missing_fields.append(
-                    "DEV_URL (for dev environment when CUSTOM_URL is not set)"
-                )
-
-        # Certificate settings are now validated by their presence after
-        # _load_certificates effectively runs by pydantic calling our getter
-        # logic indirectly or if they are set directly. We need to ensure
-        # these attributes are non-None before API client tries to use them.
+        # Certificate settings validation
         if self.AZUL_CERT is None:
-            missing_fields.append(
-                "AZUL_CERT"
-            )  # This implies it was not a valid path, PEM, or b64
+            missing_fields.append("AZUL_CERT")
         if self.AZUL_KEY is None:
-            missing_fields.append("AZUL_KEY")  # Same for key
+            missing_fields.append("AZUL_KEY")
 
         if missing_fields:
             raise ValueError(

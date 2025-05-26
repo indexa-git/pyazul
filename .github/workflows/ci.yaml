@@ -31,6 +31,7 @@ env:
   AZUL_CERT: ${{ secrets.AZUL_CERT }}
   AZUL_KEY: ${{ secrets.AZUL_KEY }}
   MERCHANT_NAME: indexa
+  MERCHANT_TYPE: 1
 
 jobs:
   integration-tests:

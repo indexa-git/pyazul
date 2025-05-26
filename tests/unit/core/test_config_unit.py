@@ -59,8 +59,6 @@ def test_azul_settings_model_field_defaults(azul_settings_test_factory):
         MERCHANT_ID="test_merchant_id",
         AZUL_CERT="dummy_cert.pem",
         AZUL_KEY="dummy_key.key",
-        DEV_URL="http://dummy.dev.url",
-        PROD_URL=None,
         ALT_PROD_URL=None,
         ALT_PROD_URL_PAYMENT=None,
         AZUL_AUTH_KEY=None,
@@ -70,10 +68,13 @@ def test_azul_settings_model_field_defaults(azul_settings_test_factory):
     )
     assert settings.ENVIRONMENT == "dev"
     assert settings.CHANNEL == "EC"
-    assert settings.DEV_URL == "http://dummy.dev.url"
-    assert settings.PROD_URL is None
+    assert (
+        settings.DEV_URL == "https://pruebas.azul.com.do/webservices/JSON/Default.aspx"
+    )
+    assert (
+        settings.PROD_URL == "https://pagos.azul.com.do/webservices/JSON/Default.aspx"
+    )
     assert settings.ALT_PROD_URL is None
-    assert settings.ALT_PROD_URL_PAYMENT is None
     assert settings.AZUL_AUTH_KEY is None
     assert settings.MERCHANT_NAME is None
     assert settings.MERCHANT_TYPE is None
@@ -81,7 +82,7 @@ def test_azul_settings_model_field_defaults(azul_settings_test_factory):
 
 
 def test_custom_validator_missing_auth_dev_url(azul_settings_test_factory):
-    """Test custom validator: missing AUTH1/2, M_ID, DEV_URL."""
+    """Test custom validator: missing AUTH1/2, M_ID."""
     match_str = "The following required settings are missing or not set"
     with pytest.raises(ValueError, match=match_str) as exc_info:
         azul_settings_test_factory(
@@ -91,13 +92,12 @@ def test_custom_validator_missing_auth_dev_url(azul_settings_test_factory):
             AUTH2=None,
             MERCHANT_ID=None,
             ENVIRONMENT="dev",
-            DEV_URL=None,
         )
     error_msg = str(exc_info.value)
     assert "AUTH1" in error_msg
     assert "AUTH2" in error_msg
     assert "MERCHANT_ID" in error_msg
-    assert "DEV_URL" in error_msg
+    assert "DEV_URL" not in error_msg
 
 
 def test_custom_validator_missing_prod_url_for_prod_env(azul_settings_test_factory):
