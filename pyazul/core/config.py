@@ -155,24 +155,6 @@ class AzulSettings(BaseSettings):
         missing_fields = [
             name for name, value in always_required_fields.items() if value is None
         ]
-
-        # Environment-specific URL requirements
-        if self.ENVIRONMENT == "dev":
-            if self.DEV_URL is None:
-                missing_fields.append("DEV_URL")
-        elif self.ENVIRONMENT == "prod":
-            if self.PROD_URL is None:
-                missing_fields.append("PROD_URL")
-            # ALT_PROD_URL is optional. If set, it overrides the default alternate URL
-            # for 'prod' environment retries used by the API client.
-            # ALT_PROD_URL_PAYMENT is optional and allows overriding the constant
-            # defined in AzulEndpoints. The PaymentPageService should be designed
-            # to allow selection between primary and this alternate URL.
-        # else:
-        # ENVIRONMENT has a default ('dev'), and pydantic would typically handle
-        # validation if it were an Enum. If it can be other values,
-        # one might add a warning here, but for 'dev'/'prod' this is sufficient.
-
         if missing_fields:
             raise ValueError(
                 "The following required settings are missing or not set in the "

@@ -1,17 +1,14 @@
 ---
 description: Details how configuration is managed in PyAzul, focusing on AzulSettings and .env files.
 globs:
-  - "pyazul/core/config.py"
-  - ".env.copy"
-  - "README.md" # For .env examples
 alwaysApply: true
 ---
 # PyAzul Configuration Management
 
-Configuration for the `pyazul` library is managed through the `AzulSettings` Pydantic model, defined in `[pyazul/core/config.py](mdc:pyazul/core/config.py)`.
+Configuration for the `pyazul` library is managed through the `AzulSettings` Pydantic model, defined in `[pyazul/core/config.py](mdc:pyazul/pyazul/core/config.py)`.
 
 ## Loading Configuration
-*   By default, `PyAzul()` (see `[pyazul/index.py](mdc:pyazul/index.py)`) initializes `AzulSettings` by loading values from a `.env` file in the project root and then from environment variables (environment variables override `.env` values).
+*   By default, `PyAzul()` (see `[pyazul/index.py](mdc:pyazul/pyazul/index.py)`) initializes `AzulSettings` by loading values from a `.env` file in the project root and then from environment variables (environment variables override `.env` values).
 *   A custom, pre-configured `AzulSettings` instance can also be passed directly to the `PyAzul` constructor: `PyAzul(settings=my_custom_settings)`.
 
 ## Key Configuration Variables (in `.env` or as environment variables)
@@ -23,7 +20,7 @@ Configuration for the `pyazul` library is managed through the `AzulSettings` Pyd
 *   **Certificates**:
     *   `AZUL_CERT`: Path to your SSL certificate file OR the full PEM content as a string.
     *   `AZUL_KEY`: Path to your SSL private key file OR the full PEM content as a string OR Base64 encoded PEM content.
-    *   The library handles writing PEM content to temporary files if direct content is provided (see `_load_certificates` in `[pyazul/core/config.py](mdc:pyazul/core/config.py)`). The `AzulAPI` client in `[pyazul/api/client.py](mdc:pyazul/api/client.py)` uses these settings to establish its SSL context.
+    *   The library handles writing PEM content to temporary files if direct content is provided (see `_load_certificates` in `[pyazul/core/config.py](mdc:pyazul/pyazul/core/config.py)`). The `AzulAPI` client in `[pyazul/api/client.py](mdc:pyazul/pyazul/api/client.py)` uses these settings to establish its SSL context.
 *   **Environment**:
     *   `ENVIRONMENT`: Set to `dev` for development/testing or `prod` for production. Controls API endpoints.
 *   **Payment Page Settings (Optional, if using Payment Page)**:
@@ -33,11 +30,7 @@ Configuration for the `pyazul` library is managed through the `AzulSettings` Pyd
 *   **Other**:
     *   `CHANNEL`: Default payment channel (e.g., "EC" for E-Commerce).
     *   `CUSTOM_URL`: Optionally override base API URLs.
-    *   `DEV_URL`: API URL for the development environment.
-    *   `PROD_URL`: API URL for the production environment.
-    *   `ALT_PROD_URL`: Alternative API URL for production (used for retries).
-    *   `ALT_PROD_URL_PAYMENT`: Alternative Payment Page URL for production.
 
 
-Consult `[pyazul/core/config.py](mdc:pyazul/core/config.py)` for all available settings fields.
-The [README.md](mdc:README.md) provides a `.env` example and further details.
+Consult `[pyazul/core/config.py](mdc:pyazul/pyazul/core/config.py)` for all available settings fields.
+The [README.md](mdc:pyazul/README.md) provides a `.env` example and further details.
