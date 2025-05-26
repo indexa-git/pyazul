@@ -15,10 +15,6 @@ from ..api.client import AzulAPI
 from ..core.exceptions import AzulError
 from ..models.secure import SecureSaleRequest, SecureTokenSale
 
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
-
 logger = logging.getLogger(__name__)
 
 
@@ -35,9 +31,9 @@ class SecureService:
     async def process_sale(self, request: SecureSaleRequest) -> Dict[str, Any]:
         """Process a secure sale transaction with 3DS authentication."""
         secure_id = str(uuid4())
-        logger.info("=" * 50)
-        logger.info(f"STARTING SECURE SALE PROCESS - ID: {secure_id}")
-        logger.info("=" * 50)
+        logger.debug("=" * 50)
+        logger.debug(f"STARTING SECURE SALE PROCESS - ID: {secure_id}")
+        logger.debug("=" * 50)
 
         try:
             request_dict = request.model_dump()
@@ -74,20 +70,20 @@ class SecureService:
             }
 
             # Make the request
-            logger.info("SENDING REQUEST TO AZUL...")
-            logger.info("-" * 50)
-            logger.info(json.dumps(sale_data, indent=2))
-            logger.info("-" * 50)
+            logger.debug("SENDING REQUEST TO AZUL...")
+            logger.debug("-" * 50)
+            logger.debug(json.dumps(sale_data, indent=2))
+            logger.debug("-" * 50)
             result = await self.api._async_request(
                 data=sale_data,
                 is_secure=True,  # Indicate this is a 3DS request
             )
 
             # Detailed response logging
-            logger.info("AZUL RESPONSE:")
-            logger.info("-" * 50)
-            logger.info(json.dumps(result, indent=2))
-            logger.info("-" * 50)
+            logger.debug("AZUL RESPONSE:")
+            logger.debug("-" * 50)
+            logger.debug(json.dumps(result, indent=2))
+            logger.debug("-" * 50)
 
             # Save session information
             self.secure_sessions[secure_id] = {
@@ -104,7 +100,7 @@ class SecureService:
             response_message = result.get("ResponseMessage", "")
 
             if response_message == "3D_SECURE_CHALLENGE":
-                logger.info("INITIATING 3D SECURE CHALLENGE!")
+                logger.debug("INITIATING 3D SECURE CHALLENGE!")
                 return {
                     "redirect": True,
                     "id": secure_id,
@@ -116,7 +112,7 @@ class SecureService:
                     "message": "Starting 3D Secure verification...",
                 }
             elif response_message == "3D_SECURE_2_METHOD":
-                logger.info("INITIATING 3D SECURE METHOD!")
+                logger.debug("INITIATING 3D SECURE METHOD!")
                 return {
                     "redirect": True,
                     "id": secure_id,
@@ -124,12 +120,12 @@ class SecureService:
                     "message": "Starting 3D Secure verification...",
                 }
             elif response_message == "APROBADA":
-                logger.info("TRANSACTION APPROVED WITHOUT 3DS!")
+                logger.debug("TRANSACTION APPROVED WITHOUT 3DS!")
                 return {"redirect": False, "id": secure_id, "value": result}
             else:
                 logger.warning(f"UNEXPECTED RESPONSE! Message: {response_message}")
                 logger.warning("Complete response:")
-                logger.warning(json.dumps(result, indent=2))
+                logger.debug(json.dumps(result, indent=2))
                 return {
                     "redirect": False,
                     "id": secure_id,
@@ -149,9 +145,9 @@ class SecureService:
         including session management and detailed logging.
         """
         secure_id = str(uuid4())
-        logger.info("=" * 50)
-        logger.info(f"STARTING SECURE TOKEN SALE PROCESS - ID: {secure_id}")
-        logger.info("=" * 50)
+        logger.debug("=" * 50)
+        logger.debug(f"STARTING SECURE TOKEN SALE PROCESS - ID: {secure_id}")
+        logger.debug("=" * 50)
 
         try:
             request_dict = request.model_dump()
@@ -188,17 +184,17 @@ class SecureService:
             }
 
             # Make the request
-            logger.info("SENDING REQUEST TO AZUL...")
-            logger.info("-" * 50)
-            logger.info(json.dumps(sale_data, indent=2))
-            logger.info("-" * 50)
+            logger.debug("SENDING REQUEST TO AZUL...")
+            logger.debug("-" * 50)
+            logger.debug(json.dumps(sale_data, indent=2))
+            logger.debug("-" * 50)
             result = await self.api._async_request(data=sale_data, is_secure=True)
 
             # Detailed response logging
-            logger.info("AZUL RESPONSE:")
-            logger.info("-" * 50)
-            logger.info(json.dumps(result, indent=2))
-            logger.info("-" * 50)
+            logger.debug("AZUL RESPONSE:")
+            logger.debug("-" * 50)
+            logger.debug(json.dumps(result, indent=2))
+            logger.debug("-" * 50)
 
             # Save session information
             self.secure_sessions[secure_id] = {
@@ -212,7 +208,7 @@ class SecureService:
             response_message = result.get("ResponseMessage", "")
 
             if response_message == "3D_SECURE_CHALLENGE":
-                logger.info("INITIATING 3D SECURE CHALLENGE!")
+                logger.debug("INITIATING 3D SECURE CHALLENGE!")
                 return {
                     "redirect": True,
                     "id": secure_id,
@@ -224,7 +220,7 @@ class SecureService:
                     "message": "Starting 3D Secure verification...",
                 }
             elif response_message == "3D_SECURE_2_METHOD":
-                logger.info("INITIATING 3D SECURE METHOD!")
+                logger.debug("INITIATING 3D SECURE METHOD!")
                 return {
                     "redirect": True,
                     "id": secure_id,
@@ -232,12 +228,12 @@ class SecureService:
                     "message": "Starting 3D Secure verification...",
                 }
             elif response_message == "APROBADA":
-                logger.info("TRANSACTION APPROVED WITHOUT 3DS!")
+                logger.debug("TRANSACTION APPROVED WITHOUT 3DS!")
                 return {"redirect": False, "id": secure_id, "value": result}
             else:
                 logger.warning(f"UNEXPECTED RESPONSE! Message: {response_message}")
                 logger.warning("Complete response:")
-                logger.warning(json.dumps(result, indent=2))
+                logger.debug(json.dumps(result, indent=2))
                 return {
                     "redirect": False,
                     "id": secure_id,
@@ -257,9 +253,9 @@ class SecureService:
         on the card, including 3DS authentication steps.
         """
         secure_id = str(uuid4())
-        logger.info("=" * 50)
-        logger.info(f"STARTING SECURE HOLD PROCESS - ID: {secure_id}")
-        logger.info("=" * 50)
+        logger.debug("=" * 50)
+        logger.debug(f"STARTING SECURE HOLD PROCESS - ID: {secure_id}")
+        logger.debug("=" * 50)
 
         try:
             request_dict = request.model_dump()
@@ -296,20 +292,20 @@ class SecureService:
             }
 
             # Make the request
-            logger.info("SENDING REQUEST TO AZUL...")
-            logger.info("-" * 50)
-            logger.info(json.dumps(hold_data, indent=2))
-            logger.info("-" * 50)
+            logger.debug("SENDING REQUEST TO AZUL...")
+            logger.debug("-" * 50)
+            logger.debug(json.dumps(hold_data, indent=2))
+            logger.debug("-" * 50)
             result = await self.api._async_request(
                 data=hold_data,
                 is_secure=True,  # Indicate this is a 3DS request
             )
 
             # Detailed response logging
-            logger.info("AZUL RESPONSE:")
-            logger.info("-" * 50)
-            logger.info(json.dumps(result, indent=2))
-            logger.info("-" * 50)
+            logger.debug("AZUL RESPONSE:")
+            logger.debug("-" * 50)
+            logger.debug(json.dumps(result, indent=2))
+            logger.debug("-" * 50)
 
             # Save session information
             self.secure_sessions[secure_id] = {
@@ -326,7 +322,7 @@ class SecureService:
             response_message = result.get("ResponseMessage", "")
 
             if response_message == "3D_SECURE_CHALLENGE":
-                logger.info("INITIATING 3D SECURE CHALLENGE!")
+                logger.debug("INITIATING 3D SECURE CHALLENGE!")
                 return {
                     "redirect": True,
                     "id": secure_id,
@@ -338,7 +334,7 @@ class SecureService:
                     "message": "Starting 3D Secure verification...",
                 }
             elif response_message == "3D_SECURE_2_METHOD":
-                logger.info("INITIATING 3D SECURE METHOD!")
+                logger.debug("INITIATING 3D SECURE METHOD!")
                 return {
                     "redirect": True,
                     "id": secure_id,
@@ -346,12 +342,12 @@ class SecureService:
                     "message": "Starting 3D Secure verification...",
                 }
             elif response_message == "APROBADA":
-                logger.info("TRANSACTION APPROVED WITHOUT 3DS!")
+                logger.debug("TRANSACTION APPROVED WITHOUT 3DS!")
                 return {"redirect": False, "id": secure_id, "value": result}
             else:
                 logger.warning(f"UNEXPECTED RESPONSE! Message: {response_message}")
                 logger.warning("Complete response:")
-                logger.warning(json.dumps(result, indent=2))
+                logger.debug(json.dumps(result, indent=2))
                 return {
                     "redirect": False,
                     "id": secure_id,
@@ -389,10 +385,10 @@ class SecureService:
                 "MethodNotificationStatus": method_notification_status,
             }
 
-            logger.info("SENDING REQUEST TO AZUL WITH 3DS METHOD NOTIFICATION...")
-            logger.info("-" * 50)
-            logger.info(json.dumps(data, indent=2))
-            logger.info("-" * 50)
+            logger.debug("SENDING REQUEST TO AZUL WITH 3DS METHOD NOTIFICATION...")
+            logger.debug("-" * 50)
+            logger.debug(json.dumps(data, indent=2))
+            logger.debug("-" * 50)
 
             result = await self.api._async_request(
                 data, operation="processthreedsmethod"
@@ -404,10 +400,10 @@ class SecureService:
                     "ResponseMessage", "UNKNOWN"
                 )
 
-            logger.info("3DS METHOD NOTIFICATION PROCESS RESULT")
-            logger.info("-" * 50)
-            logger.info(json.dumps(result, indent=2))
-            logger.info("-" * 50)
+            logger.debug("3DS METHOD NOTIFICATION PROCESS RESULT")
+            logger.debug("-" * 50)
+            logger.debug(json.dumps(result, indent=2))
+            logger.debug("-" * 50)
             return result
 
         except Exception as e:
@@ -439,17 +435,16 @@ class SecureService:
             "CRes": cres,
         }
 
-        logger.info("INITIATING 3DS CHALLENGE PROCESS...")
-        logger.info("=" * 50)
-        logger.info(f"Session ID: {secure_id}")
-        logger.info(f"Order ID: {azul_order_id}")
-        logger.info(f"Current state: {current_state}")
-        logger.info("=" * 50)
+        logger.debug("INITIATING 3DS CHALLENGE PROCESS...")
+        logger.debug(f"Session ID: {secure_id}")
+        logger.debug(f"Order ID: {azul_order_id}")
+        logger.debug(f"Current state: {current_state}")
+        logger.debug("=" * 50)
 
-        logger.info("SENDING REQUEST TO AZUL WITH 3DS CHALLENGE NOTIFICATION...")
-        logger.info("-" * 50)
-        logger.info(json.dumps(data, indent=2))
-        logger.info("-" * 50)
+        logger.debug("SENDING REQUEST TO AZUL WITH 3DS CHALLENGE NOTIFICATION...")
+        logger.debug("-" * 50)
+        logger.debug(json.dumps(data, indent=2))
+        logger.debug("-" * 50)
 
         try:
             result = await self.api._async_request(
@@ -457,10 +452,10 @@ class SecureService:
             )
 
             # Log the result
-            logger.info("3DS CHALLENGE RESPONSE:")
-            logger.info("-" * 50)
-            logger.info(json.dumps(result, indent=2))
-            logger.info("-" * 50)
+            logger.debug("3DS CHALLENGE RESPONSE:")
+            logger.debug("-" * 50)
+            logger.debug(json.dumps(result, indent=2))
+            logger.debug("-" * 50)
 
             # Check for specific state error
             if isinstance(result, dict) and "ErrorDescription" in result:
