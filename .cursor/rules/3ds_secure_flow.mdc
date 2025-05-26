@@ -3,59 +3,52 @@ description:
 globs:
 alwaysApply: true
 ---
-\
-# PyAzul 3D Secure (3DS) Implementation Guide
+\# PyAzul 3D Secure (3DS) Implementation Guide
 
 This guide details the 3D Secure flow implementation within the `pyazul` library.
 
 ## Core Components for 3DS
 
-1.  **`SecureService` ([pyazul/services/secure.py](mdc:pyazul/services/secure.py))**:
+1.  **`SecureService` ([pyazul/pyazul/services/secure.py](mdc:pyazul/pyazul/pyazul/pyazul/services/secure.py))**:
     *   Handles all logic specific to 3DS transactions, including:
         *   Initiating 3DS sales, token sales, and holds (`process_sale`, `process_token_sale`, `process_hold`).
         *   Processing 3DS method notifications (`process_3ds_method`).
         *   Processing 3DS challenge responses (`process_challenge`).
         *   Generating HTML forms for ACS redirection (`_create_challenge_form`).
     *   Uses the shared `AzulAPI` client (passed during its initialization), ensuring `is_secure=True` is used for 3DS-specific authentication via `AzulAPI`.
-    *   Relies on a `ThreeDSSessionStore` for managing session state.
+    *   Manages 3DS session state internally using dictionaries keyed by `secure_id` (for initial session data like `term_url` and `azul_order_id`) and `AzulOrderId` (for transaction processing states).
 
-2.  **`PyAzul` Facade ([pyazul/index.py](mdc:pyazul/index.py))**:
+2.  **`PyAzul` Facade ([pyazul/pyazul/index.py](mdc:pyazul/pyazul/pyazul/pyazul/index.py))**:
     *   Exposes user-friendly methods for 3DS operations:
         *   `secure_sale`, `secure_token_sale`, `secure_hold`
-        *   `secure_3ds_method`, `secure_challenge`
+        *   `process_3ds_method` (Note: the facade method is `process_3ds_method`, not `secure_3ds_method` as previously might have been implied by some docs/tests)
+        *   `process_challenge`
         *   `create_challenge_form` (convenience wrapper around `SecureService._create_challenge_form`).
+        *   `get_secure_session_info(secure_id)`: retrieves session data stored by `SecureService`.
     *   These methods delegate to the `SecureService` instance, which is initialized by `PyAzul`.
-
-3.  **`ThreeDSSessionStore` ([pyazul/core/sessions.py](mdc:pyazul/core/sessions.py))**:
-    *   **Abstract Base Class (`ThreeDSSessionStore`)**: Defines the interface for 3DS session storage. This allows users to implement custom persistent storage (e.g., Redis, database) for production environments.
-    *   **Default Implementation (`InMemorySessionStore`)**: A dictionary-based in-memory store, suitable for testing or single-instance deployments.
-    *   **Usage**: An instance of a session store is passed to `PyAzul` during initialization (e.g., `PyAzul(session_store=MyCustomStore())`). If no store is provided, `InMemorySessionStore` is used by default. `PyAzul` then passes this store to `SecureService`.
-    *   The store manages:
-        *   Session data linked by a unique `secure_id` (contains `azul_order_id`, `term_url`, etc.).
-        *   Flags for processed 3DS method notifications (`is_method_processed`, `mark_method_processed`, `unmark_method_processed`).
-        *   Transaction states during the 3DS flow (`get_transaction_state`, `set_transaction_state`).
 
 ## Flow Overview
 
 1.  **Initiation**:
     *   User calls `azul.secure_sale()` (or `secure_token_sale`, `secure_hold`) with payment details, `cardHolderInfo`, and `threeDSAuth` (which includes `TermUrl` and `MethodNotificationUrl`).
-    *   `SecureService` generates a unique `secure_id`.
-    *   `TermUrl` and `MethodNotificationUrl` provided by the user are internally appended with `?secure_id=<generated_id>` by `SecureService`.
-    *   An initial request is made to Azul. Session data (including `azul_order_id` from the Azul response and the modified `term_url`) is saved in the `ThreeDSSessionStore` using `secure_id` as the key.
-    *   The response from `azul.secure_sale()` may include HTML for immediate redirection (to the ACS for a challenge or to the 3DS Method URL).
+    *   `SecureService` generates a unique `secure_id` (UUID).
+    *   `TermUrl` and `MethodNotificationUrl` provided by the user are internally appended with `?secure_id=<generated_id>` by `SecureService` before being sent to Azul.
+    *   `SecureService` makes an initial request to Azul. It then stores initial session data (including `azul_order_id` from the Azul response and the modified `term_url`) internally, associated with the generated `secure_id`.
+    *   The response from `azul.secure_sale()` may include HTML for immediate redirection (to the ACS for a challenge or to the 3DS Method URL). This response will also contain the `id` (which is the `secure_id`).
 
 2.  **Method Notification Callback (Your `MethodNotificationUrl`)**:
     *   Your application endpoint (the `MethodNotificationUrl` you provided) is called by the ACS/PSP, with `secure_id` available as a query parameter.
-    *   Your application should retrieve the `azul_order_id` associated with this `secure_id` from the session (e.g., `session = await azul.secure.session_store.get_session(secure_id); azul_order_id = session['azul_order_id']`). Then call `await azul.secure_3ds_method(azul_order_id=azul_order_id, method_notification_status="RECEIVED")`.
-    *   `SecureService` uses its injected session store to check if this method was already processed (to prevent duplicates) and updates the transaction state in the store.
-    *   The response from `azul.secure_3ds_method` might trigger a challenge, requiring redirection. In this case, use `azul.create_challenge_form(...)` with data from the response and the stored `term_url` to generate the necessary HTML form.
+    *   Your application should first use `secure_id` to retrieve the stored session data: `session_data = await azul.get_secure_session_info(secure_id)`.
+    *   From `session_data`, retrieve the `azul_order_id`: `azul_order_id = session_data.get("azul_order_id")`.
+    *   Then, call `await azul.process_3ds_method(azul_order_id=azul_order_id, method_notification_status="RECEIVED")`.
+    *   `SecureService` uses its internal state to check if this method was already processed (to prevent duplicates) and updates the transaction state.
+    *   The response from `azul.process_3ds_method` might trigger a challenge, requiring redirection. In this case, use `azul.create_challenge_form(...)` with data from the response and the `term_url` (retrieved from `session_data.get("term_url")`) to generate the necessary HTML form.
 
 3.  **Challenge Callback (Your `TermUrl`)**:
     *   Your application endpoint (the `TermUrl` you provided) is called by the ACS, typically via POST, after the cardholder completes (or skips) the challenge.
     *   The `secure_id` (from the `TermUrl` query parameters) and `CRes` (Challenge Response, from the POST body) are received.
-    *   Your application calls `await azul.secure_challenge(secure_id=secure_id, cres=CRes)`.
-    *   `SecureService` uses `secure_id` to retrieve session data (like `azul_order_id`) from the store and makes the final API call to process the challenge result.
+    *   Your application calls `await azul.process_challenge(session_id=secure_id, challenge_response=CRes)`.
+    *   `SecureService` uses `secure_id` to retrieve session data (like `azul_order_id`) from its internal store and makes the final API call to process the challenge result.
     *   The final transaction status (Approved/Declined) is returned.
 
-Refer to [README.md](mdc:README.md) for detailed FastAPI examples of this flow.
-See `[future_development_notes.mdc](mdc:future_development_notes.mdc)` for a potential refinement to the `secure_3ds_method` signature.
+Refer to [pyazul/pyazul/README.md](mdc:pyazul/pyazul/pyazul/pyazul/README.md) for detailed FastAPI examples of this flow.

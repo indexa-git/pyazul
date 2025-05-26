@@ -5,44 +5,41 @@ alwaysApply: false
 ---
 # PyAzul Coding Standards and Linting
 
-This document outlines key coding standards, linting practices, and items to address to maintain code quality in the `pyazul` codebase.
+This document outlines key coding standards, linting practices, and items to add to the `pyazul` library to ensure code quality, consistency, and maintainability.
 
 ## Exception Handling
 *   **Chaining (`raise ... from ...`)**:
-    *   As detailed in `[error_handling_conventions.mdc](mdc:error_handling_conventions.mdc)`, always use `raise NewException(...) from original_exception` when re-raising exceptions.
+    *   As detailed in `[error_handling_conventions.mdc](mdc:pyazul/.cursor/rules/error_handling_conventions.mdc)`, always use `raise NewException(...) from original_exception` when re-raising exceptions.
     *   **Linter Issue**: The linter (Trunk) correctly flags violations of this. Ensure all `raise` statements within `except` blocks adhere to this.
     *   **Files to Check/Verify**:
-        *   `[pyazul/api/client.py](mdc:pyazul/api/client.py)`: (e.g., in `_load_certificates`, `_async_request`). Some of these were addressed, ensure all are covered. Specifically, lines 57, 215, 218 had linter warnings for this.
+        *   `[pyazul/api/client.py](mdc:pyazul/pyazul/api/client.py)`: (e.g., in `_load_certificates`, `_async_request`). Ensure all are covered.
 
 ## Linter Compliance & Specific Issues
 *   **Trunk Linters**: The project uses Trunk for linting. All linter warnings and errors should be addressed promptly.
 *   **Unused Variables**:
     *   Pay attention to warnings about unused variables. If a variable is truly not needed, remove it. If it's part of a tuple unpacking and intentionally unused, prefix its name with an underscore (e.g., `_`).
-    *   **Specific Linter Issue**: In `[pyazul/api/client.py](mdc:pyazul/api/client.py)`, method `_check_for_errors`, the loop `for field, value in error_indicators:` does not use `field`.
+    *   **Specific Linter Issue**: In `[pyazul/api/client.py](mdc:pyazul/pyazul/api/client.py)`, method `_check_for_errors`, the loop `for field, value in error_indicators:` does not use `field`.
         *   **Action**: Change to `for _, value in error_indicators:`.
 
 ## Type Hinting
 *   **Comprehensive Typing**: All functions and methods must have comprehensive type hints for parameters and return values. This improves readability and allows for static analysis.
-*   **`typing.NoReturn`**: For functions that are guaranteed to always raise an exception and never return normally (e.g., they end in `raise`), use `typing.NoReturn` as the return type. This was applied to `_log_and_raise_api_error` in `[pyazul/api/client.py](mdc:pyazul/api/client.py)`.
+*   **`typing.NoReturn`**: For functions that are guaranteed to always raise an exception and never return normally (e.g., they end in `raise`), use `typing.NoReturn` as the return type. This was applied to `_log_and_raise_api_error` in `[pyazul/api/client.py](mdc:pyazul/pyazul/api/client.py)`.
 *   **Pydantic Models**: Utilize Pydantic models for data structures passed between components. Service method signatures should generally expect these models, even if the `PyAzul` facade offers dictionary-based input for user convenience.
-
-## Asynchronous Code (`async/await`)
-*   Core I/O-bound operations, particularly API calls and interactions with the `ThreeDSSessionStore`, must be `async/await`.
 
 ## Logging
 *   Employ the standard `logging` module for clear, contextual logs.
-*   **`AzulAPI` ([pyazul/api/client.py](mdc:pyazul/api/client.py))**:
+*   **`AzulAPI` ([pyazul/api/client.py](mdc:pyazul/pyazul/api/client.py))**:
     *   Log request/response data at `DEBUG` level for troubleshooting.
     *   Log significant errors at `ERROR` level.
-*   **Services (e.g., `[pyazul/services/secure.py](mdc:pyazul/services/secure.py)`)**:
+*   **Services (e.g., `[pyazul/services/secure.py](mdc:pyazul/pyazul/services/secure.py)`)**:
     *   Log key events in flows at `INFO` or `DEBUG` level.
     *   Log warnings for unexpected but recoverable situations with `WARNING`.
     *   Log errors that lead to exceptions with `ERROR`.
 
 ## Documentation
 *   **Docstrings**: All public classes, methods, and functions require clear docstrings. Describe purpose, arguments (`Args:`), return values (`Returns:`), and any exceptions raised (`Raises:`).
-*   **[README.md](mdc:README.md)**: Must be kept current, reflecting the library's public API and common usage patterns, especially for complex flows like 3DS.
+*   **[README.md](mdc:pyazul/README.md)**: Must be kept current, reflecting the library's public API and common usage patterns, especially for complex flows like 3DS.
 *   **Code Comments**: Use to explain non-obvious logic. Avoid redundant comments that reiterate what the code clearly states.
 
 ## Modularity and Cohesion
-*   Maintain the established separation of concerns: `PyAzul` (facade), Services (business logic), `AzulAPI` (HTTP client), `AzulSettings` (config), Models (data contracts), `ThreeDSSessionStore` (session state).
+*   Maintain the established separation of concerns: `PyAzul` (facade), Services (business logic), `AzulAPI` (HTTP client), `AzulSettings` (config), Models (data contracts).

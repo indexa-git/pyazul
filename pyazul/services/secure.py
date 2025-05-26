@@ -96,11 +96,16 @@ class SecureService:
                 "order_number": request_dict["OrderNumber"],
                 "term_url": term_url,  # Store term_url in session
             }
+            azul_order_id_for_state = result.get("AzulOrderId")
 
             response_message = result.get("ResponseMessage", "")
 
             if response_message == "3D_SECURE_CHALLENGE":
                 logger.debug("INITIATING 3D SECURE CHALLENGE!")
+                if azul_order_id_for_state:
+                    self.transaction_states[azul_order_id_for_state] = (
+                        "3D_SECURE_CHALLENGE"
+                    )
                 return {
                     "redirect": True,
                     "id": secure_id,
@@ -204,11 +209,16 @@ class SecureService:
                 "order_number": request_dict["OrderNumber"],
                 "term_url": term_url,
             }
+            azul_order_id_for_state = result.get("AzulOrderId")
 
             response_message = result.get("ResponseMessage", "")
 
             if response_message == "3D_SECURE_CHALLENGE":
                 logger.debug("INITIATING 3D SECURE CHALLENGE!")
+                if azul_order_id_for_state:
+                    self.transaction_states[azul_order_id_for_state] = (
+                        "3D_SECURE_CHALLENGE"
+                    )
                 return {
                     "redirect": True,
                     "id": secure_id,
@@ -318,11 +328,16 @@ class SecureService:
                 "order_number": request_dict["OrderNumber"],
                 "term_url": term_url,  # Store term_url in session
             }
+            azul_order_id_for_state = result.get("AzulOrderId")
 
             response_message = result.get("ResponseMessage", "")
 
             if response_message == "3D_SECURE_CHALLENGE":
                 logger.debug("INITIATING 3D SECURE CHALLENGE!")
+                if azul_order_id_for_state:
+                    self.transaction_states[azul_order_id_for_state] = (
+                        "3D_SECURE_CHALLENGE"
+                    )
                 return {
                     "redirect": True,
                     "id": secure_id,
