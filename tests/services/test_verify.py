@@ -24,6 +24,7 @@ def verify_transaction_data(settings):
     return {
         "CustomOrderId": "sale-test-001",
         "Store": settings.MERCHANT_ID,
+        "Channel": settings.CHANNEL,
     }
 
 

@@ -21,17 +21,16 @@ def transaction_service():
 
 
 @pytest.fixture
-def card_payment_data():
+def card_payment_data(settings):
     """
-    Provide test data for card payment transactions.
-
-    Uses a test card provided by Azul for integration testing.
+    Provide standard test data for a card payment.
 
     Returns:
-        dict: Test data including card details, amount, and merchant IDs.
+        dict: Data for card payment transaction.
     """
     return {
-        "Channel": "EC",
+        "Channel": settings.CHANNEL,  # Or "EC" if relying on model default
+        "Store": settings.MERCHANT_ID,
         "PosInputMode": "E-Commerce",
         "Amount": "1000",  # $10.00 transaction amount
         "Itbis": "180",  # $1.80 tax amount
@@ -80,7 +79,7 @@ async def completed_payment(transaction_service, card_payment_data):
 
 
 @pytest.fixture
-def refund_payment_data(completed_payment, card_payment_data):
+def refund_payment_data(completed_payment, card_payment_data, settings):
     """
     Provide test data for refund transactions.
 
@@ -89,12 +88,14 @@ def refund_payment_data(completed_payment, card_payment_data):
     Args:
         completed_payment: Response from a successful payment.
         card_payment_data: Original card payment data fixture.
+        settings: The application settings fixture.
 
     Returns:
         dict: Test data with original transaction ref, refund amount, and merchant IDs.
     """
     return {
-        "Channel": "EC",
+        "Channel": settings.CHANNEL,
+        "Store": settings.MERCHANT_ID,
         "PosInputMode": "E-Commerce",
         "Amount": "1000",  # Must match original payment amount
         "Itbis": "180",  # Must match original tax amount

@@ -96,25 +96,21 @@ class AzulAPI:
         headers["Auth2"] = self.auth2
         return headers
 
-    def _build_endpoint(self, operation: str = "") -> str:
-        """Build the full endpoint URL."""
-        return f"{self.url}?{operation}" if operation else self.url
-
     def _prepare_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Prepare request data with required parameters.
+        """Prepare request data with required parameters from settings.
+
+        Ensures Channel & Store are always sourced from SDK settings.
 
         Args:
-            data: Request data dictionary
+            data: The input dictionary representing the request payload.
 
         Returns:
-            Dict with prepared parameters
+            The modified dictionary with Channel and Store updated from settings.
         """
-        required_params = {
-            "Channel": self.settings.CHANNEL,
-            "Store": self.settings.MERCHANT_ID,
-        }
-        return {**required_params, **data}
+        # Always use Channel & Store from settings, overriding model values if present.
+        data["Channel"] = self.settings.CHANNEL
+        data["Store"] = self.settings.MERCHANT_ID
+        return data  # Return the modified data, None filtering is handled by model_dump
 
     def _handle_response(self, response: httpx.Response) -> Dict[str, Any]:
         """
@@ -225,3 +221,7 @@ class AzulAPI:
         except Exception as err:
             _logger.error(f"Request failed: {str(err)}")
             raise APIError(f"Request failed: {str(err)}") from err
+
+    def _build_endpoint(self, operation: str = "") -> str:
+        """Build the full endpoint URL."""
+        return f"{self.url}?{operation}" if operation else self.url

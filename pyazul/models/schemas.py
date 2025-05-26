@@ -103,16 +103,46 @@ def _validate_itbis_field(v: Union[str, int, float, None], info) -> Optional[str
 class AzulBaseModel(BaseModel):
     """Base model for Azul payment operations."""
 
-    Channel: Optional[str] = Field(
-        None, description="Payment channel (e.g., 'EC'), provided by AZUL. (X(3))"
+    Channel: str = Field("EC", description="Payment channel. Defaults to 'EC'. (X(3))")
+    Store: str = Field(
+        ..., description="Unique merchant ID (MID). Must be provided. (X(11))"
     )
-    Store: Optional[str] = Field(
-        None, description="Unique merchant ID (MID), provided by AZUL. (X(11))"
-    )
+
+
+class BaseTransactionAttributes(AzulBaseModel):
+    """Attributes common to many full transaction types."""
+
     PosInputMode: str = Field(
         "E-Commerce",
-        description="Transaction entry mode (e.g., 'E-Commerce'), by AZUL. (X(11))",
+        description="Transaction entry mode (e.g., 'E-Commerce'), by AZUL. (A(10))",
     )
+    OrderNumber: str = Field(
+        ..., description="Merchant order number. Empty if not applicable. (X(15))"
+    )
+    CustomOrderId: Optional[str] = Field(
+        None, description="Custom merchant order ID. Used for VerifyPayment. (X(75))"
+    )
+    CustomerServicePhone: Optional[str] = Field(
+        None, description="Merchant customer service phone. (X(32))"
+    )
+    ECommerceURL: Optional[str] = Field(
+        None, description="Merchant e-commerce URL. (X(32))"
+    )
+    AltMerchantName: Optional[str] = Field(
+        None, description="Alternate merchant name for statements (max 25c). (X(30))"
+    )
+    ForceNo3DS: Optional[str] = Field(
+        None,
+        description="'1' to force no 3DS, '0'/omit to use 3DS if configured. (N(1))",
+    )
+    AcquirerRefData: Optional[str] = Field(
+        "1", description="Acquirer reference. Fixed '1' (AZUL internal use). (N(1))"
+    )
+
+
+class CardPaymentAttributes(BaseTransactionAttributes):
+    """Attributes specific to payments made with actual card numbers."""
+
     Amount: str = Field(  # Represented in cents
         ...,
         description="Total amount in cents (e.g., 1000 for $10.00). Serialized to str.",
@@ -121,126 +151,71 @@ class AzulBaseModel(BaseModel):
         ...,
         description="ITBIS tax in cents (e.g., 180 for $1.80, 0 if exempt). To str.",
     )
+    CardNumber: str = Field(
+        ..., description="Card number, no special characters. (N(19))"
+    )
+    Expiration: str = Field(..., description="Expiration date in YYYYMM format. (N(6))")
+    CVC: str = Field(..., description="Card security code (CVV2 or CVC). (N(3))")
+    SaveToDataVault: Optional[str] = Field(
+        "0", description="'1' to save to DataVault, '0' not to. (N(1))"
+    )
 
-    _validate_amount_values = field_validator("Amount", mode="before")(
+    _validate_card_amount_values = field_validator("Amount", mode="before")(
         _validate_amount_field
     )
-    _validate_itbis_values = field_validator("Itbis", mode="before")(
+    _validate_card_itbis_values = field_validator("Itbis", mode="before")(
         _validate_itbis_field
     )
 
 
-class SaleTransactionModel(AzulBaseModel):
+class SaleTransactionModel(CardPaymentAttributes):
     """Model for sales transactions."""
 
-    CardNumber: str = Field(
-        ..., description="Card number, no special characters. (N(19))"
-    )
-    Expiration: str = Field(..., description="Expiration date in YYYYMM format. (N(6))")
-    CVC: str = Field(..., description="Card security code (CVV2 or CVC). (N(3))")
     TrxType: Literal["Sale"] = "Sale"
-    OrderNumber: str = Field(
-        ..., description="Merchant order number. Empty if not applicable. (X(15))"
-    )
-    AcquirerRefData: str = Field(
-        "1", description="Acquirer reference. Fixed '1' (AZUL internal use). (N(1))"
-    )
-    CustomOrderId: Optional[str] = Field(
-        None, description="Custom merchant order ID. Used for VerifyPayment. (X(75))"
-    )
-    SaveToDataVault: Optional[str] = Field(
-        "0", description="'1' to save to DataVault, '0' not to. (N(1))"
-    )
-    CustomerServicePhone: Optional[str] = Field(
-        None, description="Merchant customer service phone. (X(32))"
-    )
-    ECommerceURL: Optional[str] = Field(
-        None, description="Merchant e-commerce URL. (X(32))"
-    )
-    AltMerchantName: Optional[str] = Field(
-        None, description="Alternate merchant name for statements (max 25c). (X(30))"
-    )
-    ForceNo3DS: Optional[str] = Field(
-        None,
-        description="'1' to force no 3DS, '0'/omit to use 3DS if configured. (N(1))",
-    )
+    # All other fields inherited from CardPaymentAttributes
 
 
-class HoldTransactionModel(AzulBaseModel):
+class HoldTransactionModel(CardPaymentAttributes):
     """Model for hold transactions."""
 
-    CardNumber: str = Field(
-        ..., description="Card number, no special characters. (N(19))"
-    )
-    Expiration: str = Field(..., description="Expiration date in YYYYMM format. (N(6))")
-    CVC: str = Field(..., description="Card security code (CVV2 or CVC). (N(3))")
     TrxType: Literal["Hold"] = Field(
         "Hold", description="Transaction type, fixed Hold."
-    )
-    OrderNumber: str = Field(
-        ..., description="Merchant order number. Empty if not applicable. (X(15))"
-    )
-    AcquirerRefData: str = Field(  # Documented as Obligatorio: Si for HOLD
-        "1", description="Acquirer reference. Fixed '1' (AZUL internal use). (N(1))"
-    )
-    CustomOrderId: Optional[str] = Field(
-        None, description="Custom merchant order ID. Used for VerifyPayment. (X(75))"
     )
     DataVaultToken: Optional[str] = Field(
         None, description="DataVault token to use instead of PAN/Expiry. (A(100))"
     )
-    SaveToDataVault: Optional[str] = Field(
-        "0", description="'1' to save to DataVault, '0' not to. (N(1))"
-    )
-    CustomerServicePhone: Optional[str] = Field(
-        None, description="Merchant customer service phone. (X(32))"
-    )
-    ECommerceURL: Optional[str] = Field(
-        None, description="Merchant e-commerce URL. (X(32))"
-    )
-    AltMerchantName: Optional[str] = Field(
-        None, description="Alternate merchant name for statements (max 25c). (X(30))"
-    )
-    ForceNo3DS: Optional[str] = Field(
-        None,
-        description="'1' to force no 3DS, '0'/omit to use 3DS if configured. (N(1))",
-    )
+    # All other fields inherited from CardPaymentAttributes
 
 
-class RefundTransactionModel(AzulBaseModel):
+class RefundTransactionModel(BaseTransactionAttributes):
     """Model for refund transactions."""
 
     AzulOrderId: str = Field(
         ..., description="AzulOrderId of the original transaction to refund. (N(8))"
     )
-    OrderNumber: str = Field(
-        ...,
-        description="Original merchant order number for the transaction. (X(15))",
-    )
     TrxType: Literal["Refund"] = "Refund"
-    CustomOrderId: Optional[str] = Field(
-        None, description="Original custom merchant order ID. (X(75))"
+    Amount: str = Field(  # Represented in cents
+        ...,
+        description="Total amount in cents (e.g., 1000 for $10.00). Serialized to str.",
     )
-    CustomerServicePhone: Optional[str] = Field(
-        None, description="Merchant customer service phone. (X(32))"
+    Itbis: str = Field(  # Represented in cents
+        ...,
+        description="ITBIS tax in cents (e.g., 180 for $1.80, 0 if exempt). To str.",
     )
-    ECommerceURL: Optional[str] = Field(
-        None, description="Merchant e-commerce URL. (X(32))"
+    AcquirerRefData: Optional[str] = None  # Override to None for refunds
+
+    _validate_refund_amount_values = field_validator("Amount", mode="before")(
+        _validate_amount_field
     )
-    AltMerchantName: Optional[str] = Field(
-        None, description="Alternate merchant name (max 25c). (X(30))"
+    _validate_refund_itbis_values = field_validator("Itbis", mode="before")(
+        _validate_itbis_field
     )
+    # Inherits OrderNumber, CustomOrderId, etc. from BaseTransactionAttributes
 
 
-class DataVaultRequestModel(BaseModel):
+class DataVaultRequestModel(AzulBaseModel):
     """Model for DataVault operations (CREATE or DELETE token)."""
 
-    Channel: str = Field(
-        "EC", description="Payment channel (e.g., 'EC'), provided by AZUL. (X(3))"
-    )
-    Store: str = Field(
-        ..., description="Unique merchant ID (MID), provided by AZUL. (X(11))"
-    )
     TrxType: Literal["CREATE", "DELETE"] = Field(
         ..., description="Transaction type: 'CREATE' or 'DELETE'. (A(10))"
     )
@@ -276,19 +251,9 @@ class DataVaultRequestModel(BaseModel):
         return data
 
 
-class TokenSaleModel(BaseModel):
+class TokenSaleModel(BaseTransactionAttributes):
     """Model for sales transactions using a DataVault token."""
 
-    Channel: str = Field(
-        "EC", description="Payment channel (e.g., 'EC'), provided by AZUL. (X(3))"
-    )
-    Store: str = Field(
-        ..., description="Unique merchant ID (MID), provided by AZUL. (X(11))"
-    )
-    PosInputMode: str = Field(
-        "E-Commerce",
-        description="Transaction entry mode (e.g., 'E-Commerce'), by AZUL. (A(10))",
-    )
     Amount: str = Field(  # Represented in cents
         ...,
         description="Total amount in cents (e.g., 1000 for $10.00). Serialized to str.",
@@ -303,7 +268,6 @@ class TokenSaleModel(BaseModel):
     TrxType: Literal["Sale"] = Field(
         "Sale", description="Transaction type, fixed 'Sale'. (A(16))"
     )
-    OrderNumber: str = Field(..., description="Merchant order number. (X(15))")
     CVC: Optional[str] = Field(
         None,
         description="CVC (optional with token, E-comm mandatory if configured). (N(3))",
@@ -317,42 +281,19 @@ class TokenSaleModel(BaseModel):
         default="",
         description="Expiration date (YYYYMM), empty for token sales. (N(6))",
     )
-    CustomOrderId: Optional[str] = Field(
-        None, description="Custom merchant order ID. (X(75))"
-    )
-    AcquirerRefData: Optional[str] = Field(
-        "1", description="Acquirer reference. Fixed '1' (AZUL internal use). (N(1))"
-    )
-    CustomerServicePhone: Optional[str] = Field(
-        None, description="Merchant customer service phone. (X(32))"
-    )
-    ECommerceURL: Optional[str] = Field(
-        None, description="Merchant e-commerce URL. (X(32))"
-    )
-    AltMerchantName: Optional[str] = Field(
-        None, description="Alternate merchant name (max 25c). (X(30))"
-    )
-    ForceNo3DS: Optional[str] = Field(
-        None, description="'1' to force no 3DS, '0'/omit to use 3DS. (N(1))"
-    )
+    # AcquirerRefData inherited (Optional, default: "1")
 
-    _validate_amount_values = field_validator("Amount", mode="before")(
+    _validate_token_sale_amount_values = field_validator("Amount", mode="before")(
         _validate_amount_field
     )
-    _validate_itbis_values = field_validator("Itbis", mode="before")(
+    _validate_token_sale_itbis_values = field_validator("Itbis", mode="before")(
         _validate_itbis_field
     )
 
 
-class PostSaleTransactionModel(BaseModel):
+class PostSaleTransactionModel(AzulBaseModel):
     """Model for post-authorization (capture) transactions (ProcessPost)."""
 
-    Channel: str = Field(
-        "EC", description="Payment channel (e.g., 'EC'), provided by AZUL. (X(3))"
-    )
-    Store: str = Field(
-        ..., description="Unique merchant ID (MID), provided by AZUL. (X(11))"
-    )
     AzulOrderId: str = Field(
         ...,
         description="AzulOrderId of the original Hold transaction to capture. (N(8))",
@@ -366,37 +307,25 @@ class PostSaleTransactionModel(BaseModel):
         description="ITBIS of amount to capture in cents. Serialized to str. (N(12))",
     )
 
-    _validate_amount_values = field_validator("Amount", mode="before")(
+    _validate_post_sale_amount_values = field_validator("Amount", mode="before")(
         _validate_amount_field
     )
-    _validate_itbis_values = field_validator("Itbis", mode="before")(
+    _validate_post_sale_itbis_values = field_validator("Itbis", mode="before")(
         _validate_itbis_field
     )
 
 
-class VerifyTransactionModel(BaseModel):
+class VerifyTransactionModel(AzulBaseModel):
     """Model for verifying existing transactions using CustomOrderId (VerifyPayment)."""
 
-    Channel: str = Field(
-        "EC", description="Payment channel (e.g., 'EC'), provided by AZUL. (X(3))"
-    )
-    Store: str = Field(
-        ..., description="Unique merchant ID (MID), provided by AZUL. (X(11))"
-    )
     CustomOrderId: str = Field(
         ..., description="CustomOrderId of the original transaction to verify. (X(75))"
     )
 
 
-class VoidTransactionModel(BaseModel):
+class VoidTransactionModel(AzulBaseModel):
     """Model for voiding transactions (ProcessVoid)."""
 
-    Channel: str = Field(
-        "EC", description="Payment channel (e.g., 'EC'), provided by AZUL. (X(3))"
-    )
-    Store: str = Field(
-        ..., description="Unique merchant ID (MID), provided by AZUL. (X(11))"
-    )
     AzulOrderId: str = Field(
         ..., description="AzulOrderId of the original transaction to void. (N(999))"
     )
@@ -428,37 +357,27 @@ class PaymentSchema(RootModel):
         VoidTransactionModel,
     ]:
         """Validate and determine the appropriate model for the payment data."""
-        # Attempt to identify by unique fields for non-TrxType models first
+        trx_type = value.get("TrxType")
+
+        # Handle models without TrxType or with specific non-TrxType identifiers first
         if (
             "CustomOrderId" in value
             and "AzulOrderId" not in value
             and "Amount" not in value
-            and "TrxType" not in value
+            and not trx_type
         ):
-            return VerifyTransactionModel(**value)
+            # VerifyTransactionModel: CustomOrderId, Channel, Store
+            # Channel & Store are now mandatory in base, so this check simpler.
+            if len(value) <= 3:  # CustomOrderId, Channel, Store
+                return VerifyTransactionModel(**value)
 
-        if "AzulOrderId" in value:
-            # Check for PostSale: AzulOrderId, Amount, Itbis, Channel, Store (5 fields)
-            if (
-                "Amount" in value
-                and "Itbis" in value
-                and "Channel" in value
-                and "Store" in value
-                and len(value) <= 5  # Heuristic: check number of keys
-                and "TrxType" not in value
-            ):
+        if "AzulOrderId" in value and not trx_type:
+            # PostSaleTransactionModel: AzulOrderId, Amount, Itbis, Channel, Store
+            if "Amount" in value and "Itbis" in value and len(value) <= 5:
                 return PostSaleTransactionModel(**value)
-            # Check for Void: AzulOrderId, Channel, Store (3 fields)
-            elif (
-                "Channel" in value
-                and "Store" in value
-                and len(value) <= 3  # Heuristic
-                and "TrxType" not in value
-                and "Amount" not in value  # Differentiate from Post/Refund
-            ):
+            # VoidTransactionModel: AzulOrderId, Channel, Store
+            elif "Amount" not in value and len(value) <= 3:
                 return VoidTransactionModel(**value)
-
-        trx_type = value.get("TrxType")
 
         if trx_type == "CREATE":
             return DataVaultRequestModel(**value)
@@ -467,12 +386,21 @@ class PaymentSchema(RootModel):
         elif trx_type == "Hold":
             return HoldTransactionModel(**value)
         elif trx_type == "Refund":
-            if "AzulOrderId" in value and "Amount" in value:
-                return RefundTransactionModel(**value)
+            return RefundTransactionModel(**value)
         elif trx_type == "Sale":
-            if "DataVaultToken" in value:
+            if "DataVaultToken" in value and value.get(
+                "DataVaultToken"
+            ):  # Ensure token has a value
                 return TokenSaleModel(**value)
-            elif "CardNumber" in value:
+            elif "CardNumber" in value and value.get(
+                "CardNumber"
+            ):  # Ensure CardNumber has a value
+                return SaleTransactionModel(**value)
+            else:  # Ambiguous Sale: TokenSale with empty token or Sale with empty CardNumber # noqa: E501
+                # Defaulting to SaleTransactionModel might be problematic
+                # if fields are missing. This case needs careful handling
+                # or stricter input. For now, try SaleTransactionModel
+                # if DataVaultToken is absent/empty.
                 return SaleTransactionModel(**value)
 
         raise ValueError(f"Could not determine transaction model for input: {value}")

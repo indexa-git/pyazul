@@ -1,0 +1,116 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+<!-- @dtcxHead start -->
+
+## PyAzul Test Structure & Best Practices
+
+**Purpose**: To establish consistent, maintainable, and effective testing practices for the `pyazul` library, clearly distinguishing between unit and integration tests.
+
+**Scope**: These guidelines apply to all new and refactored tests within the `pyazul` project.
+
+<!-- @dtcxHead end -->
+
+### 1. Test Directory Structure
+
+Tests must be organized into two main categories within the `tests/` directory:
+
+-   **`tests/unit/`**: Houses all unit tests. These tests focus on individual components in isolation and must mock external dependencies (especially network calls).
+    -   Subdirectories should mirror the `pyazul` source structure, e.g.:
+        -   `tests/unit/api/`
+        -   `tests/unit/core/`
+        -   `tests/unit/models/`
+        -   `tests/unit/services/`
+-   **`tests/integration/`**: Houses all integration tests. These tests verify the interaction between `pyazul` and the live Azul API (test environment) and will involve actual network calls.
+    -   Subdirectories can be used to organize tests, e.g., `tests/integration/services/`.
+-   **`[tests/conftest.py](mdc:tests/conftest.py)`**: Contains global test configurations and fixtures, most notably the primary `settings` fixture.
+-   Component-specific `conftest.py` files can be used within `tests/unit/` or `tests/integration/` subdirectories for fixtures relevant only to that scope.
+
+### 2. Configuration and Settings (`settings` Fixture)
+
+-   A single, **session-scoped `settings` fixture** must be defined in `[tests/conftest.py](mdc:tests/conftest.py)`. This is the authoritative source for `AzulSettings`.
+    ```python
+    # Example from tests/conftest.py
+    import pytest
+    from pyazul.core.config import AzulSettings, get_azul_settings
+
+    @pytest.fixture(scope="session")
+    def settings() -> AzulSettings:
+        return get_azul_settings()
+    ```
+-   All other fixtures and tests requiring `AzulSettings` must depend on this global `settings` fixture.
+-   Unit tests for `AzulSettings` itself (e.g., in `tests/unit/core/test_config_unit.py`) should mock environment variables or file access rather than relying on actual `.env` files during the test run.
+
+### 3. Service Fixtures
+
+-   **Integration Test Service Fixtures** (e.g., for `TransactionService`):
+    -   Must depend on the global `settings` fixture.
+    -   Instantiate `[AzulAPI](mdc:pyazul/api/client.py)` with these `settings`.
+    -   Instantiate the specific service class with the `AzulAPI` instance.
+    -   Typically defined in the respective integration test file or an integration-specific conftest.
+    ```python
+    # Example for an integration test
+    @pytest.fixture
+    def transaction_service_integration(settings: AzulSettings):
+        api_client = AzulAPI(settings)
+        return TransactionService(api_client)
+    ```
+-   **Unit Test Service Fixtures/Setup**:
+    -   When unit testing a service, the service should be instantiated with a mocked `AzulAPI` client.
+    ```python
+    # Example in a unit test for a service
+    from unittest.mock import MagicMock
+    # ...
+    mock_api_client = MagicMock(spec=AzulAPI)
+    # Configure mock_api_client.settings if necessary for the service
+    mock_api_client.settings = settings # or a MagicMock(spec=AzulSettings)
+    service_under_test = MyService(mock_api_client)
+    ```
+
+### 4. Test Data Fixtures
+
+-   Fixtures providing data for Pydantic models (e.g., `card_payment_data`) should also depend on the global `settings` fixture if they need to source values from it (like `Store` or `Channel`).
+-   **Data Sourcing Priority for Fixtures**:
+    1.  **Test-Specific Values**: Explicit values critical for the scenario (e.g., `Amount`, `CardNumber`, specific `OrderNumber`).
+    2.  **Settings Values**: For common configurable parameters like `Store`, always use `settings.MERCHANT_ID`. For `Channel`, use `settings.CHANNEL`. (Note: `[pyazul/api/client.py](mdc:pyazul/api/client.py):_prepare_request` ensures `settings.CHANNEL` and `settings.MERCHANT_ID` are used for the final API call, overriding model values if necessary. Test data should reflect what would realistically be set or defaulted at model instantiation).
+    3.  **Pydantic Model Defaults**: Rely on Pydantic model defaults (e.g., `Channel` in `AzulBaseModel`, `PosInputMode` in `BaseTransactionAttributes`) unless the test specifically verifies behavior with a non-default value or if consistency with `settings` is preferred at the fixture level.
+    4.  **Avoid Hardcoding**: Minimize hardcoding values that are available via `settings` or have sensible model defaults, unless explicitly testing an override.
+-   Test data fixtures should return a dictionary ready for unpacking into a Pydantic model.
+
+### 5. Model Instantiation in Tests
+
+-   Clearly instantiate Pydantic models at the beginning of the test (or setup fixture) using data from dedicated test data fixtures.
+    ```python
+    # Example
+    async def test_some_feature(my_service, specific_data_fixture):
+        model_instance = SpecificModel(**specific_data_fixture)
+        response = await my_service.process(model_instance)
+        # ... assertions ...
+    ```
+
+### 6. Mocking Strategy (Unit Tests)
+
+-   Use `pytest-mock` (the `mocker` fixture) for all mocking in unit tests.
+-   Mock external dependencies at appropriate boundaries. For service unit tests, this typically means mocking methods on the `AzulAPI` instance (e.g., `mocker.patch.object(mock_api_client, '_async_request', return_value=mock_response)`).
+-   For unit tests of `AzulAPI` itself, mock `httpx.AsyncClient.post` or lower-level network components.
+-   Ensure mocks return realistic data structures (e.g., dictionaries matching expected API responses).
+-   Verify mock call arguments (`assert_called_once_with`, etc.) when the interaction contract is important.
+
+### 7. Imports
+
+-   Follow standard Python import ordering (standard library, third-party, application-specific).
+-   Use specific imports: `from pyazul.models.schemas import SaleTransactionModel` is preferred over `import pyazul.models.schemas`.
+
+### 8. Test Naming and Structure
+
+-   Use descriptive names for test functions (e.g., `test_feature_when_condition_then_behavior()`).
+-   Employ the Arrange-Act-Assert pattern.
+-   Keep tests focused on a single scenario or piece of functionality.
+
+### 9. General Principles
+
+-   **Integration Tests**: Verify the end-to-end flow and correct interaction with the actual Azul API (test environment). They use real settings and make network calls.
+-   **Unit Tests**: Verify the internal logic of individual components in isolation. They must be fast and not rely on external services or network.
+-   Do not commit sensitive information (like production credentials) directly into test data or fixtures. Rely on `.env` files for integration test configurations, which should be gitignored.

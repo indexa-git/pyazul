@@ -21,6 +21,8 @@ async def completed_hold(transaction_service):
     """Perform a hold transaction and return its details for posting."""
     unique_order_id = datetime.now().strftime("%Y%m%d%H%M%S%f")[:15]
     hold_data_dict = {
+        "Store": transaction_service.api.settings.MERCHANT_ID,
+        "Channel": transaction_service.api.settings.CHANNEL,
         "CardNumber": "5413330089600119",
         "Expiration": "202812",
         "CVC": "979",
@@ -32,7 +34,7 @@ async def completed_hold(transaction_service):
         "PosInputMode": "E-Commerce",
         "ForceNo3DS": "1",
     }
-    payment = HoldTransactionModel(**hold_data_dict)
+    payment = HoldTransactionModel(**hold_data_dict)  # type: ignore[arg-type]
     print(f"Payload for hold in fixture: {payment.model_dump(exclude_none=True)}")
     hold_result = await transaction_service.hold(payment)
     assert hold_result.get("IsoCode") == "00", "Hold in completed_hold fixture failed"
@@ -47,6 +49,7 @@ def post_transaction_data(completed_hold, transaction_service):
         "Amount": "1000",
         "Itbis": "100",
         "Store": transaction_service.api.settings.MERCHANT_ID,
+        "Channel": transaction_service.api.settings.CHANNEL,
     }
 
 

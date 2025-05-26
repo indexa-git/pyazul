@@ -20,7 +20,7 @@ def transaction_service(settings):
 
 
 @pytest.fixture
-def hold_transaction_data():
+def hold_transaction_data(settings):
     """
     Provide test data for a hold transaction.
 
@@ -28,7 +28,7 @@ def hold_transaction_data():
     a hold (pre-authorization) on a card.
     """
     return {
-        "Channel": "EC",
+        "Channel": settings.CHANNEL,
         "PosInputMode": "E-Commerce",
         "Amount": "1000",  # $10.00 to be held
         "Itbis": "180",  # $1.80 tax amount
@@ -41,6 +41,7 @@ def hold_transaction_data():
         "SaveToDataVault": "0",  # Changed from "2" to "0"
         "AcquirerRefData": "1",
         "ForceNo3DS": "1",  # Added to bypass 3DS for this test
+        "Store": settings.MERCHANT_ID,
     }
 
 
