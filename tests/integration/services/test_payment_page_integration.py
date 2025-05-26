@@ -3,16 +3,7 @@
 import pytest
 from pydantic import HttpUrl, ValidationError
 
-from pyazul.core.config import get_azul_settings
 from pyazul.models.schemas import PaymentPageModel
-from pyazul.services.payment_page import PaymentPageService
-
-
-@pytest.fixture
-def payment_page_service():
-    """Fixture that provides a configured PaymentPageService instance."""
-    settings = get_azul_settings()
-    return PaymentPageService(settings)
 
 
 @pytest.fixture
@@ -101,9 +92,13 @@ class TestPaymentPageModel:
 class TestPaymentPageService:
     """Test cases for PaymentPageService functionality."""
 
-    def test_form_generation(self, payment_page_service, valid_payment_request):
+    def test_form_generation(
+        self, payment_page_service_integration, valid_payment_request
+    ):
         """Test that a valid HTML form is generated."""
-        form = payment_page_service.create_payment_form(valid_payment_request)
+        form = payment_page_service_integration.create_payment_form(
+            valid_payment_request
+        )
 
         # Check that the form contains essential elements
         assert '<form method="POST"' in form
@@ -123,10 +118,14 @@ class TestPaymentPageService:
         for field in required_fields:
             assert f'name="{field}"' in form
 
-    def test_auth_hash_generation(self, payment_page_service, valid_payment_request):
+    def test_auth_hash_generation(
+        self, payment_page_service_integration, valid_payment_request
+    ):
         """Test that authentication hash is generated correctly."""
         # Generate form which includes hash calculation
-        form = payment_page_service.create_payment_form(valid_payment_request)
+        form = payment_page_service_integration.create_payment_form(
+            valid_payment_request
+        )
 
         # Verify hash is present in form
         assert 'name="AuthHash"' in form

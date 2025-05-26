@@ -2,22 +2,7 @@
 
 import pytest
 
-from pyazul.api.client import AzulAPI
-from pyazul.core.config import get_azul_settings
 from pyazul.models.schemas import RefundTransactionModel, SaleTransactionModel
-from pyazul.services.transaction import TransactionService
-
-
-@pytest.fixture
-def transaction_service():
-    """
-    Provide a configured TransactionService instance.
-
-    Used for processing direct card payments and refunds.
-    """
-    settings = get_azul_settings()
-    api_client = AzulAPI(settings)  # Create AzulAPI instance
-    return TransactionService(api_client)  # Pass the api_client
 
 
 @pytest.fixture
@@ -29,24 +14,27 @@ def card_payment_data(settings):
         dict: Data for card payment transaction.
     """
     return {
-        "Channel": settings.CHANNEL,  # Or "EC" if relying on model default
+        # AzulBaseModel fields
         "Store": settings.MERCHANT_ID,
-        "PosInputMode": "E-Commerce",
-        "Amount": "1000",  # $10.00 transaction amount
-        "Itbis": "180",  # $1.80 tax amount
-        "TrxType": "Sale",  # Direct sale transaction
-        "CardNumber": "5413330089600119",  # Test card provided by Azul
-        "Expiration": "202812",  # Card expiration in YYYYMM format
-        "CVC": "979",  # Test card security code
+        "Channel": settings.CHANNEL,
+        # BaseTransactionAttributes (PosInputMode, AcquirerRefData use defaults)
         "OrderNumber": "sale-order-123",
-        "CustomOrderId": "sale-test-001",  # Unique identifier for this test
-        "SaveToDataVault": "1",  # Save card to vault for future use
-        "ForceNo3DS": "1",  # Added to bypass 3DS for this test
+        "CustomOrderId": "sale-test-001",
+        "ForceNo3DS": "1",  # Test specific
+        # CardPaymentAttributes
+        "Amount": "1000",
+        "Itbis": "180",
+        "CardNumber": "5413330089600119",
+        "Expiration": "202812",
+        "CVC": "979",
+        "SaveToDataVault": "1",  # Test specific: non-default, save to vault
+        # SaleTransactionModel specific fields
+        "TrxType": "Sale",
     }
 
 
 @pytest.mark.asyncio
-async def test_card_payment(transaction_service, card_payment_data):
+async def test_card_payment(transaction_service_integration, card_payment_data):
     """
     Test direct card payment transaction.
 
@@ -58,14 +46,14 @@ async def test_card_payment(transaction_service, card_payment_data):
     - Transaction amount matches request.
     """
     payment = SaleTransactionModel(**card_payment_data)
-    response = await transaction_service.sale(payment)
+    response = await transaction_service_integration.sale(payment)
     assert response.get("IsoCode") == "00", "Payment should be approved"
     print("Payment Response:", response)
     return response
 
 
 @pytest.fixture
-async def completed_payment(transaction_service, card_payment_data):
+async def completed_payment(transaction_service_integration, card_payment_data):
     """
     Create a successful payment and return the response.
 
@@ -75,7 +63,7 @@ async def completed_payment(transaction_service, card_payment_data):
         dict: API response with transaction details for refund.
     """
     payment = SaleTransactionModel(**card_payment_data)
-    return await transaction_service.sale(payment)
+    return await transaction_service_integration.sale(payment)
 
 
 @pytest.fixture
@@ -94,23 +82,22 @@ def refund_payment_data(completed_payment, card_payment_data, settings):
         dict: Test data with original transaction ref, refund amount, and merchant IDs.
     """
     return {
-        "Channel": settings.CHANNEL,
+        # AzulBaseModel fields
         "Store": settings.MERCHANT_ID,
-        "PosInputMode": "E-Commerce",
-        "Amount": "1000",  # Must match original payment amount
-        "Itbis": "180",  # Must match original tax amount
-        "AzulOrderId": completed_payment.get(
-            "AzulOrderId"
-        ),  # Reference to original transaction
-        "OrderNumber": card_payment_data.get(
-            "OrderNumber"
-        ),  # Use OrderNumber from the original sale data
-        "TrxType": "Refund",  # Specifies this is a refund operation
+        "Channel": settings.CHANNEL,
+        # BaseTransactionAttributes (PosInputMode default; OrderNumber from original)
+        "OrderNumber": card_payment_data.get("OrderNumber"),
+        # RefundTransactionModel specific fields
+        "AzulOrderId": completed_payment.get("AzulOrderId"),
+        "Amount": "1000",
+        "Itbis": "180",
+        "TrxType": "Refund",
+        # AcquirerRefData is None by default in RefundTransactionModel, so not specified
     }
 
 
 @pytest.mark.asyncio
-async def test_refund(transaction_service, refund_payment_data):
+async def test_refund(transaction_service_integration, refund_payment_data):
     """
     Test refund transaction for a previous payment.
 
@@ -124,6 +111,6 @@ async def test_refund(transaction_service, refund_payment_data):
     Note: Refunds are for successful transactions and must match the original amount.
     """
     payment = RefundTransactionModel(**refund_payment_data)
-    response = await transaction_service.refund(payment)
+    response = await transaction_service_integration.refund(payment)
     print("Refund Response:", response)
     assert response.get("IsoCode") == "00", "Refund should be approved"

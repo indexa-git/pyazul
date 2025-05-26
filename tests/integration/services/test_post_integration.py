@@ -4,60 +4,56 @@ from datetime import datetime
 
 import pytest
 
-from pyazul.api.client import AzulAPI
 from pyazul.models.schemas import HoldTransactionModel, PostSaleTransactionModel
-from pyazul.services.transaction import TransactionService
 
 
 @pytest.fixture
-def transaction_service(settings):
-    """Provide a TransactionService instance for testing post-auths."""
-    api_client = AzulAPI(settings)
-    return TransactionService(api_client)
-
-
-@pytest.fixture
-async def completed_hold(transaction_service):
+async def completed_hold(transaction_service_integration, settings):
     """Perform a hold transaction and return its details for posting."""
     unique_order_id = datetime.now().strftime("%Y%m%d%H%M%S%f")[:15]
     hold_data_dict = {
-        "Store": transaction_service.api.settings.MERCHANT_ID,
-        "Channel": transaction_service.api.settings.CHANNEL,
+        # AzulBaseModel fields
+        "Store": settings.MERCHANT_ID,
+        "Channel": settings.CHANNEL,
+        # BaseTransactionAttributes (defaults for PosInputMode, AcquirerRefData)
+        "OrderNumber": unique_order_id,
+        "CustomOrderId": f"custom-{unique_order_id}",
+        "ForceNo3DS": "1",  # Test specific
+        # CardPaymentAttributes (default for SaveToDataVault)
+        "Amount": "1000",
+        "Itbis": "100",
         "CardNumber": "5413330089600119",
         "Expiration": "202812",
         "CVC": "979",
-        "Amount": "1000",
-        "Itbis": "100",
-        "OrderNumber": unique_order_id,
-        "CustomOrderId": f"custom-{unique_order_id}",
-        "AcquirerRefData": "1",
-        "PosInputMode": "E-Commerce",
-        "ForceNo3DS": "1",
+        # HoldTransactionModel specific fields
+        "TrxType": "Hold",
     }
-    payment = HoldTransactionModel(**hold_data_dict)  # type: ignore[arg-type]
+    payment = HoldTransactionModel(**hold_data_dict)
     print(f"Payload for hold in fixture: {payment.model_dump(exclude_none=True)}")
-    hold_result = await transaction_service.hold(payment)
+    hold_result = await transaction_service_integration.hold(payment)
     assert hold_result.get("IsoCode") == "00", "Hold in completed_hold fixture failed"
     return hold_result
 
 
 @pytest.fixture
-def post_transaction_data(completed_hold, transaction_service):
+def post_transaction_data(completed_hold, settings):
     """Provide data for a post-authorization transaction, using a prior hold."""
     return {
+        # AzulBaseModel fields
+        "Store": settings.MERCHANT_ID,
+        "Channel": settings.CHANNEL,
+        # PostSaleTransactionModel specific fields
         "AzulOrderId": completed_hold["AzulOrderId"],
         "Amount": "1000",
         "Itbis": "100",
-        "Store": transaction_service.api.settings.MERCHANT_ID,
-        "Channel": transaction_service.api.settings.CHANNEL,
     }
 
 
 @pytest.mark.asyncio
-async def test_post_transaction(transaction_service, post_transaction_data):
+async def test_post_transaction(transaction_service_integration, post_transaction_data):
     """Test a post-authorization (capture) transaction."""
     payment = PostSaleTransactionModel(**post_transaction_data)
-    post_result = await transaction_service.post_sale(payment)
+    post_result = await transaction_service_integration.post_sale(payment)
     print(post_result)
     assert (
         post_result["IsoCode"] == "00"
