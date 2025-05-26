@@ -3,6 +3,8 @@
 import pytest
 
 from pyazul.models.schemas import HoldTransactionModel
+from tests.fixtures.cards import get_card
+from tests.fixtures.order import generate_order_number
 
 
 @pytest.fixture
@@ -13,20 +15,21 @@ def hold_transaction_data(settings):
     Includes card details, amount, and other necessary fields for creating
     a hold (pre-authorization) on a card.
     """
+    card = get_card("MASTERCARD_2")  # Using a standard card
     return {
         # AzulBaseModel fields
         "Store": settings.MERCHANT_ID,
         "Channel": settings.CHANNEL,
         # BaseTransactionAttributes (defaults for PosInputMode, AcquirerRefData)
-        "OrderNumber": "order-123",
-        "CustomOrderId": "hold-test-001",
+        "OrderNumber": generate_order_number(),
+        "CustomOrderId": f"hold-test-{generate_order_number()}",
         "ForceNo3DS": "1",  # Test specific
         # CardPaymentAttributes (default for SaveToDataVault)
         "Amount": "1000",
         "Itbis": "180",
-        "CardNumber": "5413330089600119",
-        "Expiration": "202812",
-        "CVC": "979",
+        "CardNumber": card["number"],
+        "Expiration": card["expiration"],
+        "CVC": card["cvv"],
         # HoldTransactionModel specific fields
         "TrxType": "Hold",
     }

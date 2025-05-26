@@ -13,6 +13,8 @@ from pyazul.models.secure import (
     ThreeDSAuth,
 )
 from pyazul.services.secure import SecureService
+from tests.fixtures.cards import get_card
+from tests.fixtures.order import generate_order_number
 
 
 @pytest.fixture
@@ -34,14 +36,15 @@ def secure_service(mock_api_client):
 @pytest.fixture
 def sample_sale_request(mock_api_client):
     """Create a sample sale request."""
+    card = get_card("SECURE_3DS_CHALLENGE_WITH_3DS")
     return SecureSaleRequest(
         Store=mock_api_client.settings.MERCHANT_ID,
         Amount="1000",
         Itbis="180",
-        CardNumber="4005520000000129",
-        CVC="123",
-        Expiration="202812",
-        OrderNumber="TEST123",
+        CardNumber=card["number"],
+        CVC=card["cvv"],
+        Expiration=card["expiration"],
+        OrderNumber=generate_order_number(),
         Channel="EC",
         PosInputMode="E-Commerce",
         AcquirerRefData="1",
@@ -80,14 +83,15 @@ def sample_sale_request(mock_api_client):
 @pytest.fixture
 def sample_hold_request(mock_api_client):
     """Create a sample hold request."""
+    card = get_card("SECURE_3DS_CHALLENGE_WITH_3DS")
     return SecureSaleRequest(
         Store=mock_api_client.settings.MERCHANT_ID,
         Amount="1000",
         Itbis="180",
-        CardNumber="4005520000000129",
-        CVC="123",
-        Expiration="202812",
-        OrderNumber="HOLD123",
+        CardNumber=card["number"],
+        CVC=card["cvv"],
+        Expiration=card["expiration"],
+        OrderNumber=generate_order_number(),
         Channel="EC",
         PosInputMode="E-Commerce",
         AcquirerRefData="1",
@@ -188,10 +192,11 @@ async def test_process_challenge(secure_service, mock_api_client):
     """Test process_challenge with successful response."""
     # Setup test data
     secure_id = "test_session"
+    card_details = get_card("SECURE_3DS_CHALLENGE_WITH_3DS")
     secure_service.secure_sessions[secure_id] = {
         "azul_order_id": "12345",
-        "card_number": "4005520000000129",
-        "expiration": "202812",
+        "card_number": card_details["number"],
+        "expiration": card_details["expiration"],
         "amount": 1000,
         "itbis": 180,
     }

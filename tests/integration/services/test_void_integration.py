@@ -1,11 +1,12 @@
 """Tests for void transaction functionalities of the PyAzul SDK."""
 
 import asyncio
-from datetime import datetime
 
 import pytest
 
 from pyazul.models.schemas import HoldTransactionModel, VoidTransactionModel
+from tests.fixtures.cards import get_card
+from tests.fixtures.order import generate_order_number
 
 
 @pytest.fixture
@@ -20,7 +21,9 @@ async def completed_hold_for_void(transaction_service_integration, settings):
     """
     store_id = settings.MERCHANT_ID
     channel_id = settings.CHANNEL
-    unique_order_id = datetime.now().strftime("%Y%m%d%H%M%S%f")[:15]
+    order_num = generate_order_number()
+    custom_order_id = f"custom-void-{order_num}"
+    card = get_card("MASTERCARD_2")
 
     # Define as a dictionary first, omitting fields to rely on defaults
     hold_data_dict = {
@@ -28,15 +31,15 @@ async def completed_hold_for_void(transaction_service_integration, settings):
         "Store": store_id,
         "Channel": channel_id,
         # BaseTransactionAttributes (PosInputMode, AcquirerRefData will use defaults)
-        "OrderNumber": unique_order_id,
-        "CustomOrderId": f"custom-void-{unique_order_id}",
+        "OrderNumber": order_num,
+        "CustomOrderId": custom_order_id,
         "ForceNo3DS": "1",  # Test specific
         # CardPaymentAttributes (SaveToDataVault will use default)
         "Amount": "1000",
         "Itbis": "100",
-        "CardNumber": "5413330089600119",
-        "Expiration": "202812",
-        "CVC": "979",
+        "CardNumber": card["number"],
+        "Expiration": card["expiration"],
+        "CVC": card["cvv"],
         # HoldTransactionModel specific fields
         "TrxType": "Hold",
         # Optional fields with None defaults (like DataVaultToken) are omitted
@@ -63,7 +66,7 @@ async def test_void_transaction(
     channel_id = settings.CHANNEL
     azul_order_id_to_void = completed_hold_for_void.get("AzulOrderId")
 
-    await asyncio.sleep(2)  # Ensure transaction is processed by backend
+    await asyncio.sleep(5)  # Ensure transaction is processed by backend
 
     # VoidTransactionModel requires AzulOrderId, Channel, and Store.
     # Channel has a default in its model definition if not provided from AzulBaseModel inheritance. # noqa: E501

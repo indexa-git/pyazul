@@ -5,6 +5,8 @@ from typing import Literal
 import pytest
 
 from pyazul.models import DataVaultRequestModel, TokenSaleModel
+from tests.fixtures.cards import get_card
+from tests.fixtures.order import generate_order_number
 
 # Define Literal constants for TrxType to satisfy strict type checking
 TRX_TYPE_CREATE: Literal["CREATE"] = "CREATE"
@@ -16,18 +18,17 @@ def datavault_create_data(settings):
     """
     Provide test card data for DataVault token CREATION.
 
-    Uses a test card number provided by Azul for integration testing.
-
     Returns:
         dict: Test data including card details and merchant information.
     """
+    card = get_card("MASTERCARD_2")  # Using a standard card suitable for tokenization
     return {
         "Store": settings.MERCHANT_ID,
         "Channel": settings.CHANNEL,
         "TrxType": TRX_TYPE_CREATE,
-        "CardNumber": "5413330089600119",
-        "Expiration": "202812",
-        "CVC": None,  # Optional for CREATE
+        "CardNumber": card["number"],
+        "Expiration": card["expiration"],
+        "CVC": None,  # Optional for CREATE, some card fixtures might have it
     }
 
 
@@ -83,8 +84,8 @@ async def test_create_sale_datavault(
         "Store": settings.MERCHANT_ID,
         "Channel": settings.CHANNEL,
         # BaseTransactionAttributes (PosInputMode, AcquirerRefData use defaults)
-        "OrderNumber": "TSALE-001",
-        "CustomOrderId": "token-sale-test-001",
+        "OrderNumber": generate_order_number(),
+        "CustomOrderId": f"token-sale-{generate_order_number()}",
         "ForceNo3DS": "1",  # Test specific
         # TokenSaleModel specific fields (TrxType uses model default "Sale")
         "Amount": "1000",
@@ -132,8 +133,8 @@ async def test_delete_and_sale_datavault(
         "Store": store_id,
         "Channel": settings.CHANNEL,
         # BaseTransactionAttributes (PosInputMode, AcquirerRefData use defaults)
-        "OrderNumber": "TSALE-002",
-        "CustomOrderId": "token-sale-test-002",
+        "OrderNumber": generate_order_number(),
+        "CustomOrderId": f"token-sale-deleted-{generate_order_number()}",
         "ForceNo3DS": "1",  # Test specific
         # TokenSaleModel specific fields (TrxType uses model default "Sale")
         "Amount": "1000",

@@ -4,12 +4,14 @@ import pytest
 from pydantic import HttpUrl, ValidationError
 
 from pyazul.models.schemas import PaymentPageModel
+from tests.fixtures.order import generate_order_number
 
 
 @pytest.fixture
 def valid_payment_request():
     """Fixture that provides a valid PaymentPageModel instance."""
     return PaymentPageModel(
+        OrderNumber=generate_order_number(),
         Amount="100000",  # $1,000.00
         ITBIS="18000",  # $180.00
         ApprovedUrl=HttpUrl("https://example.com/approved"),
@@ -25,6 +27,7 @@ class TestPaymentPageModel:
     def test_valid_amounts(self):
         """Test that valid amounts are accepted."""
         model = PaymentPageModel(
+            OrderNumber=generate_order_number(),
             Amount="100000",  # $1,000.00
             ITBIS="18000",  # $180.00
             ApprovedUrl=HttpUrl("https://example.com/approved"),
@@ -38,6 +41,7 @@ class TestPaymentPageModel:
     def test_zero_itbis_format(self):
         """Test that zero ITBIS is formatted as '000'."""
         model = PaymentPageModel(
+            OrderNumber=generate_order_number(),
             Amount="100000",
             ITBIS="0",
             ApprovedUrl=HttpUrl("https://example.com/approved"),
@@ -51,6 +55,7 @@ class TestPaymentPageModel:
         """Test that invalid amount formats are rejected."""
         with pytest.raises(ValidationError):
             PaymentPageModel(
+                OrderNumber=generate_order_number(),
                 Amount="1000.00",  # Invalid: contains decimal point
                 ITBIS="180.00",  # Invalid: contains decimal point
                 ApprovedUrl=HttpUrl("https://example.com/approved"),
@@ -64,6 +69,7 @@ class TestPaymentPageModel:
         # When UseCustomField1 is "1", label and value are required
         with pytest.raises(ValidationError):
             PaymentPageModel(
+                OrderNumber=generate_order_number(),
                 Amount="100000",
                 ITBIS="18000",
                 ApprovedUrl=HttpUrl("https://example.com/approved"),
@@ -77,7 +83,9 @@ class TestPaymentPageModel:
 
     def test_string_representation(self):
         """Test the string representation of amounts."""
+        order_num = generate_order_number()
         model = PaymentPageModel(
+            OrderNumber=order_num,
             Amount="100000",  # $1,000.00
             ITBIS="18000",  # $180.00
             ApprovedUrl=HttpUrl("https://example.com/approved"),

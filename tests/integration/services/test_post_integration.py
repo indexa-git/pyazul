@@ -1,30 +1,33 @@
 """Tests for post-authorization (capture) transaction functionalities."""
 
-from datetime import datetime
-
 import pytest
 
 from pyazul.models.schemas import HoldTransactionModel, PostSaleTransactionModel
+from tests.fixtures.cards import get_card
+from tests.fixtures.order import generate_order_number
 
 
 @pytest.fixture
 async def completed_hold(transaction_service_integration, settings):
     """Perform a hold transaction and return its details for posting."""
-    unique_order_id = datetime.now().strftime("%Y%m%d%H%M%S%f")[:15]
+    order_num = generate_order_number()
+    custom_order_id = f"custom-hold-{order_num}"
+    card = get_card("MASTERCARD_2")
+
     hold_data_dict = {
         # AzulBaseModel fields
         "Store": settings.MERCHANT_ID,
         "Channel": settings.CHANNEL,
         # BaseTransactionAttributes (defaults for PosInputMode, AcquirerRefData)
-        "OrderNumber": unique_order_id,
-        "CustomOrderId": f"custom-{unique_order_id}",
+        "OrderNumber": order_num,
+        "CustomOrderId": custom_order_id,
         "ForceNo3DS": "1",  # Test specific
         # CardPaymentAttributes (default for SaveToDataVault)
         "Amount": "1000",
         "Itbis": "100",
-        "CardNumber": "5413330089600119",
-        "Expiration": "202812",
-        "CVC": "979",
+        "CardNumber": card["number"],
+        "Expiration": card["expiration"],
+        "CVC": card["cvv"],
         # HoldTransactionModel specific fields
         "TrxType": "Hold",
     }

@@ -1,6 +1,5 @@
 """Tests for secure token sale functionalities of the PyAzul SDK."""
 
-import uuid
 from unittest.mock import AsyncMock, Mock
 
 import pytest
@@ -14,6 +13,8 @@ from pyazul.models.secure import (
 )
 from pyazul.services.datavault import DataVaultService
 from pyazul.services.secure import SecureService
+from tests.fixtures.cards import get_card
+from tests.fixtures.order import generate_order_number
 
 
 @pytest.fixture
@@ -42,12 +43,13 @@ def datavault_service(mock_api_client):
 
 
 @pytest.fixture
-def tokenization_request():
+def tokenization_request(mock_api_client):
     """Create a sample token creation request."""
+    card = get_card("MASTERCARD_1")
     return DataVaultRequestModel(
-        CardNumber="4111111111111111",
-        Expiration="202812",
-        Store="39038540035",
+        CardNumber=card["number"],
+        Expiration=card["expiration"],
+        Store=mock_api_client.settings.MERCHANT_ID,
         TrxType="CREATE",
         Channel="EC",
         CVC=None,
@@ -74,7 +76,7 @@ def token_3ds_sale_request(created_token, mock_api_client):
         Amount="1000",
         Itbis="180",
         DataVaultToken=created_token,
-        OrderNumber=f"TOKEN3DS-{uuid.uuid4().hex[:8]}",
+        OrderNumber=generate_order_number(),
         Store=mock_api_client.settings.MERCHANT_ID,
         Channel="EC",
         PosInputMode="E-Commerce",
@@ -205,7 +207,7 @@ async def test_complete_token_3ds_workflow(
     token = token_response.get("DataVaultToken")
     assert token is not None
 
-    order_number = f"FULL-FLOW-{uuid.uuid4().hex[:8]}"
+    order_number = generate_order_number()
     token_sale_request = SecureTokenSale(
         Amount="1000",
         Itbis="180",

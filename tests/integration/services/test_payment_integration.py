@@ -3,6 +3,8 @@
 import pytest
 
 from pyazul.models.schemas import RefundTransactionModel, SaleTransactionModel
+from tests.fixtures.cards import get_card
+from tests.fixtures.order import generate_order_number
 
 
 @pytest.fixture
@@ -13,20 +15,21 @@ def card_payment_data(settings):
     Returns:
         dict: Data for card payment transaction.
     """
+    card = get_card("MASTERCARD_2")  # Using a standard card
     return {
         # AzulBaseModel fields
         "Store": settings.MERCHANT_ID,
         "Channel": settings.CHANNEL,
         # BaseTransactionAttributes (PosInputMode, AcquirerRefData use defaults)
-        "OrderNumber": "sale-order-123",
-        "CustomOrderId": "sale-test-001",
+        "OrderNumber": generate_order_number(),
+        "CustomOrderId": f"sale-test-{generate_order_number()}",
         "ForceNo3DS": "1",  # Test specific
         # CardPaymentAttributes
         "Amount": "1000",
         "Itbis": "180",
-        "CardNumber": "5413330089600119",
-        "Expiration": "202812",
-        "CVC": "979",
+        "CardNumber": card["number"],
+        "Expiration": card["expiration"],
+        "CVC": card["cvv"],
         "SaveToDataVault": "1",  # Test specific: non-default, save to vault
         # SaleTransactionModel specific fields
         "TrxType": "Sale",
