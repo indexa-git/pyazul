@@ -6,7 +6,12 @@ from unittest.mock import AsyncMock, Mock
 import pytest
 
 from pyazul.core.exceptions import AzulError
-from pyazul.models.secure import CardHolderInfo, SecureSaleRequest, ThreeDSAuth
+from pyazul.models.secure import (
+    CardHolderInfo,
+    ChallengeIndicator,
+    SecureSaleRequest,
+    ThreeDSAuth,
+)
 from pyazul.services.secure import SecureService
 
 
@@ -27,17 +32,21 @@ def secure_service(mock_api_client):
 
 
 @pytest.fixture
-def sample_sale_request():
+def sample_sale_request(mock_api_client):
     """Create a sample sale request."""
     return SecureSaleRequest(
-        Amount=1000,  # $10.00
-        ITBIS=180,  # $1.80
+        Store=mock_api_client.settings.MERCHANT_ID,
+        Amount="1000",
+        Itbis="180",
         CardNumber="4005520000000129",
         CVC="123",
         Expiration="202812",
         OrderNumber="TEST123",
         Channel="EC",
         PosInputMode="E-Commerce",
+        AcquirerRefData="1",
+        CustomOrderId=None,
+        SaveToDataVault="0",
         forceNo3DS="0",
         cardHolderInfo=CardHolderInfo(
             BillingAddressCity="Santo Domingo",
@@ -52,27 +61,38 @@ def sample_sale_request():
             ShippingAddressLine1="Test Address",
             ShippingAddressState="Distrito Nacional",
             ShippingAddressZip="10101",
+            BillingAddressLine2=None,
+            BillingAddressLine3=None,
+            PhoneHome=None,
+            PhoneMobile=None,
+            PhoneWork=None,
+            ShippingAddressLine2=None,
+            ShippingAddressLine3=None,
         ),
         threeDSAuth=ThreeDSAuth(
             TermUrl="https://example.com/post-3ds",
             MethodNotificationUrl="https://example.com/capture-3ds",
-            RequestChallengeIndicator="03",
+            RequestChallengeIndicator=ChallengeIndicator.CHALLENGE,
         ),
     )
 
 
 @pytest.fixture
-def sample_hold_request():
+def sample_hold_request(mock_api_client):
     """Create a sample hold request."""
     return SecureSaleRequest(
-        Amount=1000,  # $10.00
-        ITBIS=180,  # $1.80
+        Store=mock_api_client.settings.MERCHANT_ID,
+        Amount="1000",
+        Itbis="180",
         CardNumber="4005520000000129",
         CVC="123",
         Expiration="202812",
         OrderNumber="HOLD123",
         Channel="EC",
         PosInputMode="E-Commerce",
+        AcquirerRefData="1",
+        CustomOrderId=None,
+        SaveToDataVault="0",
         forceNo3DS="0",
         cardHolderInfo=CardHolderInfo(
             BillingAddressCity="Santo Domingo",
@@ -87,11 +107,18 @@ def sample_hold_request():
             ShippingAddressLine1="Test Address",
             ShippingAddressState="Distrito Nacional",
             ShippingAddressZip="10101",
+            BillingAddressLine2=None,
+            BillingAddressLine3=None,
+            PhoneHome=None,
+            PhoneMobile=None,
+            PhoneWork=None,
+            ShippingAddressLine2=None,
+            ShippingAddressLine3=None,
         ),
         threeDSAuth=ThreeDSAuth(
             TermUrl="https://example.com/post-3ds-hold",
             MethodNotificationUrl="https://example.com/capture-3ds-hold",
-            RequestChallengeIndicator="03",
+            RequestChallengeIndicator=ChallengeIndicator.CHALLENGE,
         ),
     )
 

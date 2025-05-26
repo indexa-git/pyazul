@@ -29,7 +29,14 @@ Homepage = "https://github.com/indexa-git/pyazul/"
 include = ["pyazul", "pyazul.*"]
 
 [project.optional-dependencies]
-testing = ["pytest", "pytest-dotenv", "pytest-cov", "pytest-asyncio"]
+testing = [
+  "pytest",
+  "pytest-dotenv",
+  "pytest-cov",
+  "pytest-asyncio",
+  "python-multipart",
+  "jinja2",
+]
 linting = [
   "flake8>=7.2.0",
   "flake8-docstrings>=1.7.0",

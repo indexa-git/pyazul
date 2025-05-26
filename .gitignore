@@ -1,6 +1,10 @@
 # Created by https://www.toptal.com/developers/gitignore/api/python,visualstudiocode,windows,macos,linux,pycharm
 # Edit at https://www.toptal.com/developers/gitignore?templates=python,visualstudiocode,windows,macos,linux,pycharm
 
+### Project specific ###
+*.key
+*.crt
+
 ### Linux ###
 *~
 

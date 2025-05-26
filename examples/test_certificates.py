@@ -14,23 +14,23 @@ def print_separator():
 async def test_certificates():
     """Tests the loading and verification of SSL certificates."""
     print_separator()
-    print("1. Iniciando prueba de certificados...")
+    print("1. Starting certificate test...")
 
     try:
-        # Primero obtener la configuración para ver los mensajes de debug
-        print("\n2. Cargando configuración...")
+        # First get the configuration to see debug messages
+        print("\n2. Loading configuration...")
         settings = get_azul_settings()
         cert_path, key_path = settings._load_certificates()
-        print("\nCertificados cargados:")
-        print(f"- Certificado: {cert_path}")
-        print(f"- Llave: {key_path}")
+        print("\nCertificates loaded:")
+        print(f"- Certificate: {cert_path}")
+        print(f"- Key: {key_path}")
 
-        print("\n3. Verificando archivos...")
+        print("\n3. Verifying files...")
         await verify_certificate_loading()
 
     except Exception as e:
         print(f"\nError: {str(e)}")
-        print("\nDetalles del error:")
+        print("\nError details:")
         import traceback
 
         traceback.print_exc()
@@ -39,41 +39,41 @@ async def test_certificates():
 
 async def verify_certificate_loading():
     """Verify that certificates are loaded correctly."""
-    print("\nVerificando archivos de certificados:")
+    print("\nVerifying certificate files:")
 
-    # Obtener rutas de los certificados
+    # Get certificate paths
     settings = get_azul_settings()
     cert_path, key_path = settings._load_certificates()
 
-    # Verificar existencia
-    print("\nExistencia de archivos:")
-    print(f"- Certificado existe: {os.path.exists(cert_path)}")
-    print(f"- Llave existe: {os.path.exists(key_path)}")
+    # Verify existence
+    print("\nFile existence:")
+    print(f"- Certificate exists: {os.path.exists(cert_path)}")
+    print(f"- Key exists: {os.path.exists(key_path)}")
 
-    # Verificar permisos
-    print("\nPermisos de archivos:")
+    # Verify permissions
+    print("\nFile permissions:")
     cert_perms = oct(os.stat(cert_path).st_mode)[-3:]
     key_perms = oct(os.stat(key_path).st_mode)[-3:]
-    print(f"- Permisos certificado: {cert_perms}")
-    print(f"- Permisos llave: {key_perms}")
+    print(f"- Certificate permissions: {cert_perms}")
+    print(f"- Key permissions: {key_perms}")
 
-    # Verificar contenido
-    print("\nContenido del certificado:")
+    # Verify content
+    print("\nCertificate content:")
     with open(cert_path, "r") as f:
         cert_content = f.read()
-        print("- Tiene BEGIN marker:", "-----BEGIN CERTIFICATE-----" in cert_content)
-        print("- Tiene END marker:", "-----END CERTIFICATE-----" in cert_content)
-        print("- Longitud:", len(cert_content))
+        print("- Has BEGIN marker:", "-----BEGIN CERTIFICATE-----" in cert_content)
+        print("- Has END marker:", "-----END CERTIFICATE-----" in cert_content)
+        print("- Length:", len(cert_content))
 
-    print("\nContenido de la llave:")
+    print("\nKey content:")
     with open(key_path, "r") as f:
         key_content = f.read()
-        print("- Tiene BEGIN marker:", "-----BEGIN PRIVATE KEY-----" in key_content)
-        print("- Tiene END marker:", "-----END PRIVATE KEY-----" in key_content)
-        print("- Longitud:", len(key_content))
+        print("- Has BEGIN marker:", "-----BEGIN PRIVATE KEY-----" in key_content)
+        print("- Has END marker:", "-----END PRIVATE KEY-----" in key_content)
+        print("- Length:", len(key_content))
 
 
 if __name__ == "__main__":
-    print("\nPrueba de carga de certificados")
+    print("\nCertificate Loading Test")
     print("=" * 60)
     asyncio.run(test_certificates())

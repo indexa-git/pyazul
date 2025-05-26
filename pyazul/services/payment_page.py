@@ -48,9 +48,9 @@ class PaymentPageService:
 
     def _generate_auth_hash(self, payment_request: PaymentPageModel) -> str:
         """Generate authentication hash for the payment request."""
-        if self.settings.AZUL_MERCHANT_ID is None:
+        if self.settings.MERCHANT_ID is None:
             raise ValueError(
-                "AZUL_MERCHANT_ID must be set for payment page hash generation."
+                "MERCHANT_ID must be set for payment page hash generation."
             )
         if self.settings.MERCHANT_NAME is None:
             raise ValueError(
@@ -67,7 +67,7 @@ class PaymentPageService:
 
         # Create the string to hash following Azul's specification
         has_components = [
-            self.settings.AZUL_MERCHANT_ID,
+            self.settings.MERCHANT_ID,
             self.settings.MERCHANT_NAME,
             self.settings.MERCHANT_TYPE,
             payment_request.CurrencyCode,
@@ -122,7 +122,7 @@ class PaymentPageService:
 
         form_fields = [
             f'<input type="hidden" id="MerchantId" name="MerchantId" '
-            f'value="{self.settings.AZUL_MERCHANT_ID}" />',
+            f'value="{self.settings.MERCHANT_ID}" />',
             f'<input type="hidden" id="MerchantName" name="MerchantName" '
             f'value="{self.settings.MERCHANT_NAME}" />',
             f'<input type="hidden" id="MerchantType" name="MerchantType" '

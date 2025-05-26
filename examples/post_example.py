@@ -20,8 +20,9 @@ async def main():
         "CVC": "979",
         "Amount": "1000",
         "Itbis": "100",
-        "OrderNumber": "HOLD-FOR-POST-001",
+        "OrderNumber": "001002003004005",
         "CustomOrderId": "hold_test_to_post",
+        "ForceNo3DS": "1",  # bypass 3D Secure
     }
     hold_result = await azul.hold(hold_transaction_data)
     print("Hold Result:", hold_result)

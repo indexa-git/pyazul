@@ -2,6 +2,7 @@
 
 import pytest
 
+from pyazul.api.client import AzulAPI
 from pyazul.core.config import get_azul_settings
 from pyazul.models.schemas import RefundTransactionModel, SaleTransactionModel
 from pyazul.services.transaction import TransactionService
@@ -15,7 +16,8 @@ def transaction_service():
     Used for processing direct card payments and refunds.
     """
     settings = get_azul_settings()
-    return TransactionService(settings)
+    api_client = AzulAPI(settings)  # Create AzulAPI instance
+    return TransactionService(api_client)  # Pass the api_client
 
 
 @pytest.fixture

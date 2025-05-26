@@ -12,6 +12,7 @@ This example includes:
 """
 
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -25,7 +26,11 @@ from pyazul.core.exceptions import AzulError
 from pyazul.models.secure import CardHolderInfo, ThreeDSAuth
 
 app = FastAPI()
-templates = Jinja2Templates(directory="templates")
+
+# Construct an absolute path to the templates directory
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(SCRIPT_DIR, "templates")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 logger = logging.getLogger(__name__)
 

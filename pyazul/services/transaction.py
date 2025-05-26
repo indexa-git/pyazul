@@ -93,11 +93,15 @@ class TransactionService:
         transaction: VerifyTransactionModel,
     ) -> Dict[str, Any]:
         """Verify a transaction by checking its status."""
-        return await self.api._async_request(transaction.model_dump())
+        return await self.api._async_request(
+            transaction.model_dump(), operation="VerifyPayment"
+        )
 
     async def void(self, transaction: VoidTransactionModel) -> Dict[str, Any]:
         """Void a transaction."""
-        return await self.api._async_request(transaction.model_dump(exclude_none=True))
+        return await self.api._async_request(
+            transaction.model_dump(exclude_none=True), operation="ProcessVoid"
+        )
 
     async def post_sale(
         self,
@@ -105,4 +109,4 @@ class TransactionService:
     ) -> Dict[str, Any]:
         """Process a post sale transaction (capture a hold)."""
         payload = transaction.model_dump(exclude_none=True)
-        return await self.api._async_request(payload)
+        return await self.api._async_request(payload, operation="ProcessPost")

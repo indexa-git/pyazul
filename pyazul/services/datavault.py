@@ -48,7 +48,9 @@ class DataVaultService:
         """
         if token_data.TrxType != "CREATE":
             raise ValueError("TrxType must be CREATE for creating a token.")
-        return await self.api._async_request(token_data.model_dump(exclude_none=True))
+        return await self.api._async_request(
+            token_data.model_dump(exclude_none=True), operation="ProcessDatavault"
+        )
 
     async def delete(
         self, token_data: DataVaultRequestModel
@@ -68,4 +70,6 @@ class DataVaultService:
         """
         if token_data.TrxType != "DELETE":
             raise ValueError("TrxType must be DELETE for deleting a token.")
-        return await self.api._async_request(token_data.model_dump())
+        return await self.api._async_request(
+            token_data.model_dump(), operation="ProcessDatavault"
+        )

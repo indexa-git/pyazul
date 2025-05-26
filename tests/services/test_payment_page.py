@@ -1,7 +1,7 @@
 """Tests for Payment Page functionalities of the PyAzul SDK."""
 
 import pytest
-from pydantic import ValidationError
+from pydantic import HttpUrl, ValidationError
 
 from pyazul.core.config import get_azul_settings
 from pyazul.models.schemas import PaymentPageModel
@@ -21,9 +21,10 @@ def valid_payment_request():
     return PaymentPageModel(
         Amount="100000",  # $1,000.00
         ITBIS="18000",  # $180.00
-        ApprovedUrl="https://example.com/approved",
-        DeclineUrl="https://example.com/declined",
-        CancelUrl="https://example.com/cancel",
+        ApprovedUrl=HttpUrl("https://example.com/approved"),
+        DeclineUrl=HttpUrl("https://example.com/declined"),
+        CancelUrl=HttpUrl("https://example.com/cancel"),
+        AltMerchantName=None,
     )
 
 
@@ -35,9 +36,10 @@ class TestPaymentPageModel:
         model = PaymentPageModel(
             Amount="100000",  # $1,000.00
             ITBIS="18000",  # $180.00
-            ApprovedUrl="https://example.com/approved",
-            DeclineUrl="https://example.com/declined",
-            CancelUrl="https://example.com/cancel",
+            ApprovedUrl=HttpUrl("https://example.com/approved"),
+            DeclineUrl=HttpUrl("https://example.com/declined"),
+            CancelUrl=HttpUrl("https://example.com/cancel"),
+            AltMerchantName=None,
         )
         assert model.Amount == "100000"
         assert model.ITBIS == "18000"
@@ -47,9 +49,10 @@ class TestPaymentPageModel:
         model = PaymentPageModel(
             Amount="100000",
             ITBIS="0",
-            ApprovedUrl="https://example.com/approved",
-            DeclineUrl="https://example.com/declined",
-            CancelUrl="https://example.com/cancel",
+            ApprovedUrl=HttpUrl("https://example.com/approved"),
+            DeclineUrl=HttpUrl("https://example.com/declined"),
+            CancelUrl=HttpUrl("https://example.com/cancel"),
+            AltMerchantName=None,
         )
         assert model.ITBIS == "000"
 
@@ -59,9 +62,10 @@ class TestPaymentPageModel:
             PaymentPageModel(
                 Amount="1000.00",  # Invalid: contains decimal point
                 ITBIS="180.00",  # Invalid: contains decimal point
-                ApprovedUrl="https://example.com/approved",
-                DeclineUrl="https://example.com/declined",
-                CancelUrl="https://example.com/cancel",
+                ApprovedUrl=HttpUrl("https://example.com/approved"),
+                DeclineUrl=HttpUrl("https://example.com/declined"),
+                CancelUrl=HttpUrl("https://example.com/cancel"),
+                AltMerchantName=None,
             )
 
     def test_custom_field_validation(self):
@@ -71,12 +75,13 @@ class TestPaymentPageModel:
             PaymentPageModel(
                 Amount="100000",
                 ITBIS="18000",
-                ApprovedUrl="https://example.com/approved",
-                DeclineUrl="https://example.com/declined",
-                CancelUrl="https://example.com/cancel",
+                ApprovedUrl=HttpUrl("https://example.com/approved"),
+                DeclineUrl=HttpUrl("https://example.com/declined"),
+                CancelUrl=HttpUrl("https://example.com/cancel"),
                 UseCustomField1="1",  # Enabled but no label/value
                 CustomField1Label="",
                 CustomField1Value="",
+                AltMerchantName=None,
             )
 
     def test_string_representation(self):
@@ -84,9 +89,10 @@ class TestPaymentPageModel:
         model = PaymentPageModel(
             Amount="100000",  # $1,000.00
             ITBIS="18000",  # $180.00
-            ApprovedUrl="https://example.com/approved",
-            DeclineUrl="https://example.com/declined",
-            CancelUrl="https://example.com/cancel",
+            ApprovedUrl=HttpUrl("https://example.com/approved"),
+            DeclineUrl=HttpUrl("https://example.com/declined"),
+            CancelUrl=HttpUrl("https://example.com/cancel"),
+            AltMerchantName=None,
         )
         expected = "Payment Request - Amount: $1000.00, ITBIS: $180.00"
         assert str(model) == expected

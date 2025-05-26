@@ -9,6 +9,7 @@ This application showcases:
 
 import json
 import logging
+import os
 from datetime import datetime
 from typing import Any, Dict, List, Optional
 
@@ -30,8 +31,12 @@ from pyazul.models import CardHolderInfo, SecureChallengeRequest, SecureSessionI
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI application
-app = FastAPI(title="Azul Token Payment Demo")
-templates = Jinja2Templates(directory="templates")
+app = FastAPI(title="Azul Token Secure WebApp Demo")
+
+# Construct an absolute path to the templates directory
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = os.path.join(SCRIPT_DIR, "templates")
+templates = Jinja2Templates(directory=TEMPLATES_DIR)
 
 # Initialize PyAzul Facade
 azul = PyAzul()
@@ -260,12 +265,18 @@ async def process_token_payment(
             if not app_3ds_session_store[secure_id]["azul_order_id"]:
                 pyazul_session = await azul.get_secure_session_info(secure_id)
                 if isinstance(pyazul_session, dict):
-                    retrieved_id = pyazul_session.get("azul_order_id")
-                    if isinstance(retrieved_id, str):
-                        app_3ds_session_store[secure_id]["azul_order_id"] = retrieved_id
-                        logger.info(
-                            f"Retrieved AzulId for {secure_id} post secure_token_sale"
+                    retrieved_azul_order_id = pyazul_session.get("azul_order_id")
+                    if isinstance(retrieved_azul_order_id, str):
+                        app_3ds_session_store[secure_id][
+                            "azul_order_id"
+                        ] = retrieved_azul_order_id
+                        logger.info(f"Retrieved AzulId for {secure_id}")
+                    elif retrieved_azul_order_id is not None:
+                        logger.warning(
+                            f"AzulId for {secure_id} not str: {type(retrieved_azul_order_id)}"  # noqa: E501
                         )
+                elif pyazul_session is not None:
+                    logger.warning(f"pyazul_session for {secure_id} not dict")
 
         return response
 

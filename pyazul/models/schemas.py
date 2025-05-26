@@ -216,9 +216,6 @@ class RefundTransactionModel(AzulBaseModel):
         description="Original merchant order number for the transaction. (X(15))",
     )
     TrxType: Literal["Refund"] = "Refund"
-    AcquirerRefData: str = Field(
-        "1", description="Acquirer reference. Fixed '1' (AZUL internal use). (N(1))"
-    )
     CustomOrderId: Optional[str] = Field(
         None, description="Original custom merchant order ID. (X(75))"
     )
@@ -253,7 +250,7 @@ class DataVaultRequestModel(BaseModel):
     )
     CVC: Optional[str] = Field(
         None,
-        description="Security code (optional for CREATE). (N(3))",
+        description="Security code. Optional for CREATE, not used for DELETE. (N(3))",
         min_length=3,
         max_length=4,
     )

@@ -92,12 +92,8 @@ class AzulAPI:
             Dict[str, Any]: Headers dictionary with appropriate authentication
         """
         headers = self.base_headers.copy()
-        if is_secure:
-            headers["Auth1"] = self.settings.AUTH1_3D
-            headers["Auth2"] = self.settings.AUTH2_3D
-        else:
-            headers["Auth1"] = self.auth1
-            headers["Auth2"] = self.auth2
+        headers["Auth1"] = self.auth1
+        headers["Auth2"] = self.auth2
         return headers
 
     def _build_endpoint(self, operation: str = "") -> str:

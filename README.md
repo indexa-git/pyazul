@@ -30,14 +30,9 @@ AZUL_CERT=/path/to/certificate.pem  # Can be a file path or the direct PEM strin
 AZUL_KEY=/path/to/key.pem    # Can be a file path, direct PEM string content, or Base64 encoded PEM content
 
 # Payment Page Settings (Optional - only if using Payment Page feature)
-AZUL_MERCHANT_ID=your_merchant_id_for_page # Often the same as MERCHANT_ID
 AZUL_AUTH_KEY=your_auth_key_for_page
 MERCHANT_NAME=Your_Business_Name
 MERCHANT_TYPE=Your_Business_Type
-
-# 3D Secure Settings (Required for 3DS operations)
-AUTH1_3D=your_auth1_3d
-AUTH2_3D=your_auth2_3d
 ```
 
 **Note on Certificates**: `AZUL_CERT` and `AZUL_KEY` can be provided as file paths. Alternatively, `AZUL_CERT` can be the full PEM content as a string, and `AZUL_KEY` can be the full PEM content as a string or a Base64 encoded PEM string. The library handles creating temporary files for PEM content internally.
@@ -60,9 +55,7 @@ azul = PyAzul()  # Automatically loads settings from .env and environment variab
 #     MERCHANT_ID="your_merchant_id",
 #     AZUL_CERT="-----BEGIN CERTIFICATE-----...", # Direct PEM content example
 #     AZUL_KEY="/path/to/your/private.key",    # File path example
-#     ENVIRONMENT="dev",
-#     AUTH1_3D="your_auth1_3d", # Include 3DS credentials if needed
-#     AUTH2_3D="your_auth2_3d"
+#     ENVIRONMENT="dev"
 # )
 # azul = PyAzul(settings=settings)
 ```
@@ -184,7 +177,7 @@ async def get_payment_page(order_id: str):
 
 ## 3D Secure Implementation Guide
 
-PyAzul provides comprehensive support for 3D Secure 2.0. This section guides you through the multi-step 3DS flow. Ensure you have configured your 3DS credentials (`AUTH1_3D`, `AUTH2_3D`) in your `.env` file as outlined in the "Quick Setup & Configuration" section.
+PyAzul provides comprehensive support for 3D Secure 2.0. This section guides you through the multi-step 3DS flow. Ensure you have configured your credentials (`AUTH1`, `AUTH2`) in your `.env` file as outlined in the "Quick Setup & Configuration" section.
 
 ### Overview of the 3DS Flow with PyAzul
 

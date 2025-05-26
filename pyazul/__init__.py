@@ -39,8 +39,7 @@ from .models import (
     AzulBaseModel,
     CardHolderInfo,
     ChallengeIndicator,
-    DataVaultCreateModel,
-    DataVaultDeleteModel,
+    DataVaultRequestModel,
     HoldTransactionModel,
     PaymentPageModel,
     PostSaleTransactionModel,
@@ -53,9 +52,8 @@ from .models import (
     VerifyTransactionModel,
     VoidTransactionModel,
 )
-from .services.datavault import DataVaultService
-from .services.payment_page import PaymentPageService
-from .services.transaction import TransactionService
+from .services import DataVaultService, PaymentPageService, TransactionService
+from .services.secure import SecureService
 
 __all__ = [
     # Main class
@@ -65,16 +63,16 @@ __all__ = [
     "AzulSettings",
     "AzulError",
     # Services
-    "DataVaultService",
     "TransactionService",
+    "DataVaultService",
     "PaymentPageService",
+    "SecureService",
     # Models
     "AzulBaseModel",
     "SaleTransactionModel",
     "HoldTransactionModel",
     "RefundTransactionModel",
-    "DataVaultCreateModel",
-    "DataVaultDeleteModel",
+    "DataVaultRequestModel",
     "TokenSaleModel",
     "PostSaleTransactionModel",
     "VerifyTransactionModel",

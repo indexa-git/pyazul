@@ -29,7 +29,6 @@ class AzulSettings(BaseSettings):
     """
 
     # Payment Page Settings
-    AZUL_MERCHANT_ID: Optional[str] = None
     AZUL_AUTH_KEY: Optional[str] = None
     MERCHANT_NAME: Optional[str] = None
     MERCHANT_TYPE: Optional[str] = None
@@ -37,8 +36,6 @@ class AzulSettings(BaseSettings):
     # Authentication Settings
     AUTH1: Optional[str] = None
     AUTH2: Optional[str] = None
-    AUTH1_3D: str = ""
-    AUTH2_3D: str = ""
     MERCHANT_ID: Optional[str] = None
     CHANNEL: str = "EC"
 
@@ -150,10 +147,6 @@ class AzulSettings(BaseSettings):
         """Validate that all required configuration fields are set."""
         # Always required fields
         always_required_fields = {
-            "AZUL_MERCHANT_ID": self.AZUL_MERCHANT_ID,
-            "AZUL_AUTH_KEY": self.AZUL_AUTH_KEY,
-            "MERCHANT_NAME": self.MERCHANT_NAME,
-            "MERCHANT_TYPE": self.MERCHANT_TYPE,
             "AUTH1": self.AUTH1,
             "AUTH2": self.AUTH2,
             "MERCHANT_ID": self.MERCHANT_ID,

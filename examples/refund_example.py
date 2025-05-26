@@ -29,26 +29,33 @@ async def test_refund():
             "Store": settings.MERCHANT_ID,
             "Channel": "EC",
             "PosInputMode": "E-Commerce",
-            "Amount": "1000",  # $10.00
-            "Itbis": "180",  # $1.80 tax
-            "CardNumber": "5413330089600119",  # Test card
+            "Amount": "1000",
+            "Itbis": "180",
+            "CardNumber": "5413330089600119",
             "Expiration": "202812",
             "CVC": "979",
-            "OrderNumber": "SALE-FOR-REFUND-001",
+            "OrderNumber": "002003004005006",  # Numeric OrderNumber
             "CustomOrderId": "refund-test-001",
             "SaveToDataVault": "1",
+            "ForceNo3DS": "1",  # Bypass 3D Secure for the initial sale
         }
 
         payment_response = await azul.sale(payment_data)
+        print(f"Initial Payment Response: {payment_response}")
 
         if payment_response.get("ResponseMessage") != "APROBADA":
             err_desc = payment_response.get(
-                "ErrorDescription", payment_response.get("ResponseMessage")
+                "ErrorDescription",
+                payment_response.get(
+                    "ResponseMessage", "Unknown error during payment."
+                ),
             )
             raise Exception(f"Initial payment failed: {err_desc}")
 
         azul_order_id = payment_response.get("AzulOrderId")
         original_order_number = payment_data["OrderNumber"]
+        if not azul_order_id:
+            raise Exception("AzulOrderId not found in successful payment response.")
         print(f"Payment successful. AzulOrderId: {azul_order_id}")
 
         # 2. Process refund
@@ -56,25 +63,39 @@ async def test_refund():
         refund_data = {
             "Store": settings.MERCHANT_ID,
             "Channel": "EC",
-            "PosInputMode": "E-Commerce",
             "Amount": "1000",
             "Itbis": "180",
             "AzulOrderId": azul_order_id,
             "OrderNumber": original_order_number,
+            "PosInputMode": "E-Commerce",
         }
 
         refund_response = await azul.refund(refund_data)
+        print(f"Refund Attempt Response: {refund_response}")
 
-        # Display refund results
-        print("\nRefund Response:")
-        print("-" * 50)
-        print(f"ISO Code: {refund_response.get('IsoCode')}")
-        print(f"RRN: {refund_response.get('RRN')}")
-        print(f"AzulOrderId: {refund_response.get('AzulOrderId')}")
-        print("-" * 50)
+        if (
+            refund_response.get("ResponseMessage") == "APROBADA"
+            and refund_response.get("IsoCode") == "00"
+        ):
+            print("\nRefund Processed Successfully:")
+            print("-" * 50)
+            print(f"ISO Code: {refund_response.get('IsoCode')}")
+            print(f"RRN: {refund_response.get('RRN')}")
+            print(f"AzulOrderId (Refund): {refund_response.get('AzulOrderId')}")
+            print("-" * 50)
+        else:
+            err_desc_refund = refund_response.get(
+                "ErrorDescription",
+                refund_response.get("ResponseMessage", "Unknown error during refund."),
+            )
+            print(f"Refund failed or was not approved. Details: {err_desc_refund}")
+            print(f"Full refund response: {refund_response}")
 
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"An error occurred: {str(e)}")
+        # For deeper debugging, you might want to print the full traceback
+        # import traceback
+        # traceback.print_exc()
 
 
 if __name__ == "__main__":

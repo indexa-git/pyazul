@@ -33,7 +33,6 @@ async def test_datavault_flow():
     card_details = {
         "CardNumber": "5413330089600119",
         "Expiration": "202812",
-        # CVC is optional for create, can be added if needed
     }
     common_datavault_params = {
         "Channel": "EC",
@@ -49,8 +48,9 @@ async def test_datavault_flow():
             "TrxType": "CREATE",
         }
         token_response = await azul.create_token(create_payload_dict)
+        print(f"Full token_response from create_token: {token_response}")
 
-        if token_response.get("ResponseMessage") != "Approved":
+        if token_response.get("ResponseMessage") != "APROBADA":
             err_desc = token_response.get(
                 "ErrorDescription", token_response.get("ResponseMessage")
             )
@@ -68,8 +68,7 @@ async def test_datavault_flow():
             "Amount": "1000",
             "Itbis": "180",
             "DataVaultToken": token,
-            "OrderNumber": "DSALE-001",
-            "CustomOrderId": "token-sale-example-001",
+            "OrderNumber": "003004005006007",
         }
         sale_response = await azul.token_sale(token_sale_data)
         print(f"Sale response: {sale_response}")
@@ -88,7 +87,7 @@ async def test_datavault_flow():
         }
         delete_response = await azul.delete_token(delete_payload_dict)
         print(f"Delete response: {delete_response}")
-        if delete_response.get("ResponseMessage") != "Approved":
+        if delete_response.get("ResponseMessage") != "APROBADA":
             err_desc = delete_response.get(
                 "ErrorDescription", delete_response.get("ResponseMessage")
             )

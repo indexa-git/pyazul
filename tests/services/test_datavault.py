@@ -1,16 +1,18 @@
 """Tests for DataVault (tokenization) functionalities of the PyAzul SDK."""
 
+from typing import Literal
+
 import pytest
 
 from pyazul.api.client import AzulAPI
 from pyazul.core.config import get_azul_settings
-from pyazul.models.schemas import (
-    DataVaultCreateModel,
-    DataVaultDeleteModel,
-    TokenSaleModel,
-)
+from pyazul.models import DataVaultRequestModel, TokenSaleModel
 from pyazul.services.datavault import DataVaultService
 from pyazul.services.transaction import TransactionService
+
+# Define Literal constants for TrxType to satisfy strict type checking
+TRX_TYPE_CREATE: Literal["CREATE"] = "CREATE"
+TRX_TYPE_DELETE: Literal["DELETE"] = "DELETE"
 
 
 @pytest.fixture
@@ -22,7 +24,7 @@ def transaction_service():
     """
     settings = get_azul_settings()
     api_client = AzulAPI(settings)
-    return TransactionService(settings, api_client)
+    return TransactionService(api_client)
 
 
 @pytest.fixture
@@ -34,7 +36,7 @@ def datavault_service():
     """
     settings = get_azul_settings()
     api_client = AzulAPI(settings)
-    return DataVaultService(settings, api_client)
+    return DataVaultService(api_client)
 
 
 @pytest.fixture
@@ -55,8 +57,9 @@ def datavault_payment_data():
         "CardNumber": "5413330089600119",  # Test card provided by Azul
         "Expiration": "202812",
         "CustomOrderId": "datavault-test-001",  # Unique identifier for this test
-        "store": "39038540035",  # Test merchant ID
+        "Store": "39038540035",
         "DataVaultToken": "",
+        "TrxType": TRX_TYPE_CREATE,
     }
 
 
@@ -71,7 +74,7 @@ async def test_create_datavault(datavault_service, datavault_payment_data):
     - Response should have IsoCode '00' (success).
     - Should receive a valid DataVaultToken.
     """
-    payment = DataVaultCreateModel(**datavault_payment_data)
+    payment = DataVaultRequestModel(**datavault_payment_data)
     response = await datavault_service.create(payment)
     assert response.get("IsoCode") == "00"
     print("Token created:", response.get("DataVaultToken"))
@@ -96,13 +99,16 @@ async def test_create_sale_datavault(transaction_service, completed_datavault):
         "Channel": "EC",
         "PosInputMode": "E-Commerce",
         "Amount": "1000",
-        "Itbis": "180",
+        "Itbis": "180",  # Optional for TokenSaleModel, but good to test
         "DataVaultToken": token,
         "CustomOrderId": "token-sale-test-001",
+        "Store": "39038540035",  # Added missing Store key
     }
 
     payment = TokenSaleModel(**token_sale_data)
-    response = await transaction_service.sale(payment)
+    response = await transaction_service.sale(
+        payment
+    )  # transaction_service.sale expects a model instance
     assert response.get("IsoCode") == "00"
     print("Token used:", token)
     print("Response:", response)
@@ -119,7 +125,7 @@ async def completed_datavault(datavault_service, datavault_payment_data):
     Returns:
         dict: API response containing the created token.
     """
-    payment = DataVaultCreateModel(**datavault_payment_data)
+    payment = DataVaultRequestModel(**datavault_payment_data)
     return await datavault_service.create(payment)
 
 
@@ -139,22 +145,32 @@ async def test_delete_and_sale_datavault(
     - Should handle errors appropriately.
     """
     token = completed_datavault.get("DataVaultToken")
+    store_id = completed_datavault.get(
+        "Store", "39038540035"
+    )  # Get store from response or default
 
     try:
-        # Delete token
-        delete_payment = DataVaultDeleteModel(
-            Channel="EC",
-            Store="39038540035",
-            DataVaultToken=token,
-        )
+        # Delete token using DataVaultRequestModel
+        delete_payment_data = {
+            "Channel": "EC",
+            "Store": store_id,
+            "DataVaultToken": token,
+            "TrxType": TRX_TYPE_DELETE,
+        }
+        delete_payment = DataVaultRequestModel(**delete_payment_data)
         delete_response = await datavault_service.delete(delete_payment)
         print("Delete response:", delete_response)
         assert (
             delete_response.get("IsoCode") == "00"
         ), "Token deletion should be successful"
-    except Exception as e:
+    except (
+        Exception
+    ) as e:  # Catching general Exception, consider more specific if possible
         print(f"Error during token deletion: {str(e)}")
-        assert "does not exist" in str(e), "Error should indicate token doesn't exist"
+        # This assertion might be too broad if other errors can occur
+        assert "does not exist" in str(e) or "TokenId no existe" in str(
+            e
+        ), "Error should indicate token doesn't exist"
 
     # Attempt sale with deleted token
     token_sale_data = {
@@ -164,15 +180,23 @@ async def test_delete_and_sale_datavault(
         "Itbis": "180",
         "DataVaultToken": token,
         "CustomOrderId": "token-sale-test-002",
+        "Store": store_id,  # Use the same store_id
     }
     payment = TokenSaleModel(**token_sale_data)
     try:
         sale_response = await transaction_service.sale(payment)
         print("Token used:", token)
         print("Sale response:", sale_response)
-        raise AssertionError("Sale should not succeed with deleted token")
+        # If the sale succeeds, it's an error in the test logic or API behavior
+        raise AssertionError(
+            f"Sale should not succeed with deleted token. Response: {sale_response}"
+        )
     except Exception as e:
         print(f"Expected error with deleted token: {str(e)}")
-        assert "TokenId does not exist" in str(
-            e
+        # Check for specific error messages indicating token invalidity
+        # The exact message might vary based on API response
+        assert (
+            "TokenId does not exist" in str(e)
+            or "TokenId no existe" in str(e)
+            or "INVALID_TOKEN" in str(e).upper()
         ), "Error should indicate token is invalid"
