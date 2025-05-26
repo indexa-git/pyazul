@@ -1,0 +1,55 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# PyAzul `PaymentSchema` Validation Logic
+
+This document outlines the logic used within `PaymentSchema.validate_payment` in `[pyazul/models/schemas.py](mdc:pyazul/models/schemas.py)` to discriminate and parse input data into the correct Pydantic transaction model. This is based on the decisions in `[docs/decisions/005-refactor-paymentschema-validation.md](mdc:docs/decisions/005-refactor-paymentschema-validation.md)`.
+
+## Context
+
+Due to varying API request structures for different Azul Webservices operations (some use `TrxType`, others are identified by unique field combinations), a `RootModel` (`PaymentSchema`) is used with a custom `validate_payment` classmethod to dynamically instantiate the correct Pydantic model.
+
+The primary source of truth for model fields and API requirements is `[docs/development/azul_documentation.md](mdc:docs/development/azul_documentation.md)`.
+
+## Discrimination Strategy
+
+A sequential, heuristic-based approach is used. The order of checks is critical:
+
+1.  **Identify by Unique Fields (Non-`TrxType` Models First)**:
+    *   **`VerifyTransactionModel`**: Primarily identified by the presence of `CustomOrderId` AND the absence of other key fields that might cause ambiguity (like `AzulOrderId` or `Amount` without `TrxType`). The specific check is `"CustomOrderId" in value and "AzulOrderId" not in value and "Amount" not in value and "TrxType" not in value`.
+    *   **Models with `AzulOrderId` (and no `TrxType`)**:
+        *   **`PostSaleTransactionModel`**: Identified by `AzulOrderId`, `Amount`, `Itbis`, `Channel`, `Store`. A length check (`len(value) <= 5`) is used as a heuristic, assuming these are the *only* fields for a direct `ProcessPost` call.
+        *   **`VoidTransactionModel`**: Identified by `AzulOrderId`, `Channel`, `Store`. A length check (`len(value) <= 3`) is used as a heuristic for this minimal field set.
+
+2.  **Identify by `TrxType` (Fallback)**:
+    *   If the model isn't identified by the unique checks above, `trx_type = value.get("TrxType")` is used.
+    *   `TrxType == "CREATE"`: Returns `DataVaultCreateModel`.
+    *   `TrxType == "DELETE"`: Returns `DataVaultDeleteModel`.
+    *   `TrxType == "Hold"`: Returns `HoldTransactionModel`.
+    *   `TrxType == "Refund"`: Returns `RefundTransactionModel`. (Additional check for `AzulOrderId` and `Amount` for robustness).
+    *   `TrxType == "Sale"`:
+        *   If `"DataVaultToken" in value`: Returns `TokenSaleModel`.
+        *   Else if `"CardNumber" in value`: Returns `SaleTransactionModel`.
+
+3.  **Error on No Match**:
+    *   If no model can be confidently identified based on the above logic, a `ValueError` is raised. This is preferable to incorrectly defaulting to a model.
+
+## Included Models in `PaymentSchema.root` Union
+
+The `PaymentSchema.root` field (a `Union`) must include all transaction models that `validate_payment` can produce:
+-   `SaleTransactionModel`
+-   `HoldTransactionModel`
+-   `RefundTransactionModel`
+-   `DataVaultCreateModel`
+-   `DataVaultDeleteModel`
+-   `TokenSaleModel`
+-   `PostSaleTransactionModel`
+-   `VerifyTransactionModel`
+-   `VoidTransactionModel`
+
+## Important Considerations
+
+*   The heuristic checks (like `len(value)`) for `PostSaleTransactionModel` and `VoidTransactionModel` assume that the input `value` dictionary passed to `validate_payment` accurately represents only the fields intended for that specific operation. If `value` might contain extra, unrelated keys, these length checks could be fragile.
+*   This logic is tightly coupled with the field definitions in each model and the Azul API specifications. Changes to API requirements or model structures will necessitate updates to `validate_payment` and potentially this rule.

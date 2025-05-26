@@ -1,0 +1,913 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+\
+---
+description: A consolidated guide to Python best practices, covering various versions and features.
+globs: ["*.py"]
+alwaysApply: false
+---
+
+# Python Best Practices: A Consolidated Guide
+
+This document consolidates various Python best practices, coding conventions, and features across different Python versions.
+
+---
+
+## Python Best Practice: Writing Meaningful Docstrings
+
+Docstrings (documentation strings) are essential for creating understandable, maintainable, and usable Python code. They provide a convenient way to associate documentation with Python modules, functions, classes, and methods.
+
+### Why Docstrings Matter
+- **Readability & Understanding**: They explain what the code does, its parameters, what it returns, and any exceptions it might raise.
+- **Auto-documentation**: Tools like Sphinx can automatically generate project documentation from docstrings.
+- **IDE Integration**: Modern IDEs use docstrings to provide context help and type information.
+- **`help()` function**: Python\'s built-in `help()` function displays docstrings.
+- **Team Collaboration**: Essential for a shared understanding of the codebase.
+
+### What to Document
+Every public module, function, class, and method should have a docstring. Internal (private) components can also benefit from docstrings, especially if their logic is complex.
+
+### Structure of a Good Docstring
+
+While there are several conventions (Google, NumPy, reStructuredText), they generally share common elements:
+
+1.  **Summary Line**:
+    *   A concise, one-line summary of the object\'s purpose.
+    *   Should begin with a capital letter and end with a period.
+    *   For functions/methods, it should be in the imperative mood (e.g., "Return the sum..." not "Returns the sum...").
+    *   If the docstring is multi-line, the summary line should be followed by a blank line.
+
+2.  **Extended Description (Optional)**:
+    *   One or more paragraphs elaborating on the summary.
+    *   Explain algorithms, edge cases, or important details.
+
+3.  **Parameters/Arguments Section** (for functions and methods):
+    *   List each parameter by name.
+    *   Provide its type (e.g., `param_name (type): Description.`).
+    *   Explain its purpose and if it\'s optional or has a default value.
+
+4.  **Returns Section** (for functions and methods that return a value):
+    *   Describe the type and meaning of the returned value (e.g., `Returns:
+          type: Description.`).
+    *   If multiple values are returned (e.g., in a tuple), document each.
+
+5.  **Attributes Section** (for classes):
+    *   Document public attributes, their types, and their purpose.
+
+6.  **Raises Section** (Optional):
+    *   List exceptions that the function/method can explicitly raise and under what conditions.
+
+7.  **Examples (Highly Recommended)**:
+    *   Short, runnable code snippets demonstrating how to use the function/class (often using `doctest` format).
+
+### Common Docstring Formats
+
+Choose **one** format and use it consistently throughout the project.
+
+*   **Google Style**:
+    ```python
+    def example_function(param1: int, param2: str) -> bool:
+        \"\"\"Does something interesting.
+
+        This function demonstrates the Google docstring format. It takes two
+        parameters and returns a boolean.
+
+        Args:
+            param1: The first parameter, an integer.
+            param2: The second parameter, a string.
+
+        Returns:
+            True if successful, False otherwise.
+
+        Raises:
+            ValueError: If param1 is negative.
+        \"\"\"
+        if param1 < 0:
+            raise ValueError("param1 cannot be negative")
+        return True
+    ```
+
+*   **reStructuredText (Sphinx-friendly)**:
+    ```python
+    def example_function(param1: int, param2: str) -> bool:
+        \"\"\"Does something interesting.
+
+        This function demonstrates the reStructuredText docstring format.
+        It is commonly used with Sphinx for documentation generation.
+
+        :param param1: The first parameter, an integer.
+        :type param1: int
+        :param param2: The second parameter, a string.
+        :type param2: str
+        :raises ValueError: If param1 is negative.
+        :returns: True if successful, False otherwise.
+        :rtype: bool
+        \"\"\"
+        if param1 < 0:
+            raise ValueError("param1 cannot be negative")
+        return True
+    ```
+
+*   **NumPy/SciPy Style**:
+    ```python
+    def example_function(param1: int, param2: str) -> bool:
+        \"\"\"Does something interesting.
+
+        This function demonstrates the NumPy/SciPy docstring format.
+        It includes a Parameters, Returns, and optionally an Examples section.
+
+        Parameters
+        ----------
+        param1 : int
+            The first parameter.
+        param2 : str
+            The second parameter.
+
+        Returns
+        -------
+        bool
+            True if successful, False otherwise.
+
+        Raises
+        ------
+        ValueError
+            If param1 is negative.
+
+        Examples
+        --------
+        >>> example_function(5, "hello")
+        True
+        \"\"\"
+        if param1 < 0:
+            raise ValueError("param1 cannot be negative")
+        return True
+    ```
+
+### Tools for Docstrings
+- **Linters** (Pylint, Flake8 with plugins like `flake8-docstrings`, `pydocstyle`):
+  Can check for missing docstrings and adherence to style conventions (e.g., PEP 257).
+- **Coverage Tools** (`interrogate`):
+  Checks your codebase for docstring coverage percentage.
+- **Formatters** (some might offer limited docstring formatting).
+
+### General Tips
+- Write docstrings for all public APIs.
+- Keep docstrings up-to-date with code changes.
+- Use clear and concise language.
+- Don\'t state the obvious if the code is self-explanatory (e.g., for simple getters/setters, a short summary might suffice).
+- Focus on *what* the code does and *why*, not *how* (unless the *how* is critical for usage).
+
+Refer to [PEP 257 -- Docstring Conventions](mdc:https:/peps.python.org/pep-0257) for the foundational guidelines.
+
+---
+
+## Python 3.8+ Best Practice: Enhanced F-Strings
+
+F-strings (formatted string literals) were introduced in Python 3.6. Python 3.8 and later versions (including 3.12) brought significant enhancements, making them even more powerful and convenient, especially for debugging and complex expressions.
+
+### Key Enhancements (Post 3.6)
+
+1.  **Self-documenting expressions (PEP 501 via `=` specifier - Python 3.8+)**:
+    *   Allows for quick debugging by printing both the expression and its value.
+    *   Syntax: `f"{expr=}"`
+
+2.  **More Capable Parsing (Python 3.12+)**:
+    *   **Reusable f-strings**: F-strings can now be nested more deeply and parts of them can be reused or defined more flexibly. The formal grammar for f-strings was refined (PEP 701).
+    *   **String literals as part of f-strings**: You can now have string literals (single or double quoted) inside the expression part of an f-string, and they can contain any characters, including the quote type used for the f-string itself, without needing escaping in many cases that were previously problematic.
+    *   **Comments**: You can include comments (`#`) inside multi-line f-string expressions.
+
+### When to Use Enhanced F-String Features
+
+*   **`{expr=}` for Debugging**: Ideal for quick inspection of variable values or expression results during development (Python 3.8+).
+*   **Complex/Nested F-Strings**: When constructing complex strings that might involve nested formatting, quotes, or multi-line expressions (Python 3.12 capabilities make this cleaner).
+
+### Examples
+
+**1. Self-documenting expressions (`=`) - Python 3.8+**
+
+```python
+user = "Alice"
+count = 42
+pi_approx = 3.14159
+
+print(f"{user=}")                # Output: user=\'Alice\'
+print(f"{count = } items")       # Output: count = 42 items (spaces around = are preserved)
+print(f"{pi_approx=:.2f}")       # Output: pi_approx=3.14 (formatting still works)
+
+# Useful in logs or debug prints:
+complex_calculation = (count * 2) + 10
+print(f"{complex_calculation=}") # Output: complex_calculation=94
+```
+
+**2. Advanced F-String Capabilities (Illustrating Python 3.12 improvements - PEP 701)**
+
+While Python 3.12 primarily refined the *parser* for f-strings allowing more complex and previously invalid f-strings to work, the core benefit is more robust and intuitive handling of quotes and expressions.
+
+```python
+# Python 3.12 allows for more complex quote handling within expressions:
+name = "world"
+# Example: Using the same quote type inside the expression as the f-string itself.
+# In older versions, this might have required concatenation or different quote types.
+# print(f"Hello {"world"}") # This was a SyntaxError before 3.12 for f"..." strings
+print(f\'Hello {"world"}\') # Works: using different outer quotes
+print(f"Hello {\'world\'}") # Works: using different outer quotes
+
+# Python 3.12 allows this more easily for f-strings defined with f"...":
+# (The example below is a bit contrived to show the quote flexibility)
+# print(f"The message is: {"User\'s input: " + f\'Hello {name}!"\'}") # This specific nesting is more reliably parsed.
+
+# Before 3.12, one might have written:
+# nested_fstring = f\'Hello {name}!\'
+# print(f"The message is: {"User\'s input: " + nested_fstring}")
+
+# Python 3.12 also allows comments within multi-line f-string expressions:
+value = 123
+formatted_string = (
+    f\"\"\"
+    Report:
+      Value: {value  # This is our important value
+              :.2f} # Format to two decimal places
+    \"\"\"
+)
+print(formatted_string)
+# Output (approx):
+# Report:
+#   Value: 123.00
+
+# Reuse of f-string expressions more cleanly:
+# (Conceptual - PEP 701 is about the parser, making valid syntax broader)
+# width = 10
+# precision = 4
+# formatting_spec = f"{width}.{precision}"
+# number = 12.3456789
+# print(f"Result: {number:{formatting_spec}f}") # This kind of dynamic specifier was already possible,
+                                            # but 3.12 makes the f-string definition itself more robust.
+```
+
+### Considerations
+
+*   Always prefer f-strings over older formatting methods (`%`-formatting, `str.format()`) for new code due to their conciseness and performance.
+*   The `=` specifier is a debugging aid; for user-facing output, craft the string explicitly.
+*   While Python 3.12 allows more complex f-strings, strive for readability. If an f-string becomes too complex, consider breaking it down or using helper variables.
+
+Refer to [PEP 498](mdc:https:/peps.python.org/pep-0498) (original f-string PEP), relevant Python release notes (e.g., What\'s New in Python 3.8), and [PEP 701](mdc:https:/peps.python.org/pep-0701) (f-string parsing in Python 3.12).
+
+---
+
+## Python 3.10+ Best Practice: Dataclass Enhancements
+
+Dataclasses, introduced in Python 3.7, received useful enhancements in Python 3.10, including keyword-only fields (`kw_only`) and support for structural pattern matching (`match_args`).
+
+### Key Enhancements (Python 3.10+)
+
+1.  **Keyword-Only Fields (`kw_only=True`)**:
+    *   Fields can be marked as keyword-only in the `dataclass` decorator or per field.
+    *   This improves API clarity and helps prevent errors from incorrect argument order during instantiation.
+
+2.  **`match_args` for Structural Pattern Matching**:
+    *   Dataclasses automatically generate a `__match_args__` attribute based on the order of fields in their `__init__` method.
+    *   This allows instances of dataclasses to be easily used in `match ... case` statements, matching on positional attributes.
+
+3.  **`slots=True` (Performance)**:
+    *   While not new to 3.10, using `slots=True` in the `@dataclass` decorator can provide memory and performance benefits by using `__slots__` instead of `__dict__` for instances. This is often a good practice if you have many instances of a dataclass.
+
+### When to Use
+
+*   **`kw_only=True`**: When you want to enforce that certain fields must be specified by keyword at instantiation, improving explicitness and maintainability, especially for dataclasses with many fields or optional fields with defaults.
+*   **`match_args`**: Automatically available. Use dataclass instances in `match ... case` blocks when you need to destructure them or check their attributes positionally (though matching by attribute name is often clearer for dataclasses).
+*   **`slots=True`**: For dataclasses that will be instantiated many times, to potentially reduce memory footprint and speed up attribute access.
+
+### Examples
+
+**1. Keyword-Only Fields (`kw_only=True`)**
+
+```python
+from dataclasses import dataclass, field # field is needed for per-field kw_only
+
+@dataclass(kw_only=True) # All fields in this dataclass are keyword-only
+class UserProfile:
+    user_id: int
+    username: str
+    email: str | None = None
+    is_active: bool = True
+
+# Instantiation:
+profile1 = UserProfile(user_id=1, username="alice")
+# profile_error = UserProfile(1, "alice") # This would be a TypeError
+print(profile1)
+
+@dataclass
+class Product:
+    product_id: int
+    name: str
+    # description is keyword-only, others are positional or keyword
+    description: str = field(default="", kw_only=True)
+    price: float
+
+product1 = Product(product_id=101, name="Laptop", price=1200.00, description="High-end laptop")
+product2 = Product(102, "Mouse", price=25.00) # description uses its default
+# product_error = Product(103, "Keyboard", "Mechanical Keyboard", price=75.00) # TypeError: description is kw_only
+print(product1)
+print(product2)
+```
+
+**2. `match_args` with Structural Pattern Matching**
+
+```python
+from dataclasses import dataclass
+
+@dataclass
+class Point:
+    x: int
+    y: int
+    z: int = 0 # z has a default
+
+# __match_args__ will be ("x", "y", "z") if z had no default and was part of __init__.
+# If z has a default, it is typically included if it doesn\'t have kw_only=True.
+# For fields with defaults, their inclusion in __match_args__ depends on them being in __init__.
+# The important part is that dataclasses are ready for pattern matching.
+
+def describe_point(p: Point):
+    match p:
+        case Point(0, 0, 0):
+            print("Origin point")
+        case Point(x, y, 0) if x == y:
+            print(f"2D Point on y=x diagonal: ({x}, {y})")
+        case Point(x, y, 0):
+            print(f"2D Point: ({x}, {y})")
+        case Point(x, y, z):
+            print(f"3D Point: ({x}, {y}, {z})")
+        case _:
+            print("Not a recognized point structure")
+
+pt1 = Point(1, 1)
+pt2 = Point(3, 4, 5)
+pt3 = Point(0,0)
+
+describe_point(pt1)
+describe_point(pt2)
+describe_point(pt3)
+
+# Matching on attributes by name is also common and often clearer:
+match pt1:
+    case Point(x=0, y=0):
+        print("Origin by attribute name match")
+    case Point(x=val_x, y=val_y) if val_x > 0:
+        print(f"Positive x by attribute name: {val_x}")
+```
+
+**3. `slots=True`**
+
+```python
+from dataclasses import dataclass
+
+@dataclass(slots=True)
+class InventoryItem:
+    item_id: int
+    name: str
+    quantity: int
+
+item = InventoryItem(1, "Pen", 100)
+# item.new_attribute = "test" # This would raise AttributeError because __slots__ is used
+print(item)
+# Potentially more memory efficient if creating millions of InventoryItem instances.
+```
+
+### Considerations
+
+*   `kw_only=True` at the class level makes all fields keyword-only. Use `field(kw_only=True)` for finer control.
+*   When using `slots=True`, be aware that instances will not have a `__dict__` and you cannot add arbitrary new attributes to instances after creation.
+*   Pattern matching with dataclasses is powerful; prefer matching by attribute name (`case Point(x=0, y=0):`) for clarity unless positional matching offers a distinct advantage for your use case.
+
+Refer to the [Python documentation for dataclasses](mdc:https:/docs.python.org/3/library/dataclasses.html) and relevant Python release notes (e.g., What\'s New in Python 3.10).
+
+---
+
+## Python 3.10+ Best Practice: Structural Pattern Matching
+
+Python 3.10 introduced structural pattern matching (`match ... case`) which provides a more expressive and readable way to handle complex conditional logic, especially when dealing with the structure of objects and data.
+
+### Key Benefits
+- **Readability**: Can make complex `if/elif/else` chains much clearer.
+- **Expressiveness**: Allows matching against object attributes, data structures (lists, dicts), types, and literal values.
+- **Destructuring**: Can bind parts of the matched structure to variables.
+
+### When to Use
+- When you need to check the "shape" of data (e.g., type of object, presence of attributes, structure of a dictionary or list).
+- To replace complex `if/elif/else` blocks that check multiple conditions on an object or data structure.
+- Processing structured data like JSON, ASTs, or custom object hierarchies.
+
+### Example
+
+```python
+def process_command(command_data):
+    match command_data:
+        case {"command": "load", "filename": str(name)}:
+            print(f"Loading file: {name}")
+            # load_file(name)
+        case {"command": "save", "filename": str(name), "data": bytes(content)}:
+            print(f"Saving to file: {name}")
+            # save_file(name, content)
+        case {"command": "delete", "filename": str(name), **kwargs}: # Captures extra keyword args
+            print(f"Deleting file: {name}")
+            if kwargs.get("force"):
+                print("Forced deletion.")
+            # delete_file(name, **kwargs)
+        case {"type": "message", "text": str(text)}:
+            print(f"Received message: {text}")
+        case list(items) if len(items) > 0:
+            print(f"Processing list of items: {items}")
+        case _: # Default case (wildcard)
+            print("Unknown command or data structure.")
+
+# Usage
+process_command({"command": "load", "filename": "data.txt"})
+process_command({"command": "delete", "filename": "old.log", "force": True, "user": "admin"})
+process_command(["item1", "item2"])
+process_command({"action": "unknown"})
+```
+
+### Considerations
+- Pattern matching checks cases from top to bottom and executes the block for the first successful match.
+- Use guards (`if condition` at the end of a `case` line) for more complex conditional logic within a match.
+- Can be combined with type checks and attribute checks.
+
+Refer to [PEP 634](mdc:https:/peps.python.org/pep-0634), [PEP 635](mdc:https:/peps.python.org/pep-0635), and [PEP 636](mdc:https:/peps.python.org/pep-0636) for the full specification.
+
+---
+
+## Python 3.11+ Best Practice: asyncio.TaskGroup
+
+Python 3.11 introduced `asyncio.TaskGroup`, a more robust and user-friendly way to manage groups of concurrent tasks compared to `asyncio.gather` or manually managing tasks with `asyncio.create_task` and `asyncio.wait`.
+
+### Key Benefits
+- **Structured Concurrency**: Ensures that all tasks in the group are awaited before the `TaskGroup` context is exited, even if some tasks raise exceptions.
+- **Error Handling**: If any task within the group raises an unhandled exception, all other tasks in the group are cancelled, and the `TaskGroup` context manager raises an `ExceptionGroup` (or `BaseExceptionGroup`) containing all exceptions from the failed tasks.
+- **Simpler Cleanup**: Automatically handles task cancellation and cleanup, reducing boilerplate.
+
+### When to Use
+- When you need to run multiple asynchronous operations concurrently and wait for all of them to complete.
+- As a modern replacement for many uses of `asyncio.gather` and manual task management, especially when robust error handling and cancellation are important.
+
+### Example
+
+```python
+import asyncio
+
+async def my_task(name: str, duration: float, fail: bool = False):
+    print(f"Task {name} started.")
+    await asyncio.sleep(duration)
+    if fail:
+        raise ValueError(f"Task {name} intentionally failed!")
+    print(f"Task {name} completed.")
+    return f"Result from {name}"
+
+async def main():
+    results = []
+    try:
+        async with asyncio.TaskGroup() as tg:
+            task1 = tg.create_task(my_task("A", 1))
+            task2 = tg.create_task(my_task("B", 0.5))
+            # task3 = tg.create_task(my_task("C", 0.7, fail=True)) # Uncomment to see error handling
+            print("Tasks created in the group.")
+
+        # The \'async with\' block will only exit after all tasks are done.
+        # If any task failed, an ExceptionGroup would have been raised here.
+        print("All tasks in TaskGroup completed.")
+
+        # Results can be accessed from the task objects if needed, but often the side effects
+        # or results handled within the tasks themselves are what matter.
+        # For tasks that return values, you can collect them like this:
+        # results.append(task1.result())
+        # results.append(task2.result())
+        # if \'task3\' in locals() and not task3.cancelled() and not task3.done() and task3.exception() is None:
+        # results.append(task3.result())
+        # A more robust way to gather results when no exceptions are expected:
+        # (or after handling ExceptionGroup)
+        print(f"Task A result: {task1.result()}")
+        print(f"Task B result: {task2.result()}")
+
+    except* ValueError as eg_val: # Using except* to handle specific errors from the group
+        print(f"\\nCaught ValueErrors from TaskGroup: {eg_val.exceptions}")
+        for exc in eg_val.exceptions:
+            print(f"  - Specific error: {exc}")
+    except* Exception as eg_other:
+        print(f"\\nCaught other exceptions from TaskGroup: {eg_other.exceptions}")
+    finally:
+        print(f"\\nFinal results collected (if any): {results}")
+
+# asyncio.run(main())
+```
+
+### `TaskGroup` vs `asyncio.gather`
+- **Error Handling**: `gather` by default cancels remaining tasks if one fails (if `return_exceptions=False`, the default for a single error). If `return_exceptions=True`, it returns exceptions as results. `TaskGroup` always cancels remaining tasks and raises an `ExceptionGroup`.
+- **Cancellation**: `TaskGroup` provides stronger guarantees about cancellation and cleanup.
+- **Structure**: `TaskGroup` uses an `async with` block, promoting structured concurrency.
+
+### Considerations
+- Task results are typically retrieved by calling `.result()` on the task objects *after* the `TaskGroup` block has successfully exited (i.e., no exceptions were propagated from it).
+- If an exception occurs, the `.result()` method on a failed task will re-raise its individual exception.
+- Use `except*` (see section on Exception Groups and except*) to handle `ExceptionGroup`s raised by `TaskGroup`.
+
+Refer to the [Python documentation for `asyncio.TaskGroup`](mdc:https:/docs.python.org/3/library/asyncio-taskgroups.html) and [PEP 654](mdc:https:/peps.python.org/pep-0654) (which also covers Exception Groups).
+
+---
+
+## Python 3.11+ Best Practice: Exception Groups and except*
+
+Python 3.11 introduced Exception Groups (`ExceptionGroup` and `BaseExceptionGroup`) and the `except*` syntax to handle multiple unrelated exceptions that can be raised simultaneously, particularly in concurrent programming scenarios (e.g., with `asyncio.TaskGroup`).
+
+### Key Benefits
+- **Handling Multiple Exceptions**: Allows a single `try` block to catch and handle a group of exceptions that occurred concurrently.
+- **Clarity**: Provides a structured way to deal with errors from multiple tasks or operations.
+- **Granular Handling**: `except*` allows you to selectively handle specific exception types from an `ExceptionGroup`.
+
+### When to Use
+- When working with `asyncio.TaskGroup` (which raises `ExceptionGroup` if tasks fail).
+- In any situation where multiple independent operations can fail and you want to aggregate and handle their errors together.
+- When implementing libraries that perform concurrent operations and need to report multiple failures.
+
+### Example
+
+```python
+import asyncio
+
+async def task_that_fails(name, exc_type, delay=0.1):
+    await asyncio.sleep(delay)
+    raise exc_type(f"Task {name} failed")
+
+async def main():
+    try:
+        async with asyncio.TaskGroup() as tg:
+            tg.create_task(task_that_fails("A", ValueError))
+            tg.create_task(task_that_fails("B", TypeError))
+            tg.create_task(task_that_fails("C", ValueError))
+            # tg.create_task(successful_task())
+    except* ValueError as eg_val:
+        print(f"Caught ValueErrors: {eg_val.exceptions}")
+        for exc in eg_val.exceptions:
+            print(f"  - Handled ValueError: {exc}")
+    except* TypeError as eg_type:
+        print(f"Caught TypeErrors: {eg_type.exceptions}")
+        for exc in eg_type.exceptions:
+            print(f"  - Handled TypeError: {exc}")
+    except* Exception as eg_other: # Catch any other exceptions from the group
+        print(f"Caught other exceptions: {eg_other.exceptions}")
+
+# To run this example:
+# asyncio.run(main())
+
+# Example of creating an ExceptionGroup manually:
+# def run_operations():
+#     errors = []
+#     try:
+#         # operation1_that_raises_value_error()
+#         raise ValueError("Op1 failed")
+#     except ValueError as e:
+#         errors.append(e)
+#     try:
+#         # operation2_that_raises_type_error()
+#         raise TypeError("Op2 failed")
+#     except TypeError as e:
+#         errors.append(e)
+#     if errors:
+#         raise ExceptionGroup("Multiple operations failed", errors)
+
+# try:
+#     run_operations()
+# except* ValueError as eg_val:
+#     print(f"Caught manual ValueErrors: {eg_val.exceptions}")
+# except* TypeError as eg_type:
+#     print(f"Caught manual TypeErrors: {eg_type.exceptions}")
+
+```
+
+### Considerations
+- An `ExceptionGroup` can itself contain nested `ExceptionGroup`s.
+- `except*` handlers are tried in order. If an exception in the group matches an `except*` clause, it\'s "caught" and won\'t be matched by subsequent `except*` clauses for that same group.
+- If an `ExceptionGroup` is raised and not all of its constituent exceptions are handled by `except*` clauses, a new `ExceptionGroup` containing the unhandled exceptions is propagated.
+
+Refer to [PEP 654](mdc:https:/peps.python.org/pep-0654) for the full specification.
+
+---
+
+## Python 3.11+ Best Practice: tomllib for TOML Parsing
+
+Python 3.11 added the `tomllib` module to the standard library for parsing TOML (Tom\'s Obvious, Minimal Language) files. This provides a built-in way to handle TOML configuration files without requiring third-party libraries.
+
+### Key Benefits
+- **Standard Library**: No external dependency needed for basic TOML parsing.
+- **Simplicity**: Provides a straightforward API similar to `json.load()` and `json.loads()`.
+
+### When to Use
+- For reading configuration files written in TOML format.
+- When you want to avoid adding an external dependency like `toml` or `tomlkit` for read-only TOML operations.
+
+### Example
+
+```python
+import tomllib
+
+# Assuming a TOML file named \'config.toml\':
+# title = "TOML Example"
+#
+# [owner]
+# name = "Tom Preston-Werner"
+# dob = 1979-05-27T07:32:00-08:00
+#
+# [database]
+# enabled = true
+# ports = [ 8000, 8001, 8002 ]
+# data = [ ["delta", "phi"], [3.14] ]
+# temp_targets = { cpu = 79.5, case = 72.0 }
+
+# To parse a TOML file:
+try:
+    with open("config.toml", "rb") as f: # TOML files should be opened in binary mode
+        data = tomllib.load(f)
+    print(data["title"])
+    print(data["owner"]["name"])
+    print(data["database"]["ports"])
+except FileNotFoundError:
+    print("config.toml not found.")
+except tomllib.TOMLDecodeError as e:
+    print(f"Error decoding TOML: {e}")
+
+# To parse a TOML string:
+toml_string = \"\"\"
+version = "1.0"
+[settings]
+feature_enabled = true
+\"\"\"
+
+try:
+    data_from_string = tomllib.loads(toml_string)
+    print(data_from_string["version"])
+    print(data_from_string["settings"]["feature_enabled"])
+except tomllib.TOMLDecodeError as e:
+    print(f"Error decoding TOML string: {e}")
+
+```
+
+### Considerations
+- `tomllib` is for **parsing/reading** TOML only. It does not support writing or modifying TOML files. For writing TOML, you would still need a third-party library like `toml` or `tomlkit`.
+- TOML files must be opened in binary mode (`"rb"`) because `tomllib` expects bytes.
+
+Refer to the [Python documentation for `tomllib`](mdc:https:/docs.python.org/3/library/tomllib.html) and [PEP 680](mdc:https:/peps.python.org/pep-0680).
+
+---
+
+## Python 3.11+ Best Practice: Typing Enhancements (Self, LiteralString, TypeVarTuple)
+
+Python 3.11 introduced several significant enhancements to the typing system, making type hints more precise and expressive.
+
+### 1. `typing.Self` (PEP 673)
+
+`Self` allows methods to annotate that they return an instance of their own class, which is particularly useful for:
+- Factory methods (`classmethod` returning `Self`).
+- Methods that return `self` to enable chaining (fluent interfaces).
+
+**Benefits**:
+- More accurate type hints for methods returning instances of their class, especially in inheritance scenarios.
+- Avoids the need for `TypeVar` bounds like `T = TypeVar("T", bound="MyClass")` in many common cases.
+
+**Example**:
+
+```python
+from typing import Self # Python 3.11+
+
+class Shape:
+    def __init__(self, color: str):
+        self.color = color
+
+    def set_color(self, color: str) -> Self:
+        self.color = color
+        return self
+
+    @classmethod
+    def create_default(cls) -> Self:
+        return cls(color="black")
+
+class Circle(Shape):
+    def __init__(self, color: str, radius: float):
+        super().__init__(color)
+        self.radius = radius
+
+    def set_radius(self, radius: float) -> Self:
+        self.radius = radius
+        return self
+
+# Usage:
+c = Circle.create_default() # Inferred as Circle, not just Shape
+c.set_color("blue").set_radius(5.0) # Chaining works, type checker knows it\'s a Circle
+
+# Without Self, create_default might be inferred as Shape
+# and set_color might also return Shape, losing the Circle type.
+```
+
+### 2. `typing.LiteralString` (PEP 675)
+
+`LiteralString` is used to indicate that a function parameter must be a literal string (or a combination of literal strings). This is primarily for security-sensitive functions like those executing SQL queries or shell commands, to prevent injection vulnerabilities.
+
+**Benefits**:
+- Helps static analysis tools identify potentially unsafe usages of functions that construct commands or queries from non-literal strings.
+
+**Example**:
+
+```python
+from typing import LiteralString # Python 3.11+
+import sqlite3
+
+def execute_query(conn: sqlite3.Connection, query: LiteralString) -> None:
+    # This function expects \'query\' to be a string known at compile time
+    conn.execute(query)
+
+conn = sqlite3.connect(":memory:")
+
+# Safe usage:
+execute_query(conn, "CREATE TABLE users (id INTEGER, name TEXT)")
+execute_query(conn, "SELECT * FROM users")
+
+# Unsafe usage (type checker should warn):
+user_input = input("Enter table name: ")
+# execute_query(conn, f"SELECT * FROM {user_input}") # This would be flagged
+
+# To safely use dynamic values, use parameterized queries:
+def get_user(conn: sqlite3.Connection, user_id: int):
+    # query is a LiteralString, parameters are handled safely by the DB driver
+    conn.execute("SELECT * FROM users WHERE id = ?", (user_id,))
+
+```
+
+### 3. `typing.TypeVarTuple` (PEP 646) - Variadic Generics
+
+`TypeVarTuple` allows creating generics that can be parameterized with an arbitrary number of types (like a tuple of types). This is powerful for typing constructs like NumPy arrays (shape and dtype) or higher-order functions that operate on arguments with varying types.
+
+**Benefits**:
+- Precise typing for functions and classes that work with sequences of types of varying length.
+
+**Example** (conceptual, common use in libraries like NumPy):
+
+```python
+from typing import TypeVarTuple, Generic
+
+Ts = TypeVarTuple("Ts")
+
+class Array(Generic[*Ts]): # *Ts means it takes a variable number of type arguments
+    def __init__(self, *args: *Ts):
+        self.elements: tuple[*Ts] = args
+
+    def get_shape(self) -> tuple[int, ...]:
+        # Placeholder for actual shape logic
+        return tuple(len(arg) if isinstance(arg, list) else 1 for arg in self.elements)
+
+# Usage (hypothetical)
+# arr1: Array[int, str] = Array(10, "hello")
+# arr2: Array[float, float, float] = Array(1.0, 2.0, 3.0)
+
+# A more practical example often cited is for array shapes in libraries:
+# DType = TypeVar("DType")
+# Shape = TypeVarTuple("Shape")
+# class NumpyArray(Generic[DType, *Shape]):
+#     pass
+# a: NumpyArray[np.float64, Literal[640], Literal[480]] # 2D array of 640x480 floats
+```
+
+### Considerations
+- These features improve the expressiveness of Python\'s type system.
+- Adopting them can lead to more robust code and better tooling support (e.g., more accurate static analysis).
+
+Refer to [PEP 673](mdc:https:/peps.python.org/pep-0673) (`Self`), [PEP 675](mdc:https:/peps.python.org/pep-0675) (`LiteralString`), and [PEP 646](mdc:https:/peps.python.org/pep-0646) (`TypeVarTuple`).
+
+---
+
+## Python 3.12+ Best Practice: Type Parameter Syntax (PEP 695)
+
+Python 3.12 introduced a new, more concise and explicit syntax for declaring type parameters (like `TypeVar`, `ParamSpec`, and `TypeVarTuple`) directly within generic function and class definitions.
+
+### Key Benefits
+- **Readability**: Makes generic signatures clearer and easier to understand by co-locating the type parameter declaration with its usage.
+- **Conciseness**: Reduces boilerplate compared to defining `TypeVar`s etc. on separate lines before the generic class/function.
+- **Clarity**: Clearly distinguishes type parameters from regular variables or type aliases.
+
+### New Syntax
+
+- **Generic Functions**: `def func[T](mdc:param: T) -> T: ...`
+- **Generic Classes**: `class MyClass[T, U]: ...`
+- **Type Aliases**: `type MyList[T] = list[T]`
+
+This syntax can be used for:
+- `TypeVar` equivalents: `T` in `def func[T](mdc:...)`
+- `TypeVar` with bounds: `def func[T: (str, bytes)](mdc:...)` (T must be `str` or `bytes` or a subtype)
+- `TypeVar` with variance: Not directly in the `[]` but `TypeVar`s defined with `[]` respect variance if specified in a separate `TypeVar` declaration assigned to a type alias used in the `[]` (less common for direct usage).
+- `ParamSpec` equivalents: `*P` in `def func[*P, R](mdc:...) -> Callable[P, R]: ...`
+- `TypeVarTuple` equivalents: `*Ts` in `class MyTuple[*Ts]: ...`
+
+### When to Use
+- For all new generic classes, functions, and type aliases in Python 3.12+ codebases.
+- To refactor existing generics that use the older `TypeVar` definitions for improved clarity.
+
+### Examples
+
+**1. Generic Function**
+
+```python
+# Python 3.12+
+def first_item[T](mdc:items: list[T]) -> T | None:
+    return items[0] if items else None
+
+result_int = first_item([1, 2, 3]) # T is inferred as int
+result_str = first_item(["a", "b", "c"]) # T is inferred as str
+print(f"{result_int=}, {result_str=}")
+
+# With a bound
+def process_text[S: str](mdc:text: S) -> S:
+    return text.upper()
+
+print(process_text("hello"))
+# process_text(123) # Type error: int is not compatible with S: str
+```
+
+**2. Generic Class**
+
+```python
+# Python 3.12+
+class Container[T]:
+    def __init__(self, value: T):
+        self._value: T = value
+
+    def get_value(self) -> T:
+        return self._value
+
+    def set_value(self, new_value: T) -> None:
+        self._value = new_value
+
+int_container = Container(10) # T is int
+str_container = Container("hello") # T is str
+print(f"{int_container.get_value()=}, {str_container.get_value()=}")
+```
+
+**3. Generic Type Alias**
+
+```python
+# Python 3.12+
+from typing import Protocol
+
+# Old way (still valid, but new syntax is often preferred for new code)
+# from typing import TypeVar
+# _K = TypeVar("_K")
+# _V = TypeVar("_V")
+# type OldStyleMapping = dict[_K, _V]
+
+# New way
+type Mapping[K, V] = dict[K, V]
+
+my_map: Mapping[str, int] = {"one": 1, "two": 2}
+print(f"{my_map=}")
+
+# For more complex type aliases, e.g., with protocols
+class SupportsRead[T](mdc:Protocol):
+    def read(self) -> T: ...
+
+type ReadableSource[T] = SupportsRead[T]
+
+def read_from[T](mdc:source: ReadableSource[T]) -> T:
+    return source.read()
+```
+
+**4. `ParamSpec` and `TypeVarTuple`**
+
+```python
+from typing import Callable
+
+# ParamSpec equivalent
+def higher_order_func[*P, R](mdc:func: Callable[P, R], *args: P.args, **kwargs: P.kwargs) -> R:
+    return func(*args, **kwargs)
+
+# TypeVarTuple equivalent
+class TupleContainer[*Ts]:
+    def __init__(self, *args: *Ts):
+        self.items: tuple[*Ts] = args
+
+    def get_items(self) -> tuple[*Ts]:
+        return self.items
+
+my_tuple_cont = TupleContainer(1, "hello", True)
+print(f"{my_tuple_cont.get_items()=}")
+```
+
+### Considerations
+- This is purely a syntactic sugar for defining type parameters. The underlying concepts of `TypeVar`, `ParamSpec`, and `TypeVarTuple` remain the same.
+- For variance (covariant, contravariant), if you need to specify it explicitly, you might still define a `TypeVar` separately and then use that alias in the `[]` syntax, or use it for more complex scenarios where the shorthand `T` is not enough.
+  ```python
+  from typing import TypeVar
+  T_co = TypeVar("T_co", covariant=True)
+  class MyCovariantContainer[T_co]: # Using the pre-defined TypeVar
+      def get(self) -> T_co: ...
+  ```
+- This new syntax is generally preferred for its conciseness and clarity in Python 3.12+.
+
+Refer to [PEP 695](mdc:https:/peps.python.org/pep-0695) for the full specification.
