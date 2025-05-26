@@ -1,5 +1,5 @@
 ---
-status: proposed
+status: implemented
 date: 2025-05-26
 builds-on: {}
 story: Improve the structure, maintainability, and clarity of the PyAzul test suite by standardizing practices and separating unit from integration tests.
