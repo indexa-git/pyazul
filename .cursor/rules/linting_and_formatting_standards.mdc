@@ -1,0 +1,194 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# PyAzul Linting and Formatting Standards
+
+This document outlines the linting and formatting standards that must be followed in the `pyazul` project. All code contributions must pass these checks before being merged.
+
+## Configuration Files
+
+The project uses the following configuration files for linting and formatting:
+
+- **[.bandit](mdc:.bandit)**: Security linting configuration
+- **[.flake8](mdc:.flake8)**: Style checking configuration
+- **[.isort.cfg](mdc:.isort.cfg)**: Import sorting configuration
+- **[.pre-commit-config.yaml](mdc:.pre-commit-config.yaml)**: Git pre-commit hooks
+- **[pyproject.toml](mdc:pyproject.toml)**: Central Python project configuration
+- **[.trunk/trunk.yaml](mdc:.trunk/trunk.yaml)**: Trunk.io linting orchestration
+
+## Code Style Standards
+
+### Line Length
+- Maximum line length: **88 characters** (Black default)
+- This applies to all Python code, including docstrings
+
+### Import Ordering
+- Use **isort** with Black profile
+- Import groups should be ordered as:
+  1. Standard library imports
+  2. Third-party imports
+  3. Local application imports
+- Each group should be separated by a blank line
+
+### Code Formatting
+- Use **Black** formatter with default settings
+- Target Python version: **3.12**
+- All code must be formatted with Black before committing
+
+## Documentation Standards
+
+### Module Docstrings
+- **REQUIRED** for all Python modules (files)
+- Must be placed at the very beginning of the file
+- Format: Google style
+- Example:
+  ```python
+  """Module for handling Azul API client operations.
+
+  This module provides the core HTTP client for communicating with Azul's API.
+  """
+  ```
+
+### Class Docstrings
+- **REQUIRED** for all public classes
+- Use Google style format
+- Must include a brief description of the class purpose
+- Example:
+  ```python
+  class AzulAPI:
+      """HTTP client for Azul API communication.
+
+      Handles authentication, SSL context, and request/response processing.
+      """
+  ```
+
+### Method/Function Docstrings
+- **REQUIRED** for all public methods and functions
+- Use Google style format
+- First line must be in **imperative mood** (e.g., "Parse", "Create", "Handle")
+- Must end with a period
+- Include Args, Returns, and Raises sections when applicable
+- Example:
+  ```python
+  def parse_response(self, data: dict) -> dict:
+      """Parse the API response data.
+
+      Args:
+          data: Raw response dictionary from the API.
+
+      Returns:
+          Processed response data.
+
+      Raises:
+          AzulResponseError: If the response contains an error.
+      """
+  ```
+
+### Docstring Exceptions
+The following are explicitly ignored by our configuration:
+- D100: Missing docstring in public module (we override this - modules DO need docstrings)
+- D104: Missing docstring in public package
+- D107: Missing docstring in `__init__` method
+
+## Security Standards
+
+### Bandit Configuration
+- Security scanning is enabled for all code
+- Test files are excluded from security scanning
+- Specific checks disabled:
+  - B101: Use of assert (allowed in test code)
+  - B601: Shell injection (if needed, must be explicitly justified)
+
+## Pre-commit Hooks
+
+All developers must install pre-commit hooks:
+```bash
+pre-commit install
+```
+
+The following checks run automatically on commit:
+1. **trailing-whitespace**: Remove trailing whitespace
+2. **end-of-file-fixer**: Ensure files end with a newline
+3. **check-yaml**: Validate YAML syntax
+4. **check-toml**: Validate TOML syntax
+5. **check-merge-conflict**: Prevent committing merge conflicts
+6. **check-added-large-files**: Prevent large file commits
+7. **isort**: Sort imports
+8. **black**: Format code
+9. **flake8**: Check style violations
+10. **interrogate**: Check docstring coverage (minimum 70%)
+
+## Running Linters Manually
+
+### Individual Tools
+```bash
+# Format code with Black
+black pyazul tests
+
+# Sort imports with isort
+isort pyazul tests
+
+# Check style with flake8
+flake8 pyazul tests
+
+# Check security with bandit
+bandit -r pyazul
+
+# Check docstring coverage
+interrogate -vv pyazul
+```
+
+### Using Trunk
+```bash
+# Run all configured linters
+trunk check
+
+# Auto-fix issues where possible
+trunk fmt
+```
+
+## IDE Integration
+
+### VSCode
+- Install Python extension
+- Configure to use Black as formatter
+- Enable format on save
+- Configure isort for import sorting
+
+### PyCharm
+- Configure Black as external tool
+- Set up file watchers for automatic formatting
+- Configure isort for import optimization
+
+## Continuous Integration
+
+All pull requests must pass:
+1. All pre-commit hooks
+2. Full test suite with coverage
+3. All linting checks
+4. Security scanning
+
+## Common Issues and Solutions
+
+### Long Lines
+- Break long strings using parentheses for implicit concatenation
+- Use intermediate variables for complex expressions
+- For URLs or long strings that cannot be broken, use `# noqa: E501` sparingly
+
+### Import Order
+- Let isort handle import ordering automatically
+- If manual intervention needed, follow the Black-compatible profile
+
+### Docstring Formatting
+- Ensure blank line between summary and description
+- End all docstrings with a period
+- Use imperative mood for function/method docstrings
+
+## Enforcement
+
+- Pre-commit hooks prevent commits with violations
+- CI/CD pipeline blocks PRs with linting failures
+- Regular codebase audits ensure compliance
+- New code must maintain or improve docstring coverage percentage

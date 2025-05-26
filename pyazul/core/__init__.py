@@ -1,6 +1,7 @@
 """
-Core module for PyAzul package.
-Contains configuration and base functionality.
+Core module for PyAzul.
+
+Contains base classes, configuration, exceptions, and session management.
 """
 
 from .base import BaseService

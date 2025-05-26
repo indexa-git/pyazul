@@ -1,0 +1,46 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+\
+# PyAzul Architecture Overview
+
+This document outlines the high-level architecture of the `pyazul` library.
+
+## Core Components
+
+1.  **`PyAzul` Facade ([pyazul/index.py](mdc:pyazul/index.py))**:
+    *   This is the main entry point for users of the library.
+    *   It initializes and provides access to all underlying services.
+    *   It manages a shared `AzulAPI` client instance and configuration (`AzulSettings`).
+
+2.  **`AzulAPI` Client ([pyazul/api/client.py](mdc:pyazul/api/client.py))**:
+    *   A single instance of `AzulAPI` is created by `PyAzul` and passed to services that require API communication.
+    *   It's responsible for all HTTP requests to the Azul gateway.
+    *   Handles SSL context with certificates, request signing (including `Auth1`/`Auth2` headers), and distinguishes between standard and 3DS (`is_secure=True`) authentication headers using credentials from `AzulSettings`.
+    *   Implements retry logic for production environments.
+
+3.  **Service Layer ([pyazul/services/](mdc:pyazul/services))**:
+    *   Functionality is modularized into services:
+        *   `TransactionService` ([pyazul/services/transaction.py](mdc:pyazul/services/transaction.py)): Handles standard payment operations (sale, hold, refund, etc.).
+        *   `DataVaultService` ([pyazul/services/datavault.py](mdc:pyazul/services/datavault.py)): Manages card tokenization.
+        *   `PaymentPageService` ([pyazul/services/payment_page.py](mdc:pyazul/services/payment_page.py)): Generates HTML for Azul's hosted payment page.
+        *   `SecureService` ([pyazul/services/secure.py](mdc:pyazul/services/secure.py)): Manages the 3D Secure authentication flow.
+    *   Services receive the shared `AzulAPI` client and `AzulSettings` (or just `AzulAPI` if settings are only needed by the client itself, as `AzulAPI` now takes `settings` in its constructor).
+
+4.  **Configuration ([pyazul/core/config.py](mdc:pyazul/core/config.py))**:
+    *   Managed by the `AzulSettings` Pydantic model.
+    *   Settings are loaded from a `.env` file and environment variables.
+    *   `PyAzul` can be initialized with a custom `AzulSettings` instance.
+
+5.  **Pydantic Models ([pyazul/models/](mdc:pyazul/models))**:
+    *   Used for request and response data validation and serialization.
+    *   Centralized and re-exported via `[pyazul/models/__init__.py](mdc:pyazul/models/__init__.py)`.
+
+## Key Principles
+*   **Facade Pattern**: `PyAzul` simplifies interaction with the various services.
+*   **Dependency Injection**: `AzulAPI` client and `AzulSettings` are managed by `PyAzul` and provided to services. The 3DS session store is injected into `PyAzul` and then into `SecureService`.
+*   **Asynchronous**: Core operations are `async/await` based.
+
+Refer to [README.md](mdc:README.md) for usage examples.

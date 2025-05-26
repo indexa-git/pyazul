@@ -1,0 +1,4 @@
+[bandit]
+exclude = tests,.venv,.mypy_cache,.ruff_cache,.pytest_cache
+tests = B201,B301
+skips = B101,B601

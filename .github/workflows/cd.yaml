@@ -1,9 +1,20 @@
 name: Build & publish
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
+  cancel-in-progress: true
+
+permissions: read-all
+
 on:
   workflow_dispatch:
   push:
     branches: [main]
+    paths:
+      - '**/*.py'
+      - 'requirements.txt'
+      - 'pyproject.toml'
+      - .github/workflows/cd.yml
   release:
     types:
       - published
@@ -24,10 +35,9 @@ jobs:
       - uses: hynek/build-and-inspect-python-package@v2.12.0
         id: build-package
         with:
-          attest-build-provenance-github: 'true'
+          attest-build-provenance-github: "true"
     outputs:
       package-version: ${{ steps.build-package.outputs.package_version }}
-
 
   # Upload to Test PyPI on every commit on main.
   release-test-pypi:

@@ -1,0 +1,51 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+# PyAzul Error Handling Conventions
+
+`pyazul` uses a hierarchy of custom exceptions to report errors, all defined in `[pyazul/core/exceptions.py](mdc:pyazul/core/exceptions.py)`.
+
+## Custom Exception Hierarchy
+All custom exceptions inherit from `pyazul.core.exceptions.AzulError`.
+
+*   **`AzulError`**: Base class for all library-specific errors.
+*   **`SSLError`**: Raised for issues related to SSL certificate loading or configuration (e.g., file not found, invalid format). This is primarily raised from `_load_certificates` in `[pyazul/api/client.py](mdc:pyazul/api/client.py)`.
+*   **`APIError`**:
+    *   Raised for general issues during HTTP communication with the Azul API.
+    *   Examples: Network errors, unexpected HTTP status codes not covered by `AzulResponseError`, issues decoding JSON responses.
+*   **`AzulResponseError`**:
+    *   Raised when the Azul API explicitly returns an error in its response payload (e.g., transaction declined, invalid field value).
+    *   Contains a `response_data` attribute holding the raw dictionary response from Azul for inspection.
+    *   The error message typically includes `ErrorMessage` or `ErrorDescription` from the Azul response.
+    *   This is checked and raised in the `_check_for_errors` method of `[pyazul/api/client.py](mdc:pyazul/api/client.py)`.
+
+## Best Practices for Using and Raising Exceptions
+*   **Catch Specific Exceptions**: When handling errors from `pyazul`, catch more specific exceptions first, then broader ones.
+    ```python
+    from pyazul import AzulError, AzulResponseError, SSLError
+    # from pyazul.core.exceptions import APIError (if needing to catch it separately)
+
+    try:
+        response = await azul.sale(...)
+    except AzulResponseError as e:
+        print(f"Azul API Error: {e.message}")
+        print(f"Response Data: {e.response_data}")
+    except SSLError as e:
+        print(f"SSL Configuration Error: {e}")
+    except APIError as e: # Catches other API communication issues
+        print(f"API Communication Error: {e}")
+    except AzulError as e: # Catch-all for other pyazul errors
+        print(f"PyAzul Library Error: {e}")
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+    ```
+*   **Chaining Exceptions (`raise ... from ...`)**:
+    *   **Critically Important**: When catching an exception and raising a new custom `pyazul` exception (or any exception), use the `raise NewException(...) from original_exception` syntax. This preserves the context and stack trace of the original error, which is invaluable for debugging.
+    *   This practice is implemented in `[pyazul/services/secure.py](mdc:pyazul/services/secure.py)` and `[pyazul/api/client.py](mdc:pyazul/api/client.py)`.
+    *   Failure to do this can hide the root cause of problems.
+    *   Example: `raise AzulError("Something went wrong") from caught_exception`
+
+See the [README.md](mdc:README.md) for a basic error handling example.
+The `[coding_standards_and_linting.mdc](mdc:coding_standards_and_linting.mdc)` rule also emphasizes this.

@@ -1,16 +1,16 @@
+"""Base classes and utilities for the PyAzul library."""
+
 from ..api.client import AzulAPI
-from .config import AzulSettings
 
 
 class BaseService:
     """Base class for all Azul API services."""
 
-    def __init__(self, settings: AzulSettings):
+    def __init__(self, api_client: AzulAPI):
         """
-        Initialize the service with Azul settings.
+        Initialize the service with a shared AzulAPI client.
 
         Args:
-            settings (AzulSettings): Configuration containing API credentials and endpoints
+            api_client (AzulAPI): The shared API client instance.
         """
-        self.settings = settings
-        self.client = AzulAPI()
+        self.api = api_client

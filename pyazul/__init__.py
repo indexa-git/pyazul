@@ -1,19 +1,25 @@
 """
-PyAzul - Cliente Python para Azul Payment Gateway
+PyAzul - Python Client for Azul Payment Gateway.
 
-Este paquete proporciona una interfaz completa para interactuar con los servicios de Azul:
-- Procesamiento de pagos directos
-- Tokenización de tarjetas (DataVault)
-- Página de pago
-- Verificación de transacciones
-- Reembolsos y anulaciones
-- Retención/captura de transacciones
+This package provides a complete interface to interact with Azul services:
+- Direct payment processing
+- Card tokenization (DataVault)
+- Payment Page
+- Transaction verification
+- Refunds and voids
+- Hold/capture of transactions
+
+Features:
+    - Direct payments (Sale, Hold)
+    - Refunds (Refund), Voids (Void), Post-Authorizations (PostAuth)
+    - Card tokenization (DataVault)
+    - Hosted payment page generation
 
 Example:
     >>> from pyazul import PyAzul
-    >>> azul = PyAzul()  # Usa variables de entorno para la configuración
+    >>> azul = PyAzul()  # Uses environment variables for configuration
     >>>
-    >>> # Procesar un pago
+    >>> # Process a payment
     >>> response = await azul.sale({
     ...     "Channel": "EC",
     ...     "Store": "39038540035",
@@ -27,45 +33,54 @@ Example:
 from .core.config import AzulSettings, get_azul_settings
 from .core.exceptions import AzulError
 from .index import PyAzul
-from .models.schemas import (
-    DataVaultCreateModel,
-    DataVaultDeleteModel,
+
+# Import models from the centralized pyazul.models package
+from .models import (
+    AzulBaseModel,
+    CardHolderInfo,
+    ChallengeIndicator,
+    DataVaultRequestModel,
     HoldTransactionModel,
     PaymentPageModel,
     PostSaleTransactionModel,
     RefundTransactionModel,
     SaleTransactionModel,
+    SecureSaleRequest,
+    SecureTokenSale,
+    ThreeDSAuth,
     TokenSaleModel,
     VerifyTransactionModel,
     VoidTransactionModel,
 )
-from .services.datavault import DataVaultService
-from .services.payment_page import PaymentPageService
-from .services.transaction import TransactionService
+from .services import DataVaultService, PaymentPageService, TransactionService
+from .services.secure import SecureService
 
 __all__ = [
-    # Clase principal
+    # Main class
     "PyAzul",
-    # Configuración
+    # Configuration
     "get_azul_settings",
     "AzulSettings",
     "AzulError",
-    # Servicios
-    "DataVaultService",
+    # Services
     "TransactionService",
+    "DataVaultService",
     "PaymentPageService",
-    # Modelos
+    "SecureService",
+    # Models
+    "AzulBaseModel",
     "SaleTransactionModel",
     "HoldTransactionModel",
-    "DataVaultCreateModel",
-    "DataVaultDeleteModel",
+    "RefundTransactionModel",
+    "DataVaultRequestModel",
     "TokenSaleModel",
+    "PostSaleTransactionModel",
     "VerifyTransactionModel",
     "VoidTransactionModel",
     "PaymentPageModel",
-    "RefundTransactionModel",
-    "PostSaleTransactionModel",
+    "SecureSaleRequest",
+    "SecureTokenSale",
+    "CardHolderInfo",
+    "ThreeDSAuth",
+    "ChallengeIndicator",
 ]
-
-# Versión del paquete
-__version__ = "0.4.4alpha"

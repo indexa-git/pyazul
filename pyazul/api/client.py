@@ -1,12 +1,14 @@
+"""Handles HTTP communication with the Azul payment gateway."""
+
 import json
 import logging
 import ssl
-from typing import Any, Dict
+from typing import Any, Dict, NoReturn
 
 import httpx
 
 from pyazul.api.constants import AzulEndpoints, Environment
-from pyazul.core.config import get_azul_settings
+from pyazul.core.config import AzulSettings
 from pyazul.core.exceptions import APIError, AzulResponseError, SSLError
 
 _logger = logging.getLogger(__name__)
@@ -27,24 +29,34 @@ class AzulAPI:
     and handles all the low-level details of making secure API requests.
     """
 
-    def __init__(self):
-        """Initialize AzulAPI using configuration from environment variables"""
-        self.settings = get_azul_settings()
+    def __init__(self, settings: AzulSettings):
+        """Initialize AzulAPI using provided configuration."""
+        self.settings = settings
         self._init_configuration()
         self._init_client_config()
 
     def _init_configuration(self) -> None:
-        """Initialize basic configuration from settings"""
+        """Initialize basic configuration from settings."""
+        if self.settings.AUTH1 is None:
+            raise ValueError(
+                "AUTH1 is not set in settings; essential for API authentication."
+            )
         self.auth1 = self.settings.AUTH1
+
+        if self.settings.AUTH2 is None:
+            raise ValueError(
+                "AUTH2 is not set in settings; essential for API authentication."
+            )
         self.auth2 = self.settings.AUTH2
         self.ssl_context = self._load_certificates()
         self.ENVIRONMENT = Environment(self.settings.ENVIRONMENT)
         self.url = self._get_base_url()
         if self.ENVIRONMENT == Environment.PROD:
-            self.ALT_URL = AzulEndpoints.ALT_PROD_URL
+            # Prioritize user-defined ALT_PROD_URL from settings, fallback to constant
+            self.ALT_URL = self.settings.ALT_PROD_URL or AzulEndpoints.ALT_PROD_URL
 
     def _load_certificates(self) -> ssl.SSLContext:
-        """Load and validate certificates into an SSL context"""
+        """Load and validate certificates into an SSL context."""
         try:
             cert_path, key_path = self.settings._load_certificates()
             if not all((cert_path, key_path)):
@@ -54,17 +66,17 @@ class AzulAPI:
             ssl_context.load_cert_chain(cert_path, key_path)
             return ssl_context
         except Exception as e:
-            raise SSLError(f"Error loading certificates: {str(e)}")
+            raise SSLError(f"Error loading certificates: {str(e)}") from e
 
     def _init_client_config(self) -> None:
-        """Initialize HTTP client configuration"""
+        """Initialize HTTP client configuration."""
         self.timeout = httpx.Timeout(30.0, read=30.0)
         self.base_headers = {
             "Content-Type": "application/json",
         }
 
     def _get_base_url(self) -> str:
-        """Get the base URL based on environment"""
+        """Get the base URL based on environment."""
         if self.settings.CUSTOM_URL:
             return self.settings.CUSTOM_URL
         return AzulEndpoints.get_url(self.ENVIRONMENT)
@@ -80,37 +92,29 @@ class AzulAPI:
             Dict[str, Any]: Headers dictionary with appropriate authentication
         """
         headers = self.base_headers.copy()
-        if is_secure:
-            headers["Auth1"] = self.settings.AUTH1_3D
-            headers["Auth2"] = self.settings.AUTH2_3D
-        else:
-            headers["Auth1"] = self.auth1
-            headers["Auth2"] = self.auth2
+        headers["Auth1"] = self.auth1
+        headers["Auth2"] = self.auth2
         return headers
 
-    def _build_endpoint(self, operation: str = "") -> str:
-        """Build the full endpoint URL"""
-        return f"{self.url}?{operation}" if operation else self.url
-
     def _prepare_request(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """
-        Prepare request data with required parameters
+        """Prepare request data with required parameters from settings.
+
+        Ensures Channel & Store are always sourced from SDK settings.
 
         Args:
-            data: Request data dictionary
+            data: The input dictionary representing the request payload.
 
         Returns:
-            Dict with prepared parameters
+            The modified dictionary with Channel and Store updated from settings.
         """
-        required_params = {
-            "Channel": self.settings.CHANNEL,
-            "Store": self.settings.MERCHANT_ID,
-        }
-        return {**required_params, **data}
+        # Always use Channel & Store from settings, overriding model values if present.
+        data["Channel"] = self.settings.CHANNEL
+        data["Store"] = self.settings.MERCHANT_ID
+        return data  # Return the modified data, None filtering is handled by model_dump
 
     def _handle_response(self, response: httpx.Response) -> Dict[str, Any]:
         """
-        Handle API response and check for errors
+        Handle API response and check for errors.
 
         Args:
             response: HTTPX response object
@@ -131,13 +135,13 @@ class AzulAPI:
             self._log_and_raise_api_error(e, response)
 
     def _check_for_errors(self, data: Dict[str, Any]) -> None:
-        """Check for errors in API response data"""
+        """Check for errors in API response data."""
         error_indicators = [
             ("ErrorMessage", data.get("ErrorMessage")),
             ("ErrorDescription", data.get("ErrorDescription")),
             ("ResponseCode", data.get("ResponseCode") == "Error"),
         ]
-        for field, value in error_indicators:
+        for _, value in error_indicators:
             if value:
                 error_msg = data.get("ErrorMessage") or data.get(
                     "ErrorDescription", "Unknown error"
@@ -150,17 +154,19 @@ class AzulAPI:
 
     def _log_and_raise_api_error(
         self, error: Exception, response: httpx.Response
-    ) -> None:
-        """Log and raise API error"""
+    ) -> NoReturn:
+        """Log and raise API error."""
         if isinstance(error, httpx.HTTPStatusError):
             _logger.error(f"HTTP error occurred: {response.text}")
             raise APIError(f"HTTP {response.status_code}: {response.text}")
         elif isinstance(error, json.JSONDecodeError):
             _logger.error(f"Invalid JSON response: {error}")
             raise APIError("Invalid JSON response from API")
+        _logger.error(f"An unexpected error occurred: {error}")
+        raise APIError(f"An unexpected error type was handled: {str(error)}")
 
     def _get_request_config(self, is_secure: bool = False) -> Dict[str, Any]:
-        """Get common request configuration"""
+        """Get common request configuration."""
         return {
             "headers": self._get_request_headers(is_secure),
             "timeout": self.timeout,
@@ -179,7 +185,8 @@ class AzulAPI:
         Args:
             data: Request data to send
             operation: Optional operation name to append to URL
-            retry_on_fail: Whether to retry with alternate URL on failure (production only)
+            retry_on_fail: Whether to retry with alternate URL on failure
+                           (production only)
             is_secure: Whether this is a secure (3DS) request
 
         Returns:
@@ -210,7 +217,11 @@ class AzulAPI:
                             **self._get_request_config(is_secure),
                         )
                         return self._handle_response(response)
-                    raise APIError(f"Request failed: {str(e)}")
+                    raise APIError(f"Request failed: {str(e)}") from e
         except Exception as err:
             _logger.error(f"Request failed: {str(err)}")
-            raise APIError(f"Request failed: {str(err)}")
+            raise APIError(f"Request failed: {str(err)}") from err
+
+    def _build_endpoint(self, operation: str = "") -> str:
+        """Build the full endpoint URL."""
+        return f"{self.url}?{operation}" if operation else self.url

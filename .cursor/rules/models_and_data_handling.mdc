@@ -1,0 +1,40 @@
+---
+description:
+globs:
+alwaysApply: false
+---
+# PyAzul Pydantic Models and API Data Handling
+
+This document describes how data is modeled and handled in `pyazul`, aligning with `[docs/development/azul_documentation.md](mdc:docs/development/azul_documentation.md)`.
+
+## Pydantic Models
+*   **Core Principle**: `pyazul` uses Pydantic models for defining the structure of request data, ensuring validation and type safety. The `[docs/development/azul_documentation.md](mdc:docs/development/azul_documentation.md)` is the **source of truth** for field names, data types (e.g., N(12), X(3)), optionality ('Si'/'No' for Obligatorio), and specific literal values (e.g., for `TrxType`).
+*   **Location**:
+    *   Standard transaction models (e.g., `SaleTransactionModel`, `HoldTransactionModel`) are in `[pyazul/models/schemas.py](mdc:pyazul/models/schemas.py)`.
+    *   3D Secure specific models (e.g., `SecureSaleRequest`, `CardHolderInfo`) are in `[pyazul/models/secure.py](mdc:pyazul/models/secure.py)`.
+*   **Centralized Export**: User-facing Pydantic models are re-exported from `[pyazul/models/__init__.py](mdc:pyazul/models/__init__.py)`.
+*   **Inheritance of `AzulBaseModel`**:
+    *   `AzulBaseModel` in `[pyazul/models/schemas.py](mdc:pyazul/models/schemas.py)` defines common fields like `Channel`, `Store`, `PosInputMode`, `Amount`, `Itbis` based on the most common transaction types (like Sale/Hold). These `Amount` and `Itbis` fields are defined as `int` (cents) in the model.
+    *   Models that strictly adhere to this common structure (e.g., `SaleTransactionModel`, `HoldTransactionModel`) inherit from `AzulBaseModel`.
+    *   However, several models like `DataVaultCreateModel`, `TokenSaleModel`, `PostSaleTransactionModel`, `VerifyTransactionModel`, and `VoidTransactionModel` do **not** inherit from `AzulBaseModel`. This is because their API contracts, as defined in `[docs/development/azul_documentation.md](mdc:docs/development/azul_documentation.md)`, differ significantly. They define their fields explicitly, including `Amount` and `Itbis` as `int` (cents) where applicable.
+*   **`TrxType` Field**:
+    *   Many transaction models include a `TrxType: Literal[...]` field which is a key discriminator for the Azul API (e.g., "Sale", "Hold", "Refund", "CREATE", "DELETE").
+    *   However, some operations like `ProcessPost` (`PostSaleTransactionModel`), `VerifyPayment` (`VerifyTransactionModel`), and `ProcessVoid` (`VoidTransactionModel`) do **not** use a `TrxType` field in their API request payloads. Their corresponding models reflect this.
+*   **Usage in `PyAzul` Facade & Service Layer**:
+    *   `PyAzul` methods generally accept dictionaries, which are parsed into Pydantic models internally.
+    *   Service layer methods (in `[pyazul/services/transaction.py](mdc:pyazul/services/transaction.py)` and `[pyazul/services/secure.py](mdc:pyazul/services/secure.py)`) are typed to accept these Pydantic models.
+*   **Serialization for API**:
+    *   When preparing data for an API call, service methods first dump the Pydantic model to a dictionary, typically using `model.model_dump(exclude_none=True)`. This prevents sending `null` or `None` values for fields that were not explicitly set.
+    *   The data (now a dictionary, with amounts as integers) is then passed towards `AzulAPI._async_request`.
+
+## Specific Field Formatting for API
+*   **Amounts and ITBIS**:
+    *   Pydantic models in `[pyazul/models/schemas.py](mdc:pyazul/models/schemas.py)` and `[pyazul/models/secure.py](mdc:pyazul/models/secure.py)` define `Amount` and `Itbis` fields (where applicable) as **integers**, representing the value in the smallest currency unit (e.g., cents). This is for a better developer experience when using the library.
+    *   The **library is responsible** for converting these integer values from the models into the specific **string format** required by the Azul API *before* the final JSON payload is constructed and sent in the HTTP request. This conversion includes:
+        *   Converting the integer cent value for `Amount` to its string representation (e.g., `1000` becomes `"1000"`).
+        *   Converting the integer cent value for `Itbis` to its string representation, and specifically mapping an integer `0` to the string `"000"` (e.g., `180` becomes `"180"`, `0` becomes `"000"`).
+    *   The Azul API expects amounts without commas or decimal points, where the last two digits represent decimals (e.g., API string `"1000"` for $10.00).
+    *   This final string conversion step should ideally occur centrally before JSON serialization, for example, within or just before `AzulAPI._async_request`.
+
+Refer to `[docs/development/azul_documentation.md](mdc:docs/development/azul_documentation.md)` for precise field specifications for each API operation.
+See [README.md](mdc:README.md) for examples of request data structures as dictionaries.

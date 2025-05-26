@@ -1,5 +1,6 @@
 """
 API module for PyAzul.
+
 Contains client and constants for API communication.
 """
 
