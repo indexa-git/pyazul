@@ -8,7 +8,15 @@ ensuring data validation and consistency.
 from datetime import datetime
 from typing import Literal, Optional, Union
 
-from pydantic import BaseModel, ConfigDict, Field, HttpUrl, RootModel, field_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    HttpUrl,
+    RootModel,
+    field_validator,
+    model_validator,
+)
 
 
 # Helper validator functions
@@ -225,8 +233,8 @@ class RefundTransactionModel(AzulBaseModel):
     )
 
 
-class DataVaultCreateModel(BaseModel):
-    """Model for creating DataVault tokens (ProcessDatavault TrxType: CREATE)."""
+class DataVaultRequestModel(BaseModel):
+    """Model for DataVault operations (CREATE or DELETE token)."""
 
     Channel: str = Field(
         "EC", description="Payment channel (e.g., 'EC'), provided by AZUL. (X(3))"
@@ -234,34 +242,39 @@ class DataVaultCreateModel(BaseModel):
     Store: str = Field(
         ..., description="Unique merchant ID (MID), provided by AZUL. (X(11))"
     )
-    CardNumber: str = Field(..., description="Card number to tokenize. (N(19))")
-    Expiration: str = Field(..., description="Expiration date in YYYYMM format. (N(6))")
-    TrxType: Literal["CREATE"] = Field(
-        "CREATE", description="Transaction type, fixed 'CREATE'. (A(10))"
+    TrxType: Literal["CREATE", "DELETE"] = Field(
+        ..., description="Transaction type: 'CREATE' or 'DELETE'. (A(10))"
+    )
+    CardNumber: Optional[str] = Field(
+        None, description="Card number to tokenize (for CREATE). (N(19))"
+    )
+    Expiration: Optional[str] = Field(
+        None, description="Expiration date YYYYMM (for CREATE). (N(6))"
     )
     CVC: Optional[str] = Field(
         None,
-        description="Security code (optional for token creation). (N(3))",
+        description="Security code (optional for CREATE). (N(3))",
         min_length=3,
         max_length=4,
     )
+    DataVaultToken: Optional[str] = Field(
+        None, description="DataVault token to be deleted (for DELETE). (X(30))"
+    )
 
-
-class DataVaultDeleteModel(BaseModel):
-    """Model for deleting DataVault tokens (ProcessDatavault TrxType: DELETE)."""
-
-    Channel: str = Field(
-        "EC", description="Payment channel (e.g., 'EC'), provided by AZUL. (X(3))"
-    )
-    Store: str = Field(
-        ..., description="Unique merchant ID (MID), provided by AZUL. (X(11))"
-    )
-    DataVaultToken: str = Field(
-        ..., description="DataVault token to be deleted. (X(30))"
-    )
-    TrxType: Literal["DELETE"] = Field(
-        "DELETE", description="Transaction type, fixed 'DELETE'. (A(10))"
-    )
+    @model_validator(mode="after")
+    def check_fields_for_trxtype(cls, data):
+        """Validate fields based on TrxType."""
+        if data.TrxType == "CREATE":
+            if not data.CardNumber or not data.Expiration:
+                raise ValueError("CardNumber and Expiration are required for CREATE")
+            if data.DataVaultToken:
+                raise ValueError("DataVaultToken not allowed for CREATE")
+        elif data.TrxType == "DELETE":
+            if not data.DataVaultToken:
+                raise ValueError("DataVaultToken is required for DELETE")
+            if data.CardNumber or data.Expiration or data.CVC:
+                raise ValueError("Card/Expiry/CVC not allowed for DELETE")
+        return data
 
 
 class TokenSaleModel(BaseModel):
@@ -390,8 +403,7 @@ class PaymentSchema(RootModel):
         SaleTransactionModel,
         HoldTransactionModel,
         RefundTransactionModel,
-        DataVaultCreateModel,
-        DataVaultDeleteModel,
+        DataVaultRequestModel,
         TokenSaleModel,
         PostSaleTransactionModel,
         VerifyTransactionModel,
@@ -403,8 +415,7 @@ class PaymentSchema(RootModel):
         SaleTransactionModel,
         HoldTransactionModel,
         RefundTransactionModel,
-        DataVaultCreateModel,
-        DataVaultDeleteModel,
+        DataVaultRequestModel,
         TokenSaleModel,
         PostSaleTransactionModel,
         VerifyTransactionModel,
@@ -444,9 +455,9 @@ class PaymentSchema(RootModel):
         trx_type = value.get("TrxType")
 
         if trx_type == "CREATE":
-            return DataVaultCreateModel(**value)
+            return DataVaultRequestModel(**value)
         elif trx_type == "DELETE":
-            return DataVaultDeleteModel(**value)
+            return DataVaultRequestModel(**value)
         elif trx_type == "Hold":
             return HoldTransactionModel(**value)
         elif trx_type == "Refund":

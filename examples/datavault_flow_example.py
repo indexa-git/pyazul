@@ -2,12 +2,9 @@
 
 import asyncio
 
+from pyazul.api.client import AzulAPI
 from pyazul.core.config import get_azul_settings
-from pyazul.models.schemas import (
-    DataVaultCreateModel,
-    DataVaultDeleteModel,
-    TokenSaleModel,
-)
+from pyazul.models.schemas import DataVaultRequestModel, TokenSaleModel
 from pyazul.services.datavault import DataVaultService
 from pyazul.services.transaction import TransactionService
 
@@ -34,26 +31,33 @@ async def test_datavault_flow():
     """
     # Initialize services
     settings = get_azul_settings()
-    datavault_service = DataVaultService(settings)
-    transaction_service = TransactionService(settings)
+    api_client = AzulAPI(settings=settings)
+    datavault_service = DataVaultService(api_client=api_client, settings=settings)
+    transaction_service = TransactionService(api_client=api_client, settings=settings)
 
     # Card data for tokenization
-    datavault_data = {
-        "Channel": "EC",
-        "PosInputMode": "E-Commerce",
-        "Amount": "1000",
-        "Itbis": "180",
+    card_details = {
         "CardNumber": "5413330089600119",
         "Expiration": "202812",
-        "CustomOrderId": "datavault-example-001",
-        "store": "39038540035",
+        # CVC is optional for create, can be added if needed
+    }
+    common_datavault_params = {
+        "Channel": "EC",
+        "Store": "39038540035",  # Reverted to hardcoded store ID from original example
     }
 
     try:
         # 1. Create token
         print("\n1. Creating token...")
-        create_token = DataVaultCreateModel(**datavault_data)
-        token_response = await datavault_service.create(create_token)
+        create_payload_dict = {
+            **common_datavault_params,
+            **card_details,
+            # "TrxType": "CREATE", # Will be passed explicitly
+        }
+        create_token_request = DataVaultRequestModel(
+            TrxType="CREATE", **create_payload_dict
+        )
+        token_response = await datavault_service.create(create_token_request)
 
         if token_response.get("IsoCode") != "00":
             raise Exception("Token creation failed")
@@ -78,16 +82,15 @@ async def test_datavault_flow():
 
         # 3. Delete token
         print("\n3. Deleting token...")
-        delete_data = {
-            "Channel": "EC",
-            "PosInputMode": "E-Commerce",
-            "store": "39038540035",
+        delete_payload_dict = {
+            **common_datavault_params,
             "DataVaultToken": token,
-            "Amount": "1000",
-            "Itbis": "180",
+            # "TrxType": "DELETE", # Will be passed explicitly
         }
-        delete_token = DataVaultDeleteModel(**delete_data)
-        delete_response = await datavault_service.delete(delete_token)
+        delete_token_request = DataVaultRequestModel(
+            TrxType="DELETE", **delete_payload_dict
+        )
+        delete_response = await datavault_service.delete(delete_token_request)
         print(f"Delete response: {delete_response}")
 
         # 4. Verify token is invalid
