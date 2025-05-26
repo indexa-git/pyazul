@@ -17,34 +17,25 @@ from fastapi import FastAPI, Form, Request
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 
-from pyazul.api.client import AzulAPI
-from pyazul.core.config import AzulSettings, get_azul_settings
+from pyazul import PyAzul
 from pyazul.core.exceptions import AzulError
-from pyazul.models import (
-    CardHolderInfo,
-    DataVaultRequestModel,
-    SecureChallengeRequest,
-    SecureSessionID,
-    SecureTokenSale,
-)
-from pyazul.services.datavault import DataVaultService
-from pyazul.services.secure import SecureService
+
+# Explicitly import models that FastAPI might use for request body validation
+from pyazul.models import CardHolderInfo, SecureChallengeRequest, SecureSessionID
 
 # Configure logging
-logging.basicConfig(
-    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
-)
+# logging.basicConfig(
+#     level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+# )
 logger = logging.getLogger(__name__)
 
 # Initialize FastAPI application
 app = FastAPI(title="Azul Token Payment Demo")
 templates = Jinja2Templates(directory="templates")
 
-# Initialize shared services (singleton)
-settings: AzulSettings = get_azul_settings()
-api_client: AzulAPI = AzulAPI(settings=settings)
-secure_service: SecureService = SecureService(api_client=api_client)
-datavault_service: DataVaultService = DataVaultService(api_client=api_client)
+# Initialize PyAzul Facade
+azul = PyAzul()
+settings = azul.settings
 
 # Test cards for 3DS
 TEST_CARDS: List[Dict[str, Any]] = [
@@ -85,6 +76,8 @@ TEST_CARDS: List[Dict[str, Any]] = [
 
 # Token storage (in-memory for this demo)
 token_storage: Dict[str, Dict[str, Any]] = {}
+# Application-level session store for 3DS flow
+app_3ds_session_store: Dict[str, Dict[str, Any]] = {}
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -109,19 +102,16 @@ async def create_token(
         if not card:
             return JSONResponse(status_code=400, content={"error": "Invalid card"})
 
-        # Create the token - use the global service
-        # Ensure TrxType is set correctly for DataVaultRequestModel
-        assert settings.MERCHANT_ID is not None, "MERCHANT_ID must be set in settings"
-        create_token_payload = DataVaultRequestModel(
-            Channel="EC",
-            Store=settings.MERCHANT_ID,  # Access store from settings
-            TrxType="CREATE",
-            CardNumber=card["number"],
-            Expiration=card["expiration"],
-            CVC=None,  # Explicitly set optional CVC to None
-            DataVaultToken=None,  # Explicitly set DataVaultToken to None for CREATE
-        )
-        response: Dict[str, Any] = await datavault_service.create(create_token_payload)
+        # Create the token using PyAzul facade
+        create_token_payload = {
+            "Channel": "EC",
+            "Store": settings.MERCHANT_ID,  # Use settings for Store ID
+            "TrxType": "CREATE",
+            "CardNumber": card["number"],
+            "Expiration": card["expiration"],
+            # CVC is optional for token creation via DataVaultRequestModel
+        }
+        response: Dict[str, Any] = await azul.create_token(create_token_payload)
 
         logger.info(f"Token Creation Response: {json.dumps(response)}")
 
@@ -130,7 +120,9 @@ async def create_token(
             or response.get("ResponseMessage") != "Approved"
         ):
             error_message = (
-                response.get("ResponseMessage", "Unknown error")
+                response.get(
+                    "ErrorDescription", response.get("ResponseMessage", "Unknown error")
+                )
                 if isinstance(response, dict)
                 else "Invalid response format"
             )
@@ -139,7 +131,6 @@ async def create_token(
                 content={"error": f"Error creating token: {error_message}"},
             )
 
-        # Save token data
         token_id: Optional[Any] = response.get("DataVaultToken")
         if not token_id or not isinstance(token_id, str):
             logger.error("Invalid token_id received from DataVault")
@@ -200,71 +191,82 @@ async def process_token_payment(
             card_data = {}
 
         # Generate a unique order number
-        order_number = f"TOKEN-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
-
-        # Base URL for 3DS callbacks
+        order_number = f"TOKSEC-{datetime.now().strftime('%Y%m%d%H%M%S%f')}"
         base_url = str(request.base_url).rstrip("/")
 
-        # Create cardholder data
-        cardholder_info = CardHolderInfo(  # type: ignore[call-arg]
+        cardholder_info_dict = CardHolderInfo(
             BillingAddressCity="Santo Domingo",
             BillingAddressCountry="DO",
             BillingAddressLine1="Av. Winston Churchill",
+            BillingAddressLine2=None,
+            BillingAddressLine3=None,
             BillingAddressState="Distrito Nacional",
             BillingAddressZip="10148",
             Email="test@example.com",
-            Name="TEST USER",
+            Name="TEST USER TOKEN",
+            PhoneHome=None,
+            PhoneMobile=None,
+            PhoneWork=None,
             ShippingAddressCity="Santo Domingo",
             ShippingAddressCountry="DO",
             ShippingAddressLine1="Av. Winston Churchill",
+            ShippingAddressLine2=None,
+            ShippingAddressLine3=None,
             ShippingAddressState="Distrito Nacional",
             ShippingAddressZip="10148",
-        )
+        ).model_dump()
 
-        # Create data for the sale
+        three_ds_auth_dict = {
+            "TermUrl": f"{base_url}/post-3ds",
+            "MethodNotificationUrl": f"{base_url}/capture-3ds-method",
+            "RequestChallengeIndicator": challenge_indicator
+            or card_data.get("challenge_indicator", "03"),
+        }
+
         sale_data_dict: Dict[str, Any] = {
+            "Store": settings.MERCHANT_ID,  # Added Store
+            "OrderNumber": order_number,  # Added OrderNumber
             "DataVaultToken": token_id,
-            "Expiration": "",
             "Amount": int(amount * 100),
-            "ITBIS": int(itbis * 100),
-            "OrderNumber": order_number,
-            "TrxType": "Sale",
-            "AcquirerRefData": "1",
+            "Itbis": int(itbis * 100),
+            "TrxType": "Sale",  # SecureTokenSale model requires this
+            "AcquirerRefData": "1",  # Required by SecureTokenSale or its base
             "forceNo3DS": card_data.get("force_no_3ds", "0"),
             "Channel": "EC",
             "PosInputMode": "E-Commerce",
-            "cardHolderInfo": cardholder_info.model_dump(),
-            "threeDSAuth": {
-                "TermUrl": f"{base_url}/post-3ds",
-                "MethodNotificationUrl": f"{base_url}/capture-3ds-method",
-                "RequestChallengeIndicator": challenge_indicator
-                or card_data.get("challenge_indicator", "03"),
-            },
+            "cardHolderInfo": cardholder_info_dict,
+            "threeDSAuth": three_ds_auth_dict,
         }
 
-        logger.info(f"Processing token sale: {token_id}, Order: {order_number}")
-        data = SecureTokenSale(**sale_data_dict)
+        logger.info(f"Processing secure token sale: {token_id}, Order: {order_number}")
+        # SecureTokenSale model is handled by azul.secure_token_sale
+        response = await azul.secure_token_sale(sale_data_dict)
 
-        logger.info(
-            f"Secure sessions before call: {list(secure_service.secure_sessions.keys())}"  # noqa: E501
-        )
-        response = await secure_service.process_token_sale(data)
-        logger.info(
-            f"Secure sessions after call: {list(secure_service.secure_sessions.keys())}"
-        )
+        logger.info(f"Secure Token Sale Initial Response: {json.dumps(response)}")
 
-        if isinstance(response, dict) and "id" in response and response.get("id"):
-            session_id_from_response = response["id"]
-            logger.info(f"Response includes session ID: {session_id_from_response}")
-            session_exists = session_id_from_response in secure_service.secure_sessions
-            logger.info(f"Session exists in secure_sessions: {session_exists}")
-            if session_exists:
-                session_info = secure_service.secure_sessions[session_id_from_response]
-                logger.info(
-                    f"Session info: azul_order_id={session_info.get('azul_order_id')}"
+        secure_id = response.get("id") if isinstance(response, dict) else None
+        if secure_id:
+            app_3ds_session_store[secure_id] = {
+                "original_term_url": three_ds_auth_dict["TermUrl"],
+                "azul_order_id": None,  # Initialize as None
+                "app_order_number": order_number,
+            }
+            value_dict = response.get("value") if isinstance(response, dict) else None
+            if isinstance(value_dict, dict):
+                app_3ds_session_store[secure_id]["azul_order_id"] = value_dict.get(
+                    "AzulOrderId"
                 )
 
-        logger.info(f"Token Sale Response: {json.dumps(response)}")
+            if not app_3ds_session_store[secure_id]["azul_order_id"]:
+                pyazul_session = await azul.get_secure_session_info(secure_id)
+                if isinstance(pyazul_session, dict):
+                    retrieved_id = pyazul_session.get("azul_order_id")
+                    if isinstance(retrieved_id, str):
+                        app_3ds_session_store[secure_id]["azul_order_id"] = retrieved_id
+                        logger.info(
+                            f"Retrieved AzulId for {secure_id} post secure_token_sale"
+                        )
+
         return response
 
     except AzulError as e:
@@ -287,39 +289,49 @@ async def capture_3ds_method_route(request: Request, data: SecureSessionID):
     if not session_id:
         return JSONResponse(
             status_code=400,
-            content={"error": "No session identifier provided"},
+            content={"error": "No session identifier (secure_id) provided."},
         )
 
     logger.info(f"3DS method notification received for session: {session_id}")
-    logger.info(
-        f"Active secure sessions: {list(secure_service.secure_sessions.keys())}"
-    )
 
     try:
-        session = secure_service.secure_sessions.get(session_id)
-        if not session or not isinstance(session, dict):
-            logger.error(f"Session not found or invalid: {session_id}")
-            return JSONResponse(status_code=400, content={"error": "Invalid session"})
-
-        azul_order_id = session.get("azul_order_id", "")
-        if not azul_order_id or not isinstance(azul_order_id, str):
-            logger.error(f"Azul Order ID not found/invalid in session: {session_id}")
+        app_data = app_3ds_session_store.get(session_id)
+        if not isinstance(app_data, dict):
+            logger.error(
+                f"App 3DS session data not found or invalid for secure_id: {session_id}"
+            )
             return JSONResponse(
-                status_code=500,
-                content={
-                    "error": "Internal error: Missing/invalid order ID in session"
-                },
+                status_code=400, content={"error": "Invalid or expired 3DS session."}
             )
 
+        azul_order_id = app_data.get("azul_order_id")
+        original_term_url = app_data.get("original_term_url")
+
+        if azul_order_id is None:
+            pyazul_session_data = await azul.get_secure_session_info(session_id)
+            if isinstance(pyazul_session_data, dict):
+                retrieved_id = pyazul_session_data.get("azul_order_id")
+                if isinstance(retrieved_id, str):
+                    azul_order_id = retrieved_id
+                    app_data["azul_order_id"] = azul_order_id
+                    logger.info(
+                        f"Retrieved AzulId {azul_order_id} for {session_id} (3DS method)."  # noqa: E501
+                    )
+
+        assert isinstance(
+            azul_order_id, str
+        ), f"AzulId ({azul_order_id}) non-str for {session_id}."
+        assert isinstance(original_term_url, str), f"TermUrl non-str for {session_id}."
+
         logger.info(f"Processing 3DS method for order: {azul_order_id}")
-        result = await secure_service.process_3ds_method(azul_order_id, "RECEIVED")
+        result = await azul.process_3ds_method(azul_order_id, "RECEIVED")
         logger.info(f"3DS Method result: {json.dumps(result)}")
 
         if (
             isinstance(result, dict)
             and result.get("ResponseMessage") == "ALREADY_PROCESSED"
         ):
-            return {"status": "ok"}
+            return {"status": "ok", "message": "Already processed"}
 
         if (
             isinstance(result, dict)
@@ -327,41 +339,32 @@ async def capture_3ds_method_route(request: Request, data: SecureSessionID):
         ):
             logger.info("Additional 3DS challenge required")
             challenge_data = result.get("ThreeDSChallenge")
-            term_url = session.get("term_url")
-
-            if (
-                not isinstance(challenge_data, dict)
-                or not term_url
-                or not isinstance(term_url, str)
-            ):
-                logger.error(
-                    "3DS Challenge data or TermUrl missing/malformed in response/session."  # noqa: E501
-                )
+            if not isinstance(challenge_data, dict):
+                logger.error("ThreeDSChallenge missing in response")
                 return JSONResponse(
                     status_code=500,
-                    content={"error": "Error processing 3DS challenge data"},
+                    content={"error": "Invalid 3DS challenge data from API"},
                 )
 
-            creq = challenge_data.get("CReq", "")
-            redirect_post_url = challenge_data.get("RedirectPostUrl", "")
-
+            creq = challenge_data.get("CReq")
+            redirect_post_url = challenge_data.get("RedirectPostUrl")
             if not isinstance(creq, str) or not isinstance(redirect_post_url, str):
                 logger.error(
                     "CReq or RedirectPostUrl missing/malformed in challenge data."
                 )
                 return JSONResponse(
                     status_code=500,
-                    content={"error": "Error processing 3DS challenge parameters"},
+                    content={"error": "Invalid 3DS challenge parameters from API"},
                 )
 
             return {
                 "redirect": True,
-                "html": secure_service._create_challenge_form(
-                    creq, term_url, redirect_post_url
+                "html": azul.create_challenge_form(
+                    creq, original_term_url, redirect_post_url
                 ),
             }
 
-        return result
+        return result  # For other cases like APROBADA directly after method
 
     except AzulError as e:
         logger.error(f"Azul error processing 3DS method: {str(e)}")
@@ -394,8 +397,14 @@ async def post_3ds(request: Request, data: SecureChallengeRequest):
 
     try:
         logger.info(f"Processing 3DS challenge for session: {session_id}")
-        result = await secure_service.process_challenge(session_id, cres)
+        result = await azul.process_challenge(
+            session_id=session_id, challenge_response=cres
+        )
         logger.info(f"Challenge result: {json.dumps(result)}")
+
+        # Clean up app 3DS session store
+        if session_id in app_3ds_session_store:
+            del app_3ds_session_store[session_id]
 
         return templates.TemplateResponse(
             "result.html", {"request": request, "result": result}

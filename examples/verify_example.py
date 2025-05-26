@@ -2,24 +2,34 @@
 
 import asyncio
 
-from pyazul.core.config import get_azul_settings
-from pyazul.models.schemas import VerifyTransactionModel
-from pyazul.services.transaction import TransactionService
+from pyazul import PyAzul
 
 
 async def main():
     """Perform a card verification transaction."""
-    settings = get_azul_settings()
-    transaction_service = TransactionService(settings)
+    azul = PyAzul()
+    settings = azul.settings
 
-    # Create a verify transaction
-    verify_transaction = VerifyTransactionModel(CustomOrderId="sale-test-001")
-    verify_result = await transaction_service.verify(verify_transaction)
+    # Create a verify transaction data
+    verify_data = {
+        "Store": settings.MERCHANT_ID,
+        "Channel": "EC",
+        "CustomOrderId": "sale-test-001",  # Assumes this CustomOrderId exists
+    }
+    verify_result = await azul.verify_transaction(verify_data)
     print("Verify Result:", verify_result)
-    if verify_result["IsoCode"] == "00":
-        print("Transaction verified successfully")
+    if (
+        verify_result.get("ResponseMessage") == "APROBADA"
+        and verify_result.get("Found") == "Yes"
+    ):
+        print("Transaction verified successfully and found")
+    elif verify_result.get("Found") == "No":
+        print("Transaction not found.")
     else:
-        print("Transaction verification failed")
+        err_desc = verify_result.get(
+            "ErrorDescription", verify_result.get("ResponseMessage")
+        )
+        print(f"Transaction verification failed or not found: {err_desc}")
 
 
 if __name__ == "__main__":

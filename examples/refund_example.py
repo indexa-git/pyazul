@@ -2,9 +2,7 @@
 
 import asyncio
 
-from pyazul.core.config import get_azul_settings
-from pyazul.models.schemas import RefundTransactionModel, SaleTransactionModel
-from pyazul.services.transaction import TransactionService
+from pyazul import PyAzul
 
 
 async def test_refund():
@@ -20,48 +18,52 @@ async def test_refund():
     Note: Refunds can only be processed for valid transactions
     and the refund amount must match the original payment.
     """
-    # Initialize service
-    settings = get_azul_settings()
-    transaction_service = TransactionService(settings)
+    # Initialize PyAzul facade
+    azul = PyAzul()
+    settings = azul.settings
 
     try:
         # 1. First make a payment
         print("\n1. Making initial payment...")
         payment_data = {
+            "Store": settings.MERCHANT_ID,
             "Channel": "EC",
             "PosInputMode": "E-Commerce",
             "Amount": "1000",  # $10.00
             "Itbis": "180",  # $1.80 tax
-            "TrxType": "Sale",
             "CardNumber": "5413330089600119",  # Test card
             "Expiration": "202812",
             "CVC": "979",
+            "OrderNumber": "SALE-FOR-REFUND-001",
             "CustomOrderId": "refund-test-001",
             "SaveToDataVault": "1",
         }
 
-        payment = SaleTransactionModel(**payment_data)
-        payment_response = await transaction_service.sale(payment)
+        payment_response = await azul.sale(payment_data)
 
-        if payment_response.get("IsoCode") != "00":
-            raise Exception("Initial payment failed")
+        if payment_response.get("ResponseMessage") != "APROBADA":
+            err_desc = payment_response.get(
+                "ErrorDescription", payment_response.get("ResponseMessage")
+            )
+            raise Exception(f"Initial payment failed: {err_desc}")
 
         azul_order_id = payment_response.get("AzulOrderId")
+        original_order_number = payment_data["OrderNumber"]
         print(f"Payment successful. AzulOrderId: {azul_order_id}")
 
         # 2. Process refund
         print("\n2. Processing refund...")
         refund_data = {
+            "Store": settings.MERCHANT_ID,
             "Channel": "EC",
             "PosInputMode": "E-Commerce",
-            "Amount": "1000",  # Must match original amount
-            "Itbis": "180",  # Must match original tax
+            "Amount": "1000",
+            "Itbis": "180",
             "AzulOrderId": azul_order_id,
-            "TrxType": "Refund",
+            "OrderNumber": original_order_number,
         }
 
-        refund = RefundTransactionModel(**refund_data)
-        refund_response = await transaction_service.refund(refund)
+        refund_response = await azul.refund(refund_data)
 
         # Display refund results
         print("\nRefund Response:")

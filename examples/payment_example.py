@@ -2,9 +2,7 @@
 
 import asyncio
 
-from pyazul.core.config import get_azul_settings
-from pyazul.models.schemas import SaleTransactionModel
-from pyazul.services.transaction import TransactionService
+from pyazul import PyAzul
 
 
 async def test_payment():
@@ -20,28 +18,28 @@ async def test_payment():
     Use case: Direct card payment where you need to charge
     a customer's card immediately.
     """
-    # Initialize service with configuration
-    settings = get_azul_settings()
-    transaction_service = TransactionService(settings)
+    # Initialize PyAzul facade
+    azul = PyAzul()
+    settings = azul.settings
 
     # Test payment data
     payment_data = {
+        "Store": settings.MERCHANT_ID,
         "Channel": "EC",
         "PosInputMode": "E-Commerce",
         "Amount": "1000",  # $10.00
         "Itbis": "180",  # $1.80 tax
-        "TrxType": "Sale",
         "CardNumber": "5413330089600119",  # Test card
         "Expiration": "202812",
         "CVC": "979",
+        "OrderNumber": "SALE-001",
         "CustomOrderId": "example-001",
         "SaveToDataVault": "1",  # Save card for future use
     }
 
     try:
         # Create and process payment
-        payment = SaleTransactionModel(**payment_data)
-        response = await transaction_service.sale(payment)
+        response = await azul.sale(payment_data)
 
         # Display transaction results
         print("\nPayment Response:")

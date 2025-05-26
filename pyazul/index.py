@@ -152,3 +152,9 @@ class PyAzul:
     ) -> Optional[Dict[str, Any]]:
         """Retrieve information about an active 3DS session."""
         return self.secure.secure_sessions.get(session_id)
+
+    def create_challenge_form(
+        self, creq: str, term_url: str, redirect_post_url: str
+    ) -> str:
+        """Create an HTML form for the 3DS challenge redirect."""
+        return self.secure._create_challenge_form(creq, term_url, redirect_post_url)

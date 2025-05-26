@@ -2,9 +2,7 @@
 
 import asyncio
 
-from pyazul.core.config import get_azul_settings
-from pyazul.models.schemas import HoldTransactionModel
-from pyazul.services.transaction import TransactionService
+from pyazul import PyAzul
 
 
 async def test_hold():
@@ -23,28 +21,28 @@ async def test_hold():
     - Car rentals
     - Pre-authorizations
     """
-    # Initialize service
-    settings = get_azul_settings()
-    transaction_service = TransactionService(settings)
+    # Initialize PyAzul facade
+    azul = PyAzul()
+    settings = azul.settings
 
     # Hold transaction data
     hold_data = {
-        # "Channel": "EC",
-        # "PosInputMode": "E-Commerce",
+        "Store": settings.MERCHANT_ID,
+        "Channel": "EC",
+        "PosInputMode": "E-Commerce",
         "Amount": "1000",  # Amount to hold
         "Itbis": "180",  # Tax amount
-        "TrxType": "Hold",
         "CardNumber": "5413330089600119",
         "Expiration": "202812",
         "CVC": "979",
+        "OrderNumber": "HOLD-001",
         "CustomOrderId": "hold-example-001",
         "SaveToDataVault": "0",  # Don't save card for holds
     }
 
     try:
         # Process hold request
-        payment = HoldTransactionModel(**hold_data)
-        response = await transaction_service.hold(payment)
+        response = await azul.hold(hold_data)
 
         # Display hold results
         print("\nHold Response:")

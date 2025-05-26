@@ -50,6 +50,27 @@ azul = PyAzul()  # Uses environment variables by default
 # azul = PyAzul(settings=settings)
 ```
 
+### Logging Configuration
+
+By default, PyAzul is configured to minimize log output in production environments. Most informational logs about the internal steps of payment processing are set to `DEBUG` level.
+
+If you need to see detailed logs from PyAzul (e.g., for debugging), you'll need to configure your application's Python logging setup to enable `DEBUG` level for PyAzul's loggers. For example:
+
+```python
+import logging
+
+# To see debug messages from all of pyazul
+logging.getLogger('pyazul').setLevel(logging.DEBUG)
+
+# Or for a specific service like SecureService
+logging.getLogger('pyazul.services.secure').setLevel(logging.DEBUG)
+
+# Ensure you have a handler configured for the root logger or specific loggers
+# For example, to print debug messages to console:
+logging.basicConfig(level=logging.DEBUG) # If no other logging is configured
+# Or, if you have an existing setup, add/configure handlers appropriately.
+```
+
 ### Process a Payment (Non-3DS)
 
 ```python
@@ -62,8 +83,8 @@ async def process_payment():
     payment_data = {
         "Channel": "EC", # Usually "EC"
         "PosInputMode": "E-Commerce", # Usually "E-Commerce"
-        "Amount": "100000",           # $1,000.00 (in cents)
-        "Itbis": "18000",             # $180.00 tax (in cents)
+        "Amount": "100000",           # $1,000.00 (in cents, can be int 100000 too)
+        "Itbis": "18000",             # $180.00 tax (in cents, can be int 18000 too)
         "CardNumber": "4111********1111", # Use a test card
         "Expiration": "202812", # YYYYMM
         "CVC": "***",
@@ -92,7 +113,7 @@ async def tokenize_card():
     token_creation_data = {
         "CardNumber": "4111********1111",
         "Expiration": "202812",
-        "store": "your_merchant_id" # Your Merchant ID for DataVault
+        "Store": "your_merchant_id", # Corrected: 'Store' not 'store'
         # "CustomOrderId": "optional-token-order-id"
     }
     try:
@@ -106,9 +127,10 @@ async def tokenize_card():
             token_payment_data = {
                 "Channel": "EC",
                 "DataVaultToken": token_id,
-                "Amount": "100000",
-                "Itbis": "000", # Example: no ITBIS
-                "CustomOrderId": "token-payment-001"
+                "Amount": "100000", # Can be int 100000
+                "Itbis": "000", # Can be int 0, will be formatted
+                "CustomOrderId": "token-payment-001", # Optional
+                "OrderNumber": "TOKEN-ORD-XYZ" # Required
             }
             payment_response = await azul.token_sale(token_payment_data) # Non-3DS token sale
             if payment_response.get("ResponseMessage") == "APROBADA":
@@ -137,8 +159,8 @@ azul = PyAzul() # Ensure Payment Page settings are in .env
 @app.get("/pay/{order_id}", response_class=HTMLResponse)
 async def get_payment_page(order_id: str):
     page_data = {
-        "Amount": "100000",           # $1,000.00
-        "ITBIS": "18000",             # $180.00
+        "Amount": "100000",           # $1,000.00 (can be int 100000)
+        "ITBIS": "18000",             # $180.00 (can be int 18000)
         "OrderNumber": order_id,      # Your internal order number
         "ApprovedUrl": "https://your-site.com/success",
         "DeclineUrl": "https://your-site.com/declined",
@@ -181,7 +203,7 @@ azul = PyAzul()
 
 The 3DS process requires multiple steps, all accessible via the `PyAzul` instance. This example uses FastAPI.
 
-It's common for applications to manage some state across the 3DS callback steps (e.g., linking `secure_id` to an internal order or `azul_order_id`). The example below includes a simple dictionary (`app_level_session_store`) to illustrate this concept; replace this with your application's actual session management.
+It's common for applications to manage some state across the 3DS callback steps (e.g., linking `secure_id` to an internal order or `azul_order_id`). The example below includes a simple dictionary (`app_level_session_store`) to illustrate this concept; replace this with your application's actual session management. **For production environments, especially those with multiple server instances or requiring data persistence, you MUST implement a robust session management solution (e.g., Redis, database-backed sessions) to store and retrieve data across callbacks.** PyAzul's internal session handling for 3DS is in-memory and instance-specific.
 
 1. **Transaction Initiation**:
    Initiate a 3DS sale (or hold, or token sale). PyAzul automatically appends a unique `secure_id` to your callback URLs (`TermUrl`, `MethodNotificationUrl`) for session tracking.
@@ -212,10 +234,18 @@ It's common for applications to manage some state across the 3DS callback steps 
            azul_order_id_from_response = response.get("value", {}).get("AzulOrderId")
 
            if secure_id: # Store for your application's reference across callbacks
-               app_level_session_store[secure_id] = {
-                   "original_term_url": original_term_url,
-                   "azul_order_id": azul_order_id_from_response # May be None if redirect flow starts
-               }
+                app_session_data = {
+                    "original_term_url": original_term_url,
+                    # Store AzulOrderId if available immediately (e.g., approved without 3DS)
+                    "azul_order_id": azul_order_id_from_response,
+                    # You might also store your internal order details, amount, etc.
+                    "internal_order_ref": request_data.get("OrderNumber")
+                }
+                app_level_session_store[secure_id] = app_session_data
+                # For debugging, you can see what pyazul stores internally:
+                # pyazul_session = await azul.get_secure_session_info(secure_id)
+                # print(f"PyAzul internal session for {secure_id}: {pyazul_session}")
+
 
            if response.get("redirect"):
                # This HTML contains the form for 3DS Method URL or Challenge ACS Redirection
@@ -243,17 +273,25 @@ It's common for applications to manage some state across the 3DS callback steps 
            azul_order_id = app_session_data.get("azul_order_id")
            original_term_url = app_session_data.get("original_term_url")
 
-           # If azul_order_id wasn't in the initial `secure_sale` response (e.g. because it went straight to redirect),
-           # pyazul has stored it internally. `secure_3ds_method` requires it. The current library version
-           # expects the user to provide it. Future versions might offer helpers.
+           # The `secure_3ds_method` call requires `azul_order_id`.
+           # Your application must ensure it has this ID. It might have been:
+           # 1. Received in the initial `secure_sale` response (if no immediate redirect).
+           # 2. Retrieved from PyAzul's internal session *immediately after* `secure_sale`
+           #    if a redirect occurred (using `await azul.get_secure_session_info(secure_id)`
+           #    and then stored in your `app_level_session_store`).
+           # This example assumes `azul_order_id` was stored if available,
+           # or that the application has a strategy to link `secure_id` to `azul_order_id`.
            if not azul_order_id:
-                # This indicates a need to fetch the AzulOrderId linked to secure_id from pyazul's internal session,
-                # or ensure it was captured and stored by the application earlier.
-                # For this example, we assume it must have been captured if this flow is to work as PyAzul expects.
-                # As a fallback, you might re-query the initial transaction if your app stored OrderNumber/CustomOrderId.
-                # However, pyazul's SecureService *does* store azul_order_id against secure_id internally.
-                # This example proceeds assuming `azul_order_id` was obtained and stored by the app.
-                return JSONResponse(content={"error": "Azul Order ID not available from initial app session for secure_id"}, status_code=400)
+                # Attempt to get it from pyazul's session store if not found in app's store
+                # This is a fallback; ideally, your app manages this state.
+                pyazul_session = await azul.get_secure_session_info(secure_id)
+                if pyazul_session and pyazul_session.get("azul_order_id"):
+                    azul_order_id = pyazul_session.get("azul_order_id")
+                    # Optionally update your app_level_session_store here
+                    app_level_session_store[secure_id]["azul_order_id"] = azul_order_id
+                else:
+                    return JSONResponse(content={"error": "Azul Order ID not available for secure_id"}, status_code=400)
+
 
            if not original_term_url:
                 return JSONResponse(content={"error": "Original TermUrl not available from initial app session for secure_id"}, status_code=400)
@@ -280,7 +318,7 @@ It's common for applications to manage some state across the 3DS callback steps 
    ```
 
 3. **3DS Challenge Processing (Callback)**:
-   This is your `TermUrl` endpoint. It receives the `CRes` (Challenge Response) from the ACS, typically via a POST request.
+   This is your `TermUrl` endpoint. It receives the `CRes` (Challenge Response) from the ACS, typically via a POST request. PyAzul uses the `secure_id` (passed in the `TermUrl` query string) to look up the necessary context, like `azul_order_id`, from its internal session.
 
    ```python
 
@@ -302,10 +340,11 @@ It's common for applications to manage some state across the 3DS callback steps 
 
 ### Important Notes on 3DS
 
-- The `secure_id` generated during transaction initiation is key. PyAzul automatically appends it to your `TermUrl` and `MethodNotificationUrl`. Ensure your callback handlers can receive it (e.g., as a query parameter).
-- 3DS Session management is currently handled internally by `pyazul` using in-memory storage. For environments requiring persistent or shared session state across multiple instances, you would need to manage the linkage between `secure_id` and necessary transaction data (like `azul_order_id` and original `TermUrl`) within your application's own session management system.
-- `CardHolderInfo` and `ThreeDSAuth` details are critical for successful 3DS 2.0 authentication.
-- Error handling: Catch `AzulError` and its derivatives (`AzulResponseError`, `APIError`, `SSLError`) for issues during API calls.
+- The `secure_id` generated during transaction initiation is key. PyAzul automatically appends it as a query parameter to your `TermUrl` and `MethodNotificationUrl`. Your callback handlers must be able to receive this `secure_id`.
+- **Application-Side Session Management is Crucial for 3DS**: While PyAzul's `SecureService` maintains an internal in-memory session store (linking `secure_id` to `azul_order_id`, etc.), this is instance-specific and not persistent. **For production, especially with multiple server instances or across application restarts, your application MUST implement its own robust session management solution.** This system should store and retrieve necessary data (e.g., your internal order details, `azul_order_id` if obtained early, `original_term_url`) using `secure_id` as the key across the different callback steps. The `app_level_session_store` in the FastAPI examples illustrates this concept.
+- You can inspect PyAzul's internal session data for a given `secure_id` using `await azul.get_secure_session_info(secure_id)`, which can be helpful for debugging, but should not replace your application's session management for production logic.
+- `CardHolderInfo` and `ThreeDSAuth` details are critical for successful 3DS 2.0 authentication. Fill them as completely and accurately as possible.
+- **Error Handling**: Always wrap PyAzul calls in `try...except` blocks to handle potential `AzulError` and its derivatives (`AzulResponseError`, `APIError`, `SSLError`). `AzulResponseError` is particularly useful as its `response_data` attribute contains the raw error dictionary from Azul.
 
 ## API Reference
 
@@ -353,32 +392,45 @@ await azul.secure_hold({...})        # 3DS card hold transaction
 await azul.secure_3ds_method(azul_order_id="...", method_notification_status="...") # Process 3DS method notification
 await azul.secure_challenge(secure_id="...", cres="...")     # Process 3DS challenge result
 azul.create_challenge_form(creq="...", term_url="...", redirect_post_url="...") # Helper to get HTML for challenge form
+await azul.get_secure_session_info(session_id="...") # Inspect pyazul's internal 3DS session data for a secure_id
 ```
 
 ## Request Data and Pydantic Models
 
-PyAzul methods primarily accept Python dictionaries as input for request data. For enhanced type safety and auto-completion, you can use the Pydantic models provided by the library. All models are available under `pyazul.models`.
+PyAzul methods primarily accept Python dictionaries as input for request data. For enhanced type safety and auto-completion on the client-side, you can define your request data using PyAzul's Pydantic models (available under `pyazul.models`) and then pass `model_instance.model_dump()` to the PyAzul methods.
+
+The library's internal Pydantic models (e.g., `SaleTransactionModel`, `SecureSaleRequest`) handle validation and ensure fields like `Amount` and `ITBIS` are correctly formatted as strings of cents for the Azul API, even if you provide them as integers or floats (representing cents) in your input dictionary or Pydantic model.
 
 ```python
-from pyazul.models import SaleTransactionModel, SecureSaleRequest # etc.
+from pyazul.models import SaleTransactionModel # etc.
 
-# Example using a Pydantic model:
+# Example: Building a dictionary directly (common usage)
+payment_dict = {
+    "CardNumber": "4111...",
+    "Expiration": "202812",
+    "CVC": "123",
+    "Amount": 50000, # 500.00 (as integer cents)
+    "Itbis": 0,      # 0.00 (as integer cents)
+    "OrderNumber": "MYORDER001",
+    "Store": "your_merchant_id" # Ensure Store is provided if not using default
+}
+response = await azul.sale(payment_dict)
+
+# Example: Using a Pydantic model for client-side validation/construction
 data_model = SaleTransactionModel(
     CardNumber="4111...",
     Expiration="202812",
     CVC="123",
-    Amount="5000", # 50.00
-    Itbis="000",
-    OrderNumber="MYORDER001"
+    Amount=50000, # 500.00 (as integer cents)
+    Itbis=0,      # 0.00 (as integer cents)
+    OrderNumber="MYORDER001",
+    Store="your_merchant_id" # Ensure Store is provided
 )
-response = await azul.sale(data_model.model_dump()) # Pass as dict
-# or some methods might accept the model instance directly if type hints allow:
-# response = await azul.sale(data_model) # Check method signature
+response = await azul.sale(data_model.model_dump(exclude_none=True)) # Pass as dict
 ```
 
 Refer to the `pyazul/models/schemas.py` and `pyazul/models/secure.py` files for detailed field definitions within each model. Below are common examples as dictionaries.
 
-(The rest of the "Request Data Reference" sections for Basic Transactions, Token Ops, Payment Page, 3DS Models can largely remain the same, as they show dictionary structures, which are still supported. Ensure amounts in 3DS examples are integers if that's what SecureSaleRequest expects, or strings if they are converted.)
 
 ### Basic Transaction Models (Example Dictionaries)
 
@@ -388,8 +440,8 @@ Refer to the `pyazul/models/schemas.py` and `pyazul/models/secure.py` files for 
     "CardNumber": "4111111111111111",
     "Expiration": "202812",  # YYYYMM format
     "CVC": "123",
-    "Amount": "100000",      # $1,000.00 (as string of cents)
-    "Itbis": "18000",        # $180.00 (as string of cents)
+    "Amount": "100000",      # $1,000.00 (can be int 100000, library handles format)
+    "Itbis": "18000",        # $180.00 (can be int 18000, library handles format)
     "CustomOrderId": "order-123", # Optional
     "OrderNumber": "INV-12345",   # Your internal order ID
     "SaveToDataVault": "2"  # Optional: '1' to save, '2' (default) not to save
@@ -400,7 +452,7 @@ Refer to the `pyazul/models/schemas.py` and `pyazul/models/secure.py` files for 
 
 ### 3D Secure Models (Example Dictionaries)
 
-Note: For 3DS `Amount` and `ITBIS` in `SecureSaleRequest`, `SecureTokenSale`, these are often expected as integers (cents) by the Pydantic models, but the service layer converts to string for the API. Pass as integers if using Pydantic models directly, or strings if passing dicts and the model handles conversion. The examples below use integers for `Amount`/`ITBIS` as often preferred for clarity before model conversion.
+Note: You can provide `Amount` and `ITBIS` as integers (representing cents), floats (representing cents), or pre-formatted strings of cents. The library's Pydantic models will validate and ensure they are converted to the required string format for the API.
 
 ```python
 # Cardholder Information (part of 3DS requests)
@@ -425,9 +477,10 @@ Note: For 3DS `Amount` and `ITBIS` in `SecureSaleRequest`, `SecureTokenSale`, th
     "CardNumber": "4111111111111111",
     "Expiration": "202812",
     "CVC": "123",
-    "Amount": 100000,           # $1,000.00 (in cents, as integer)
-    "ITBIS": 18000,             # $180.00 tax (in cents, as integer)
+    "Amount": 100000,           # $1,000.00 (integer cents)
+    "Itbis": 18000,             # $180.00 tax (integer cents)
     "OrderNumber": "3DS-ORDER-123",
+    "Store": "your_merchant_id", # Required
     # "Channel": "EC", # Usually set by library
     # "PosInputMode": "E-Commerce", # Usually set by library
     "forceNo3DS": "0",          # "0" to enable 3DS
@@ -475,7 +528,7 @@ except AzulError as e:
 
 ## More Information about Azul
 
-For complete official API documentation, see the [Azul Developer Portal](https://dev.azul.com.do/docs/desarrolladores). (Link might vary, ensure it's current).
+For complete official API documentation, refer to the [Azul Developer Portal](https://dev.azul.com.do/docs/desarrolladores). This link is subject to change; please verify on Azul's official website if it doesn't work.
 
 ---
 

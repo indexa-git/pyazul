@@ -14,14 +14,14 @@ Amounts format:
 
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import HttpUrl
 
-from pyazul.core.config import get_azul_settings
+from pyazul import PyAzul
 from pyazul.models.schemas import PaymentPageModel
-from pyazul.services.payment_page import PaymentPageService
 
 # Initialize FastAPI app and payment service
 app = FastAPI()
-payment_page_service = PaymentPageService(get_azul_settings())
+azul = PyAzul()
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -48,12 +48,13 @@ async def view_amounts():
     payment_request = PaymentPageModel(
         Amount="100000",  # $1,000.00 (total amount including ITBIS)
         ITBIS="18000",  # $180.00 (18% of base amount)
-        ApprovedUrl="https://www.instagram.com/progressa.group/#",
-        DeclineUrl="https://www.progressa.group/",
-        CancelUrl="https://www.progressa.group/",
+        ApprovedUrl=HttpUrl("https://www.instagram.com/progressa.group/#"),
+        DeclineUrl=HttpUrl("https://www.progressa.group/"),
+        CancelUrl=HttpUrl("https://www.progressa.group/"),
         UseCustomField1="0",
         CustomField1Label="",
         CustomField1Value="",
+        AltMerchantName=None,
     )
 
     return JSONResponse(
@@ -81,16 +82,17 @@ async def buy_ticket(request: Request):
         payment_request = PaymentPageModel(
             Amount="100000",  # $1,000.00
             ITBIS="18000",  # $180.00
-            ApprovedUrl="https://www.instagram.com/progressa.group/#",
-            DeclineUrl="https://www.progressa.group/",
-            CancelUrl="https://www.progressa.group/",
+            ApprovedUrl=HttpUrl("https://www.instagram.com/progressa.group/#"),
+            DeclineUrl=HttpUrl("https://www.progressa.group/"),
+            CancelUrl=HttpUrl("https://www.progressa.group/"),
             UseCustomField1="0",
             CustomField1Label="",
             CustomField1Value="",
+            AltMerchantName=None,
         )
 
         # Generate and return the HTML form
-        return payment_page_service.create_payment_form(payment_request)
+        return azul.payment_page_service.create_payment_form(payment_request)
 
     except Exception:
         return """

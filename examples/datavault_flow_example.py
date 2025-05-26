@@ -2,11 +2,7 @@
 
 import asyncio
 
-from pyazul.api.client import AzulAPI
-from pyazul.core.config import get_azul_settings
-from pyazul.models.schemas import DataVaultRequestModel, TokenSaleModel
-from pyazul.services.datavault import DataVaultService
-from pyazul.services.transaction import TransactionService
+from pyazul import PyAzul
 
 
 async def test_datavault_flow():
@@ -29,11 +25,9 @@ async def test_datavault_flow():
     with PCI compliance by reducing the scope of sensitive data
     handling in your system.
     """
-    # Initialize services
-    settings = get_azul_settings()
-    api_client = AzulAPI(settings=settings)
-    datavault_service = DataVaultService(api_client=api_client, settings=settings)
-    transaction_service = TransactionService(api_client=api_client, settings=settings)
+    # Initialize PyAzul facade
+    azul = PyAzul()
+    settings = azul.settings
 
     # Card data for tokenization
     card_details = {
@@ -43,7 +37,7 @@ async def test_datavault_flow():
     }
     common_datavault_params = {
         "Channel": "EC",
-        "Store": "39038540035",  # Reverted to hardcoded store ID from original example
+        "Store": settings.MERCHANT_ID,
     }
 
     try:
@@ -52,15 +46,15 @@ async def test_datavault_flow():
         create_payload_dict = {
             **common_datavault_params,
             **card_details,
-            # "TrxType": "CREATE", # Will be passed explicitly
+            "TrxType": "CREATE",
         }
-        create_token_request = DataVaultRequestModel(
-            TrxType="CREATE", **create_payload_dict
-        )
-        token_response = await datavault_service.create(create_token_request)
+        token_response = await azul.create_token(create_payload_dict)
 
-        if token_response.get("IsoCode") != "00":
-            raise Exception("Token creation failed")
+        if token_response.get("ResponseMessage") != "Approved":
+            err_desc = token_response.get(
+                "ErrorDescription", token_response.get("ResponseMessage")
+            )
+            raise Exception(f"Token creation failed: {err_desc}")
 
         token = token_response.get("DataVaultToken")
         print(f"Token created: {token}")
@@ -69,40 +63,47 @@ async def test_datavault_flow():
         print("\n2. Making payment with token...")
         token_sale_data = {
             "Channel": "EC",
+            "Store": settings.MERCHANT_ID,
             "PosInputMode": "E-Commerce",
             "Amount": "1000",
             "Itbis": "180",
             "DataVaultToken": token,
+            "OrderNumber": "DSALE-001",
             "CustomOrderId": "token-sale-example-001",
         }
-        token_payment = TokenSaleModel(**token_sale_data)
-        sale_response = await transaction_service.sale(token_payment)
+        sale_response = await azul.token_sale(token_sale_data)
         print(f"Sale response: {sale_response}")
-        assert sale_response.get("IsoCode") == "00", "Sale should be successful"
+        if sale_response.get("ResponseMessage") != "APROBADA":
+            err_desc = sale_response.get(
+                "ErrorDescription", sale_response.get("ResponseMessage")
+            )
+            raise Exception(f"Token Sale failed: {err_desc}")
 
         # 3. Delete token
         print("\n3. Deleting token...")
         delete_payload_dict = {
             **common_datavault_params,
             "DataVaultToken": token,
-            # "TrxType": "DELETE", # Will be passed explicitly
+            "TrxType": "DELETE",
         }
-        delete_token_request = DataVaultRequestModel(
-            TrxType="DELETE", **delete_payload_dict
-        )
-        delete_response = await datavault_service.delete(delete_token_request)
+        delete_response = await azul.delete_token(delete_payload_dict)
         print(f"Delete response: {delete_response}")
+        if delete_response.get("ResponseMessage") != "Approved":
+            err_desc = delete_response.get(
+                "ErrorDescription", delete_response.get("ResponseMessage")
+            )
+            raise Exception(f"Token deletion failed: {err_desc}")
 
         # 4. Verify token is invalid
         print("\n4. Verifying deleted token...")
         try:
-            await transaction_service.sale(token_payment)
-            print("Warning: Payment with deleted token succeeded")
+            await azul.token_sale(token_sale_data)
+            print("Warning: Payment with deleted token succeeded unexpectedly")
         except Exception as e:
-            print(f"Expected error: {str(e)}")
+            print(f"Expected error when using deleted token: {str(e)}")
 
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print(f"Error in DataVault flow: {str(e)}")
 
 
 if __name__ == "__main__":
