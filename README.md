@@ -523,4 +523,4 @@ For complete official documentation on the external Azul API, services, and fiel
 
 ---
 
-&copy; LGPL License
+&copy; MIT License
