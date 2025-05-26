@@ -1,6 +1,6 @@
 ---
 status: proposed
-date: { YYYY-MM-DD } # To be filled with current date
+date: 2025-05-25
 builds-on: {}
 story: Enhance usability for developers not using asyncio by providing a synchronous API.
 ---

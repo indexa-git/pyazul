@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: implemented
 date: 2025-05-26
 builds-on:
 story: Improve separation of concerns and simplify service dependencies by centralizing API endpoint and authentication parameter selection within the AzulAPI client.

@@ -1,6 +1,6 @@
 ---
 status: proposed
-date: { YYYY-MM-DD } # To be filled with current date
+date: 2025-05-25
 builds-on: {}
 story: Improve 3DS session management for production readiness and flexibility, as identified in library evaluation.
 ---

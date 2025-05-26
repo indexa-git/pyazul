@@ -1,6 +1,6 @@
 ---
 status: proposed
-date: { YYYY-MM-DD } # To be filled with current date
+date: 2025-05-25
 builds-on: {}
 story: Allow users more control over the HTTP client for advanced scenarios like custom proxies, timeouts, or retry strategies.
 ---
