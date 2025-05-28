@@ -171,6 +171,15 @@ async def test_process_sale_direct_approval(
 @pytest.mark.asyncio
 async def test_process_3ds_method(secure_service, mock_api_client):
     """Test process_3ds_method with successful response."""
+    # Set up session data for the azul_order_id
+    secure_service.secure_sessions["test_session"] = {
+        "azul_order_id": "12345",
+        "amount": "1000",
+        "itbis": "180",
+        "order_number": "TEST123",
+        "term_url": "https://example.com/post-3ds?secure_id=test_session",
+    }
+
     # Mock API response for 3DS method
     mock_api_client._async_request.return_value = {
         "ResponseMessage": "3D_SECURE_CHALLENGE",

@@ -393,12 +393,37 @@ class SecureService:
         try:
             # Mark as processed before making request
             self.processed_methods[azul_order_id] = True
+
+            # Find the session data for this azul_order_id
+            session_data = None
+            for _, session in self.secure_sessions.items():
+                if session.get("azul_order_id") == azul_order_id:
+                    session_data = session
+                    break
+
+            if not session_data:
+                logger.error(
+                    f"No session data found for azul_order_id: {azul_order_id}"
+                )
+                return {
+                    "ResponseMessage": "SESSION_NOT_FOUND",
+                    "AzulOrderId": azul_order_id,
+                }
+
             data = {
                 "Channel": "EC",
                 "Store": self.api.settings.MERCHANT_ID,
                 "AzulOrderId": azul_order_id,
                 "MethodNotificationStatus": method_notification_status,
+                # Add required fields that were missing
+                "Amount": str(session_data.get("amount", "")),
+                "Currency": "DOP",
+                "OrderNumber": session_data.get("order_number", ""),
             }
+
+            # Add Itbis if available in session
+            if "itbis" in session_data:
+                data["Itbis"] = str(session_data["itbis"])
 
             logger.debug("SENDING REQUEST TO AZUL WITH 3DS METHOD NOTIFICATION...")
             logger.debug("-" * 50)
@@ -406,7 +431,7 @@ class SecureService:
             logger.debug("-" * 50)
 
             result = await self.api._async_request(
-                data, operation="processthreedsmethod"
+                data, operation="processthreedsmethod", is_secure=True
             )
 
             # Update transaction state
