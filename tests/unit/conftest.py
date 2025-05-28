@@ -18,24 +18,27 @@ def mock_azul_settings() -> AzulSettings:
     settings.AZUL_CERT = "dummy_cert_path.pem"
     settings.AZUL_KEY = "dummy_key_path.key"
     settings.ENVIRONMENT = "dev"
-    settings.DEV_URL = "https://dev.azul.com.do/webservices/JSON/Default.aspx"
-    settings.PROD_URL = "https://pagos.azul.com.do/webservices/JSON/Default.aspx"
+
     settings.CHANNEL = "EC"
     # Add other necessary mock attributes as needed
     return settings
 
 
 @pytest.fixture
-def mock_api_client(mock_azul_settings: AzulSettings) -> AzulAPI:
+def mock_api_client(mock_azul_settings) -> AzulAPI:
     """Return a mock AzulAPI client instance."""
     client = Mock(spec=AzulAPI)
     client.settings = mock_azul_settings
-    client._async_request = AsyncMock()  # For mocking the actual HTTP request method
-    client._get_ssl_context = Mock(return_value=None)  # Mock SSL context creation
+    # Mock private methods using spec to avoid protected access warnings
+    client.configure_mock(
+        **{
+            "_async_request.return_value": AsyncMock(),
+        }
+    )
+    # Set additional attributes that may not be in the spec
+    client._get_ssl_context = Mock(return_value=None)
     client._generate_auth_headers = Mock(
         return_value={("Auth1", "test_auth1"), ("Auth2", "test_auth2")}
     )
-    client._prepare_payload = Mock(
-        side_effect=lambda data, **kwargs: data
-    )  # Simple pass-through
+    client._prepare_payload = Mock(side_effect=lambda data, **kwargs: data)
     return client

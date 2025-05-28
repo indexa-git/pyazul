@@ -50,13 +50,16 @@ class AzulSettings(BaseSettings):
     CUSTOM_URL: Optional[str] = None
 
     # Service URLs
-    DEV_URL: str = AzulEndpoints.DEV_URL
-    PROD_URL: str = AzulEndpoints.PROD_URL
     ALT_PROD_URL: Optional[str] = None
     ALT_PROD_URL_PAYMENT: Optional[str] = None
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="allow"
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="allow",
+        # Don't override defaults with empty environment variables
+        env_ignore_empty=True,
     )
 
     @classmethod
@@ -85,7 +88,7 @@ class AzulSettings(BaseSettings):
             try:
                 path = Path(path_str)
                 return path.is_file() and path.exists()
-            except Exception:
+            except (OSError, ValueError, TypeError):
                 return False
 
         def is_pem_content(content: str, cert_type: str = "CERTIFICATE") -> bool:
@@ -99,7 +102,7 @@ class AzulSettings(BaseSettings):
             try:
                 decoded = base64.b64decode(s).decode("utf-8")
                 return is_pem_content(decoded) or is_pem_content(decoded, "PRIVATE KEY")
-            except Exception:
+            except (ValueError, UnicodeDecodeError):
                 return False
 
         def write_cert(
@@ -147,6 +150,16 @@ class AzulSettings(BaseSettings):
             )
 
         return str(cert_path), str(key_path)
+
+    def get_api_url(self) -> str:
+        """Get the appropriate API URL based on environment and custom settings."""
+        if self.CUSTOM_URL:
+            return self.CUSTOM_URL
+        return (
+            AzulEndpoints.PROD_URL
+            if self.ENVIRONMENT == "prod"
+            else AzulEndpoints.DEV_URL
+        )
 
     @model_validator(mode="after")
     def _ensure_required_fields_are_set(self) -> Self:

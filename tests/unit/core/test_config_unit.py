@@ -36,8 +36,6 @@ def azul_settings_test_factory(monkeypatch):
                 original_os_environ[var] = os.environ[var]
             monkeypatch.delenv(var, raising=False)
 
-        # Pydantic-settings will still try to load .env if not effectively patched.
-        # Explicit None in constructor should override .env empty strings.
         settings = AzulSettings(**initial_values_for_test)
 
         # Restore original os.environ values
@@ -68,12 +66,6 @@ def test_azul_settings_model_field_defaults(azul_settings_test_factory):
     )
     assert settings.ENVIRONMENT == "dev"
     assert settings.CHANNEL == "EC"
-    assert (
-        settings.DEV_URL == "https://pruebas.azul.com.do/webservices/JSON/Default.aspx"
-    )
-    assert (
-        settings.PROD_URL == "https://pagos.azul.com.do/webservices/JSON/Default.aspx"
-    )
     assert settings.ALT_PROD_URL is None
     assert settings.AZUL_AUTH_KEY is None
     assert settings.MERCHANT_NAME is None
@@ -97,30 +89,33 @@ def test_custom_validator_missing_auth_dev_url(azul_settings_test_factory):
     assert "AUTH1" in error_msg
     assert "AUTH2" in error_msg
     assert "MERCHANT_ID" in error_msg
-    assert "DEV_URL" not in error_msg
 
 
-def test_custom_validator_missing_prod_url_for_prod_env(azul_settings_test_factory):
-    """Test custom validator: missing PROD_URL in prod env."""
-    with pytest.raises(ValueError, match="PROD_URL"):
-        azul_settings_test_factory(
-            AUTH1="test_auth1",
-            AUTH2="test_auth2",
-            MERCHANT_ID="test_merchant_id",
-            AZUL_CERT="dummy_cert.pem",
-            AZUL_KEY="dummy_key.key",
-            ENVIRONMENT="prod",
-            PROD_URL=None,
-        )
-
-    settings_prod = azul_settings_test_factory(
+def test_environment_setting_works(azul_settings_test_factory):
+    """Test that environment setting works correctly."""
+    settings = azul_settings_test_factory(
         AUTH1="test_auth1",
         AUTH2="test_auth2",
         MERCHANT_ID="test_merchant_id",
         AZUL_CERT="dummy_cert.pem",
         AZUL_KEY="dummy_key.key",
         ENVIRONMENT="prod",
-        PROD_URL="http://dummy.prod.url",
     )
-    assert settings_prod.ENVIRONMENT == "prod"
-    assert settings_prod.PROD_URL == "http://dummy.prod.url"
+    assert settings.ENVIRONMENT == "prod"
+
+
+def test_alt_prod_url_setting_works(azul_settings_test_factory):
+    """Test that ALT_PROD_URL setting works correctly."""
+    custom_alt_url = "http://custom.alt.url"
+
+    settings = azul_settings_test_factory(
+        AUTH1="test_auth1",
+        AUTH2="test_auth2",
+        MERCHANT_ID="test_merchant_id",
+        AZUL_CERT="dummy_cert.pem",
+        AZUL_KEY="dummy_key.key",
+        ENVIRONMENT="prod",
+        ALT_PROD_URL=custom_alt_url,
+    )
+    assert settings.ENVIRONMENT == "prod"
+    assert settings.ALT_PROD_URL == custom_alt_url
