@@ -209,21 +209,21 @@ async def test_secure_sale_frictionless_direct_approval(
     )
     assert initial_response_dict is not None
 
-    assert not initial_response_dict.get("redirect"), (
-        "Expected no redirect for direct frictionless approval."
-    )
+    assert not initial_response_dict.get(
+        "redirect"
+    ), "Expected no redirect for direct frictionless approval."
 
     value_data = initial_response_dict.get("value")
-    assert isinstance(value_data, dict), (
-        f"Expected 'value' dict in direct approval, got: {type(value_data)}"
-    )
+    assert isinstance(
+        value_data, dict
+    ), f"Expected 'value' dict in direct approval, got: {type(value_data)}"
 
-    assert value_data.get("IsoCode") == "00", (
-        f"Expected IsoCode 00, got: {value_data.get('IsoCode')}"
-    )
-    assert value_data.get("ResponseMessage") == "APROBADA", (
-        f"Expected APROBADA, got: {value_data.get('ResponseMessage')}"
-    )
+    assert (
+        value_data.get("IsoCode") == "00"
+    ), f"Expected IsoCode 00, got: {value_data.get('IsoCode')}"
+    assert (
+        value_data.get("ResponseMessage") == "APROBADA"
+    ), f"Expected APROBADA, got: {value_data.get('ResponseMessage')}"
     print("Approved directly (frictionless, no method/challenge redirect).")
 
 
@@ -269,9 +269,9 @@ async def test_secure_sale_direct_to_challenge(
         assert session_data is not None, "Session data not found."
         stored_term_url = session_data.get("term_url")
         assert stored_term_url is not None, "TermUrl not found."
-        assert f"secure_id={secure_id}" in stored_term_url, (
-            "secure_id not in stored TermUrl."
-        )
+        assert (
+            f"secure_id={secure_id}" in stored_term_url
+        ), "secure_id not in stored TermUrl."
 
         print("Direct challenge by secure_sale as expected.")
 
@@ -324,9 +324,9 @@ async def test_secure_sale_challenge_after_method(
     )
     assert initial_response_dict is not None
     assert initial_response_dict.get("redirect"), "Expected redirect for 3DS Method."
-    assert initial_response_dict.get("html") is not None, (
-        "HTML expected for 3DS Method."
-    )
+    assert (
+        initial_response_dict.get("html") is not None
+    ), "HTML expected for 3DS Method."
     assert initial_response_dict.get("id") is not None, "'id' (secure_id) expected."
 
     secure_id = initial_response_dict["id"]
@@ -347,14 +347,14 @@ async def test_secure_sale_challenge_after_method(
     assert isinstance(method_response, dict), "method_response should be dict."
 
     response_msg = method_response.get("ResponseMessage")
-    assert response_msg == "3D_SECURE_CHALLENGE", (
-        f"Expected 3D_SECURE_CHALLENGE, got {response_msg}"
-    )
+    assert (
+        response_msg == "3D_SECURE_CHALLENGE"
+    ), f"Expected 3D_SECURE_CHALLENGE, got {response_msg}"
 
     three_ds_challenge_data = method_response.get("ThreeDSChallenge")
-    assert isinstance(three_ds_challenge_data, dict), (
-        "ThreeDSChallenge data missing/not dict"
-    )
+    assert isinstance(
+        three_ds_challenge_data, dict
+    ), "ThreeDSChallenge data missing/not dict"
 
     creq = three_ds_challenge_data.get("CReq")
     redirect_post_url_from_acs = three_ds_challenge_data.get("RedirectPostUrl")
@@ -422,9 +422,9 @@ async def test_secure_sale_3ds_method_with_session_validation(
     azul_order_id = session_data["azul_order_id"]
 
     # Verify the session is accessible by the secure service
-    assert azul.secure.secure_sessions.get(secure_id) is not None, (
-        "Session should be accessible"
-    )
+    assert (
+        azul.secure.secure_sessions.get(secure_id) is not None
+    ), "Session should be accessible"
 
     # Step 4: Process 3DS method and validate it includes required fields
     method_response = await azul.process_3ds_method(
@@ -439,12 +439,12 @@ async def test_secure_sale_3ds_method_with_session_validation(
     if isinstance(method_response, dict):
         # Should not have errors about missing fields
         error_msg = method_response.get("ErrorDescription", "")
-        assert "Amount or currency missing" not in error_msg, (
-            f"Should not have missing field errors: {error_msg}"
-        )
-        assert "No autenticada" not in error_msg, (
-            f"Should not have auth errors: {error_msg}"
-        )
+        assert (
+            "Amount or currency missing" not in error_msg
+        ), f"Should not have missing field errors: {error_msg}"
+        assert (
+            "No autenticada" not in error_msg
+        ), f"Should not have auth errors: {error_msg}"
 
 
 @pytest.mark.asyncio
@@ -500,6 +500,6 @@ async def test_secure_sale_duplicate_method_notification_handling(
     )
 
     # Should indicate it was already processed
-    assert second_response.get("ResponseMessage") == "ALREADY_PROCESSED", (
-        "Duplicate method notification should be detected"
-    )
+    assert (
+        second_response.get("ResponseMessage") == "ALREADY_PROCESSED"
+    ), "Duplicate method notification should be detected"
