@@ -18,8 +18,7 @@ def mock_azul_settings() -> AzulSettings:
     settings.AZUL_CERT = "dummy_cert_path.pem"
     settings.AZUL_KEY = "dummy_key_path.key"
     settings.ENVIRONMENT = "dev"
-    settings.DEV_URL = "https://dev.azul.com.do/webservices/JSON/Default.aspx"
-    settings.PROD_URL = "https://pagos.azul.com.do/webservices/JSON/Default.aspx"
+
     settings.CHANNEL = "EC"
     # Add other necessary mock attributes as needed
     return settings

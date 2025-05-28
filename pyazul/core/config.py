@@ -16,8 +16,6 @@ from dotenv import load_dotenv
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-from pyazul.api.constants import AzulEndpoints
-
 # Load .env file with override=True to ensure values are loaded
 load_dotenv(override=True)
 
@@ -50,13 +48,16 @@ class AzulSettings(BaseSettings):
     CUSTOM_URL: Optional[str] = None
 
     # Service URLs
-    DEV_URL: str = AzulEndpoints.DEV_URL
-    PROD_URL: str = AzulEndpoints.PROD_URL
     ALT_PROD_URL: Optional[str] = None
     ALT_PROD_URL_PAYMENT: Optional[str] = None
 
     model_config = SettingsConfigDict(
-        env_file=".env", env_file_encoding="utf-8", case_sensitive=True, extra="allow"
+        env_file=".env",
+        env_file_encoding="utf-8",
+        case_sensitive=True,
+        extra="allow",
+        # Don't override defaults with empty environment variables
+        env_ignore_empty=True,
     )
 
     @classmethod
