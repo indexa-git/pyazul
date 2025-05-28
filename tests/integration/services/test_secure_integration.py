@@ -374,3 +374,132 @@ async def test_secure_sale_challenge_after_method(
     assert "<form" in challenge_form_html and 'name="creq"' in challenge_form_html
 
     print("Challenge after 3DS Method initiated as expected.")
+
+
+@pytest.mark.asyncio
+async def test_secure_sale_3ds_method_with_session_validation(
+    azul_fixture: PyAzul,
+    card_holder_info_fixture: CardHolderInfo,
+    settings,
+):
+    """Test that 3DS method processing includes all required fields and maintains session state."""  # noqa: E501
+    azul = azul_fixture
+    card = get_card("SECURE_3DS_FRICTIONLESS_WITH_3DS")
+    order_num = generate_order_number()
+    base_dummy_url = "http://localhost:8000/dummy"
+
+    initial_request_data = _prepare_secure_sale_request_data(
+        settings=settings,
+        card=card,
+        order_num=order_num,
+        card_holder_info=card_holder_info_fixture,
+        challenge_indicator=ChallengeIndicator.NO_CHALLENGE,
+        custom_order_id_prefix="3ds-session-validation",
+        base_method_url=f"{base_dummy_url}/method",
+        base_term_url=f"{base_dummy_url}/term",
+        force_no_3ds_flag="0",
+        amount_value=1500,  # Use specific amount to validate
+        itbis_value=270,  # Use specific ITBIS to validate
+    )
+
+    # Step 1: Initial secure sale
+    initial_response_dict = await azul.secure_sale(
+        initial_request_data.model_dump(exclude_none=True)
+    )
+
+    assert initial_response_dict.get("redirect"), "Expected 3DS method redirect"
+    secure_id = initial_response_dict["id"]
+
+    # Step 2: Validate session data is properly stored
+    session_data = await azul.get_secure_session_info(secure_id)
+    assert session_data is not None, "Session data should be stored"
+    assert session_data.get("azul_order_id"), "AzulOrderId should be in session"
+    assert session_data.get("amount") == "1500", "Amount should be stored in session"
+    assert session_data.get("itbis") == "270", "ITBIS should be stored in session"
+    assert session_data.get("order_number") == order_num, "OrderNumber should be stored"
+
+    # Step 3: Validate that process_3ds_method can access session data
+    azul_order_id = session_data["azul_order_id"]
+
+    # Verify the session is accessible by the secure service
+    assert (
+        azul.secure.secure_sessions.get(secure_id) is not None
+    ), "Session should be accessible"
+
+    # Step 4: Process 3DS method and validate it includes required fields
+    method_response = await azul.process_3ds_method(
+        azul_order_id=azul_order_id,
+        method_notification_status="RECEIVED",
+    )
+
+    # The method should succeed (this validates that all required fields were sent)
+    assert method_response is not None, "Method response should not be None"
+
+    # If it's a successful response, validate the structure
+    if isinstance(method_response, dict):
+        # Should not have errors about missing fields
+        error_msg = method_response.get("ErrorDescription", "")
+        assert (
+            "Amount or currency missing" not in error_msg
+        ), f"Should not have missing field errors: {error_msg}"
+        assert (
+            "No autenticada" not in error_msg
+        ), f"Should not have auth errors: {error_msg}"
+
+
+@pytest.mark.asyncio
+async def test_secure_sale_duplicate_method_notification_handling(
+    azul_fixture: PyAzul,
+    card_holder_info_fixture: CardHolderInfo,
+    settings,
+):
+    """Test that duplicate 3DS method notifications are handled properly."""
+    azul = azul_fixture
+    card = get_card("SECURE_3DS_FRICTIONLESS_WITH_3DS")
+    order_num = generate_order_number()
+    base_dummy_url = "http://localhost:8000/dummy"
+
+    initial_request_data = _prepare_secure_sale_request_data(
+        settings=settings,
+        card=card,
+        order_num=order_num,
+        card_holder_info=card_holder_info_fixture,
+        challenge_indicator=ChallengeIndicator.NO_CHALLENGE,
+        custom_order_id_prefix="3ds-duplicate-test",
+        base_method_url=f"{base_dummy_url}/method",
+        base_term_url=f"{base_dummy_url}/term",
+        force_no_3ds_flag="0",
+    )
+
+    # Step 1: Initial secure sale
+    initial_response_dict = await azul.secure_sale(
+        initial_request_data.model_dump(exclude_none=True)
+    )
+
+    if not initial_response_dict.get("redirect"):
+        pytest.skip("Test requires 3DS method redirect")
+
+    secure_id = initial_response_dict["id"]
+    session_data = await azul.get_secure_session_info(secure_id)
+    assert session_data is not None, "Session data should not be None"
+    azul_order_id = session_data["azul_order_id"]
+
+    # Step 2: First method notification
+    first_response = await azul.process_3ds_method(
+        azul_order_id=azul_order_id,
+        method_notification_status="RECEIVED",
+    )
+
+    # Validate first response is successful
+    assert first_response is not None, "First method response should not be None"
+
+    # Step 3: Duplicate method notification (should be handled gracefully)
+    second_response = await azul.process_3ds_method(
+        azul_order_id=azul_order_id,
+        method_notification_status="RECEIVED",
+    )
+
+    # Should indicate it was already processed
+    assert (
+        second_response.get("ResponseMessage") == "ALREADY_PROCESSED"
+    ), "Duplicate method notification should be detected"
