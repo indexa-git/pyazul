@@ -32,7 +32,7 @@ class SecureService:
         """Process a secure sale transaction with 3DS authentication."""
         secure_id = str(uuid4())
         logger.debug("=" * 50)
-        logger.debug(f"STARTING SECURE SALE PROCESS - ID: {secure_id}")
+        logger.debug("STARTING SECURE SALE PROCESS - ID: %s", secure_id)
         logger.debug("=" * 50)
 
         try:
@@ -58,6 +58,8 @@ class SecureService:
                 "Itbis": str(request_dict["Itbis"]),
                 "OrderNumber": request_dict["OrderNumber"],
                 "Currency": "DOP",
+                "CustomOrderId": request_dict.get("CustomOrderId", ""),
+                "SaveToDataVault": request_dict.get("SaveToDataVault", "0"),
                 "ThreeDSAuth": {
                     "TermUrl": term_url,
                     "MethodNotificationUrl": method_notification_url,
@@ -74,6 +76,7 @@ class SecureService:
             logger.debug("-" * 50)
             logger.debug(json.dumps(sale_data, indent=2))
             logger.debug("-" * 50)
+            # pylint: disable=protected-access
             result = await self.api._async_request(
                 data=sale_data,
                 is_secure=True,  # Indicate this is a 3DS request
@@ -128,7 +131,7 @@ class SecureService:
                 logger.debug("TRANSACTION APPROVED WITHOUT 3DS!")
                 return {"redirect": False, "id": secure_id, "value": result}
             else:
-                logger.warning(f"UNEXPECTED RESPONSE! Message: {response_message}")
+                logger.warning("UNEXPECTED RESPONSE! Message: %s", response_message)
                 logger.warning("Complete response:")
                 logger.debug(json.dumps(result, indent=2))
                 return {
@@ -139,7 +142,7 @@ class SecureService:
                 }
 
         except Exception as e:
-            logger.error(f"ERROR IN SALE PROCESS! {str(e)}")
+            logger.error("ERROR IN SALE PROCESS! %s", str(e))
             raise AzulError(f"Error processing secure sale: {str(e)}") from e
 
     async def process_token_sale(self, request: SecureTokenSale) -> Dict[str, Any]:
@@ -151,7 +154,7 @@ class SecureService:
         """
         secure_id = str(uuid4())
         logger.debug("=" * 50)
-        logger.debug(f"STARTING SECURE TOKEN SALE PROCESS - ID: {secure_id}")
+        logger.debug("STARTING SECURE TOKEN SALE PROCESS - ID: %s", secure_id)
         logger.debug("=" * 50)
 
         try:
@@ -193,6 +196,7 @@ class SecureService:
             logger.debug("-" * 50)
             logger.debug(json.dumps(sale_data, indent=2))
             logger.debug("-" * 50)
+            # pylint: disable=protected-access
             result = await self.api._async_request(data=sale_data, is_secure=True)
 
             # Detailed response logging
@@ -241,7 +245,7 @@ class SecureService:
                 logger.debug("TRANSACTION APPROVED WITHOUT 3DS!")
                 return {"redirect": False, "id": secure_id, "value": result}
             else:
-                logger.warning(f"UNEXPECTED RESPONSE! Message: {response_message}")
+                logger.warning("UNEXPECTED RESPONSE! Message: %s", response_message)
                 logger.warning("Complete response:")
                 logger.debug(json.dumps(result, indent=2))
                 return {
@@ -252,7 +256,7 @@ class SecureService:
                 }
 
         except Exception as e:
-            logger.error(f"ERROR IN SALE PROCESS! {str(e)}")
+            logger.error("ERROR IN SALE PROCESS! %s", str(e))
             raise AzulError(f"Error processing secure sale: {str(e)}") from e
 
     async def process_hold(self, request: SecureSaleRequest) -> Dict[str, Any]:
@@ -264,7 +268,7 @@ class SecureService:
         """
         secure_id = str(uuid4())
         logger.debug("=" * 50)
-        logger.debug(f"STARTING SECURE HOLD PROCESS - ID: {secure_id}")
+        logger.debug("STARTING SECURE HOLD PROCESS - ID: %s", secure_id)
         logger.debug("=" * 50)
 
         try:
@@ -290,6 +294,8 @@ class SecureService:
                 "Itbis": str(request_dict["Itbis"]),
                 "OrderNumber": request_dict["OrderNumber"],
                 "Currency": "DOP",
+                "CustomOrderId": request_dict.get("CustomOrderId", ""),
+                "SaveToDataVault": request_dict.get("SaveToDataVault", "0"),
                 "ThreeDSAuth": {
                     "TermUrl": term_url,
                     "MethodNotificationUrl": method_notification_url,
@@ -306,6 +312,7 @@ class SecureService:
             logger.debug("-" * 50)
             logger.debug(json.dumps(hold_data, indent=2))
             logger.debug("-" * 50)
+            # pylint: disable=protected-access
             result = await self.api._async_request(
                 data=hold_data,
                 is_secure=True,  # Indicate this is a 3DS request
@@ -360,7 +367,7 @@ class SecureService:
                 logger.debug("TRANSACTION APPROVED WITHOUT 3DS!")
                 return {"redirect": False, "id": secure_id, "value": result}
             else:
-                logger.warning(f"UNEXPECTED RESPONSE! Message: {response_message}")
+                logger.warning("UNEXPECTED RESPONSE! Message: %s", response_message)
                 logger.warning("Complete response:")
                 logger.debug(json.dumps(result, indent=2))
                 return {
@@ -371,7 +378,7 @@ class SecureService:
                 }
 
         except Exception as e:
-            logger.error(f"ERROR IN HOLD PROCESS! {str(e)}")
+            logger.error("ERROR IN HOLD PROCESS! %s", str(e))
             raise AzulError(f"Error processing secure hold: {str(e)}") from e
 
     async def process_3ds_method(
@@ -403,7 +410,7 @@ class SecureService:
 
             if not session_data:
                 logger.error(
-                    f"No session data found for azul_order_id: {azul_order_id}"
+                    "No session data found for azul_order_id: %s", azul_order_id
                 )
                 return {
                     "ResponseMessage": "SESSION_NOT_FOUND",
@@ -430,6 +437,7 @@ class SecureService:
             logger.debug(json.dumps(data, indent=2))
             logger.debug("-" * 50)
 
+            # pylint: disable=protected-access
             result = await self.api._async_request(
                 data, operation="processthreedsmethod", is_secure=True
             )
@@ -464,7 +472,7 @@ class SecureService:
         # Check current transaction state
         current_state = self.transaction_states.get(azul_order_id)
         if current_state != "3D_SECURE_CHALLENGE":
-            logger.warning(f"Unexpected state for 3DS challenge: {current_state}")
+            logger.warning("Unexpected state for 3DS challenge: %s", current_state)
             logger.warning("Waiting 2 seconds before continuing...")
             await asyncio.sleep(2)  # Wait a bit before continuing
 
@@ -476,9 +484,9 @@ class SecureService:
         }
 
         logger.debug("INITIATING 3DS CHALLENGE PROCESS...")
-        logger.debug(f"Session ID: {secure_id}")
-        logger.debug(f"Order ID: {azul_order_id}")
-        logger.debug(f"Current state: {current_state}")
+        logger.debug("Session ID: %s", secure_id)
+        logger.debug("Order ID: %s", azul_order_id)
+        logger.debug("Current state: %s", current_state)
         logger.debug("=" * 50)
 
         logger.debug("SENDING REQUEST TO AZUL WITH 3DS CHALLENGE NOTIFICATION...")
@@ -487,6 +495,7 @@ class SecureService:
         logger.debug("-" * 50)
 
         try:
+            # pylint: disable=protected-access
             result = await self.api._async_request(
                 data, operation="processthreedschallenge", is_secure=True
             )
@@ -502,10 +511,10 @@ class SecureService:
                 if "Wrong transaction state" in result["ErrorDescription"]:
                     logger.error("Transaction state error:")
                     logger.error(
-                        f"- Current state: {result.get('TransactionState', 'Unknown')}"
+                        "- Current state: %s", result.get("TransactionState", "Unknown")
                     )
-                    logger.error(f"- Error code: {result.get('ErrorCode', 'Unknown')}")
-                    logger.error(f"- Description: {result['ErrorDescription']}")
+                    logger.error("- Error code: %s", result.get("ErrorCode", "Unknown"))
+                    logger.error("- Description: %s", result["ErrorDescription"])
 
                     # Return a more friendly message
                     result["ErrorDescription"] = (
@@ -516,7 +525,7 @@ class SecureService:
             return result
 
         except Exception as e:
-            logger.error(f"Error processing 3DS challenge: {str(e)}")
+            logger.error("Error processing 3DS challenge: %s", str(e))
             error_msg = str(e)
 
             # Improve error message for user
