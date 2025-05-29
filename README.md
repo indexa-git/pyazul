@@ -1,4 +1,5 @@
 ![Build & publish](https://github.com/indexa-git/pyazul/workflows/Build%20&%20publish/badge.svg)
+![Documentation Coverage](docs/interrogate_badge.svg)
 
 # PyAzul
 
