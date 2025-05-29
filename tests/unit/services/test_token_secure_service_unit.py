@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from pyazul.models import DataVaultRequestModel
+from pyazul.models import DataVaultRequestModel, TokenSaleModel
 from pyazul.models.secure import (
     CardHolderInfo,
     ChallengeIndicator,
@@ -13,6 +13,7 @@ from pyazul.models.secure import (
 )
 from pyazul.services.datavault import DataVaultService
 from pyazul.services.secure import SecureService
+from pyazul.services.transaction import TransactionService
 from tests.fixtures.cards import get_card
 from tests.fixtures.order import generate_order_number
 
@@ -40,6 +41,12 @@ def secure_service(mock_api_client):
 def datavault_service(mock_api_client):
     """Create a DataVaultService instance with mock API client."""
     return DataVaultService(mock_api_client)
+
+
+@pytest.fixture
+def transaction_service(mock_api_client):
+    """Create a TransactionService instance with mock API client."""
+    return TransactionService(mock_api_client)
 
 
 @pytest.fixture
@@ -114,6 +121,26 @@ def token_3ds_sale_request(created_token, mock_api_client):
     )
 
 
+@pytest.fixture
+def token_non_3ds_sale_request(created_token, mock_api_client):
+    """Create a sample token sale request without 3DS."""
+    token_sale_data = {
+        "Amount": "1000",
+        "Itbis": "180",
+        "DataVaultToken": created_token,
+        "OrderNumber": generate_order_number(),
+        "Store": mock_api_client.settings.MERCHANT_ID,
+        "Channel": "EC",
+        "PosInputMode": "E-Commerce",
+        "TrxType": "Sale",
+        "ForceNo3DS": "1",
+        "CVC": "123",
+        "CustomOrderId": None,
+        "AcquirerRefData": None,
+    }
+    return TokenSaleModel(**token_sale_data)
+
+
 @pytest.mark.asyncio
 async def test_token_creation(datavault_service, tokenization_request, mock_api_client):
     """Test token creation."""
@@ -127,6 +154,23 @@ async def test_token_creation(datavault_service, tokenization_request, mock_api_
     assert response.get("ResponseMessage") == "APROBADA"
     assert response.get("DataVaultToken") is not None
     return response.get("DataVaultToken")
+
+
+@pytest.mark.asyncio
+async def test_token_sale_non_3ds(
+    transaction_service, token_non_3ds_sale_request, mock_api_client
+):
+    """Test token sale without 3DS (ForceNo3DS=1)."""
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "APROBADA",
+        "IsoCode": "00",
+        "AuthorizationCode": "123456",
+        "RRN": "789012345678",
+    }
+    response = await transaction_service.sale(token_non_3ds_sale_request)
+    assert response.get("IsoCode") == "00"
+    assert response.get("ResponseMessage") == "APROBADA"
+    assert response.get("AuthorizationCode") is not None
 
 
 @pytest.mark.asyncio
@@ -191,6 +235,89 @@ async def test_token_sale_with_3ds_method(
     assert method_result["ResponseMessage"] == "APROBADA"
     assert method_result["IsoCode"] == "00"
     assert method_result["AzulOrderId"] == "67890"
+
+
+@pytest.mark.asyncio
+async def test_token_sale_comparison_unit(
+    transaction_service, secure_service, created_token, mock_api_client
+):
+    """Test both 3DS and non-3DS token sales with mocks for logic validation."""
+    # Test non-3DS token sale
+    non_3ds_data = {
+        "Amount": "1000",
+        "Itbis": "180",
+        "DataVaultToken": created_token,
+        "OrderNumber": generate_order_number(),
+        "Store": mock_api_client.settings.MERCHANT_ID,
+        "Channel": "EC",
+        "PosInputMode": "E-Commerce",
+        "TrxType": "Sale",
+        "ForceNo3DS": "1",
+        "CVC": "123",
+        "CustomOrderId": None,
+        "AcquirerRefData": None,
+    }
+
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "APROBADA",
+        "IsoCode": "00",
+        "AuthorizationCode": "NON3DS123",
+    }
+    non_3ds_request = TokenSaleModel(**non_3ds_data)
+    non_3ds_response = await transaction_service.sale(non_3ds_request)
+    assert non_3ds_response.get("IsoCode") == "00"
+    assert non_3ds_response.get("AuthorizationCode") == "NON3DS123"
+
+    # Test 3DS token sale
+    three_ds_request = SecureTokenSale(
+        Amount="1000",
+        Itbis="180",
+        DataVaultToken=created_token,
+        OrderNumber=generate_order_number(),
+        Store=mock_api_client.settings.MERCHANT_ID,
+        Channel="EC",
+        PosInputMode="E-Commerce",
+        TrxType="Sale",
+        forceNo3DS="0",
+        CVC="123",
+        CustomOrderId=None,
+        AcquirerRefData=None,
+        cardHolderInfo=CardHolderInfo(
+            BillingAddressCity="Santo Domingo",
+            BillingAddressCountry="DO",
+            BillingAddressLine1="Test Address",
+            BillingAddressState="Distrito Nacional",
+            BillingAddressZip="10101",
+            Email="test@example.com",
+            Name="Test User",
+            ShippingAddressCity="Santo Domingo",
+            ShippingAddressCountry="DO",
+            ShippingAddressLine1="Test Address",
+            ShippingAddressState="Distrito Nacional",
+            ShippingAddressZip="10101",
+            BillingAddressLine2=None,
+            BillingAddressLine3=None,
+            PhoneHome=None,
+            PhoneMobile=None,
+            PhoneWork=None,
+            ShippingAddressLine2=None,
+            ShippingAddressLine3=None,
+        ),
+        threeDSAuth=ThreeDSAuth(
+            TermUrl="https://example.com/post-3ds-token",
+            MethodNotificationUrl="https://example.com/capture-3ds-token",
+            RequestChallengeIndicator=ChallengeIndicator.NO_CHALLENGE,
+        ),
+    )
+
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "APROBADA",
+        "IsoCode": "00",
+        "AuthorizationCode": "3DS123",
+    }
+    three_ds_response = await secure_service.process_token_sale(three_ds_request)
+    assert three_ds_response.get("value", {}).get("IsoCode") == "00"
+    assert three_ds_response.get("value", {}).get("AuthorizationCode") == "3DS123"
 
 
 @pytest.mark.asyncio
