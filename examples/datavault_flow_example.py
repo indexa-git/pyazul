@@ -3,6 +3,7 @@
 import asyncio
 
 from pyazul import PyAzul
+from pyazul.models import DataVaultErrorResponse, DataVaultSuccessResponse
 
 
 async def test_datavault_flow():
@@ -50,14 +51,24 @@ async def test_datavault_flow():
         token_response = await azul.create_token(create_payload_dict)
         print(f"Full token_response from create_token: {token_response}")
 
-        if token_response.get("ResponseMessage") != "APROBADA":
-            err_desc = token_response.get(
-                "ErrorDescription", token_response.get("ResponseMessage")
-            )
-            raise Exception(f"Token creation failed: {err_desc}")
-
-        token = token_response.get("DataVaultToken")
-        print(f"Token created: {token}")
+        # Check response type for proper handling
+        if isinstance(token_response, DataVaultSuccessResponse):
+            token = token_response.DataVaultToken
+            print(f"✅ Token created successfully: {token}")
+            print(f"🎭 Card Number (masked): {token_response.CardNumber}")
+            print(f"🏷️  Brand: {token_response.DataVaultBrand}")
+            print(f"📅 Expiration: {token_response.DataVaultExpiration}")
+        elif isinstance(token_response, DataVaultErrorResponse):
+            raise Exception(f"Token creation failed: {token_response.ErrorDescription}")
+        else:
+            # Fallback for backward compatibility
+            if token_response.get("ResponseMessage") != "APROBADA":
+                err_desc = token_response.get(
+                    "ErrorDescription", token_response.get("ResponseMessage")
+                )
+                raise Exception(f"Token creation failed: {err_desc}")
+            token = token_response.get("DataVaultToken")
+            print(f"Token created: {token}")
 
         # 2. Use token for payment
         print("\n2. Making payment with token...")
@@ -89,11 +100,21 @@ async def test_datavault_flow():
         }
         delete_response = await azul.delete_token(delete_payload_dict)
         print(f"Delete response: {delete_response}")
-        if delete_response.get("ResponseMessage") != "APROBADA":
-            err_desc = delete_response.get(
-                "ErrorDescription", delete_response.get("ResponseMessage")
+
+        # Check response type for proper handling
+        if isinstance(delete_response, DataVaultSuccessResponse):
+            print(f"✅ Token deleted successfully: {delete_response.DataVaultToken}")
+        elif isinstance(delete_response, DataVaultErrorResponse):
+            raise Exception(
+                f"Token deletion failed: {delete_response.ErrorDescription}"
             )
-            raise Exception(f"Token deletion failed: {err_desc}")
+        else:
+            # Fallback for backward compatibility
+            if delete_response.get("ResponseMessage") != "APROBADA":
+                err_desc = delete_response.get(
+                    "ErrorDescription", delete_response.get("ResponseMessage")
+                )
+                raise Exception(f"Token deletion failed: {err_desc}")
 
         # 4. Verify token is invalid
         print("\n4. Verifying deleted token...")

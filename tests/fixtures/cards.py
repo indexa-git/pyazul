@@ -14,7 +14,7 @@ class CardDetails(TypedDict):
     description: Optional[str]  # Added for clarity
 
 
-# Based on azul-ts/tests/fixtures/cards.ts and common test card knowledge
+# Test card data based on Azul documentation and common test card knowledge
 TEST_CARDS = {
     "MASTERCARD_1": CardDetails(
         number="5424180279791732",

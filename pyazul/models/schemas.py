@@ -251,6 +251,75 @@ class DataVaultRequestModel(AzulBaseModel):
         return data
 
 
+# DataVault Response Models
+class DataVaultSuccessResponse(BaseModel):
+    """Model for successful DataVault responses."""
+
+    CardNumber: str = Field(..., description="Masked card number (e.g., XXXXXX...XXXX)")
+    DataVaultToken: str = Field(..., description="Generated token (30-40 chars)")
+    DataVaultBrand: str = Field(..., description="Card brand (e.g., VISA, MASTERCARD)")
+    DataVaultExpiration: str = Field(
+        ..., description="Token expiration in YYYYMM format"
+    )
+    ErrorDescription: Literal[""] = Field("", description="Empty for success")
+    HasCVV: bool = Field(..., description="Whether token was created with CVV")
+    IsoCode: Literal["00"] = Field("00", description="Success code")
+    ResponseMessage: Literal["APROBADA"] = Field(
+        "APROBADA", description="Success message"
+    )
+    type: Literal["success"] = Field("success", description="Response type indicator")
+
+    @classmethod
+    def from_api_response(cls, data: dict) -> "DataVaultSuccessResponse":
+        """Create a DataVaultSuccessResponse from API response data."""
+        return cls(
+            CardNumber=data["CardNumber"],
+            DataVaultToken=data["DataVaultToken"],
+            DataVaultBrand=data.get("DataVaultBrand", data.get("Brand", "")),
+            DataVaultExpiration=data.get(
+                "DataVaultExpiration", data.get("Expiration", "")
+            ),
+            ErrorDescription="",
+            HasCVV=data.get("HasCVV", False),
+            IsoCode="00",
+            ResponseMessage="APROBADA",
+            type="success",
+        )
+
+
+class DataVaultErrorResponse(BaseModel):
+    """Model for failed DataVault responses."""
+
+    CardNumber: str = Field("", description="Empty card number for errors")
+    DataVaultToken: str = Field("", description="Empty token for errors")
+    DataVaultBrand: str = Field("", description="Empty brand for errors")
+    DataVaultExpiration: str = Field("", description="Empty expiration for errors")
+    ErrorDescription: str = Field(..., description="Error description")
+    HasCVV: bool = Field(False, description="False for errors")
+    IsoCode: str = Field(..., description="Error ISO code (not '00')")
+    ResponseMessage: str = Field(..., description="Error response message")
+    type: Literal["error"] = Field("error", description="Response type indicator")
+
+    @classmethod
+    def from_api_response(cls, data: dict) -> "DataVaultErrorResponse":
+        """Create a DataVaultErrorResponse from API response data."""
+        return cls(
+            CardNumber="",
+            DataVaultToken="",
+            DataVaultBrand="",
+            DataVaultExpiration="",
+            ErrorDescription=data.get("ErrorDescription", "Unknown error"),
+            HasCVV=False,
+            IsoCode=data.get("IsoCode", "99"),
+            ResponseMessage=data.get("ResponseMessage", "ERROR"),
+            type="error",
+        )
+
+
+# Union type for DataVault responses
+DataVaultResponse = Union[DataVaultSuccessResponse, DataVaultErrorResponse]
+
+
 class TokenSaleModel(BaseTransactionAttributes):
     """Model for sales transactions using a DataVault token."""
 
