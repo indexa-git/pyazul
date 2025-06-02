@@ -10,6 +10,7 @@ from .models import (
     ChallengeIndicator,
     ChallengeRequest,
     SecureSale,
+    SecureTokenHold,
     SecureTokenSale,
     SessionID,
     ThreeDSAuth,
@@ -21,6 +22,7 @@ __all__ = [
     "ChallengeIndicator",
     "SecureSale",
     "SecureTokenSale",
+    "SecureTokenHold",
     "SessionID",
     "ChallengeRequest",
 ]
