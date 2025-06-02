@@ -13,14 +13,14 @@ from pyazul.services.transaction import TransactionService
 def transaction_service_integration(settings: AzulSettings) -> TransactionService:
     """Provide a TransactionService instance for integration tests."""
     api_client = AzulAPI(settings=settings)
-    return TransactionService(api_client=api_client)
+    return TransactionService(client=api_client, settings=settings)
 
 
 @pytest.fixture(scope="session")
 def datavault_service_integration(settings: AzulSettings) -> DataVaultService:
     """Provide a DataVaultService instance for integration tests."""
     api_client = AzulAPI(settings=settings)
-    return DataVaultService(api_client=api_client)
+    return DataVaultService(client=api_client, settings=settings)
 
 
 @pytest.fixture(scope="session")

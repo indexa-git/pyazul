@@ -1,9 +1,9 @@
-"""Unit tests for pyazul.models."""
+"""Unit tests for pyazul.models schema validation and data structures."""
 
 import pytest
 from pydantic import ValidationError
 
-from pyazul.models.secure import CardHolderInfo, ChallengeIndicator, ThreeDSAuth
+from pyazul.models.three_ds import CardHolderInfo, ChallengeIndicator, ThreeDSAuth
 
 
 class TestCardHolderInfo:
@@ -25,10 +25,16 @@ class TestCardHolderInfo:
         assert info.Email == data["Email"]
         assert info.BillingAddressZip == data["BillingAddressZip"]
 
-    def test_card_holder_info_all_fields_optional_and_default_to_none(self):
-        """Test CardHolderInfo can be instantiated with no args and fields are None."""
-        info = CardHolderInfo()  # type: ignore
-        assert info.Name is None
+    def test_card_holder_info_name_is_required(self):
+        """Test CardHolderInfo requires Name field, other fields are optional."""
+        # Test that Name is required
+        with pytest.raises(ValidationError) as exc_info:
+            CardHolderInfo()  # type: ignore
+        assert any(err["loc"] == ("Name",) for err in exc_info.value.errors())
+
+        # Test that only Name is required, other fields are optional
+        info = CardHolderInfo(Name="Test User")
+        assert info.Name == "Test User"
         assert info.Email is None
         assert info.BillingAddressLine1 is None
         # ... can add more checks for other fields if desired

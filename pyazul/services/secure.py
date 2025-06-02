@@ -1,541 +1,41 @@
 """
-Service for handling 3D Secure (3DS) authenticated payments with Azul.
+3D Secure service for PyAzul.
 
-This service manages the 3DS flow, including initiating secure sales/holds,
-processing 3DS method notifications, handling challenges, and managing sessions.
+This module provides services for managing 3D Secure authentication flows,
+including cardholder verification, challenge handling, and secure transactions.
 """
 
-import asyncio
-import json
 import logging
-from typing import Any, Dict
-from uuid import uuid4
+import uuid
+from typing import Any, Dict, Optional, Union
 
 from ..api.client import AzulAPI
+from ..core.config import AzulSettings
 from ..core.exceptions import AzulError
-from ..models.secure import SecureSaleRequest, SecureTokenSale
+from ..models.three_ds import SecureSale, SecureTokenSale
 
-logger = logging.getLogger(__name__)
+_logger = logging.getLogger(__name__)
 
 
 class SecureService:
-    """Manages 3D Secure (3DS) payment flows."""
+    """Service for managing 3D Secure authentication and transactions."""
 
-    def __init__(self, api_client: AzulAPI):
-        """Initialize the SecureService with an AzulAPI client."""
-        self.api = api_client
-        self.secure_sessions: Dict[str, Dict[str, Any]] = {}
-        self.processed_methods: Dict[str, bool] = {}  # Track processed 3DS methods
-        self.transaction_states: Dict[str, str] = {}  # Track transaction states
+    def __init__(
+        self,
+        client: AzulAPI,
+        settings: AzulSettings,
+        session_store: Optional[Dict] = None,
+    ):
+        """Initialize the 3D Secure service with API client and settings."""
+        self.client = client
+        self.settings = settings
+        self.session_store = session_store or {}
+        # Track processed methods to prevent duplicate processing
+        self.processed_methods: Dict[str, bool] = {}
 
-    async def process_sale(self, request: SecureSaleRequest) -> Dict[str, Any]:
-        """Process a secure sale transaction with 3DS authentication."""
-        secure_id = str(uuid4())
-        logger.debug("=" * 50)
-        logger.debug("STARTING SECURE SALE PROCESS - ID: %s", secure_id)
-        logger.debug("=" * 50)
-
-        try:
-            request_dict = request.model_dump()
-
-            # Ensure URLs have secure_id as query parameter
-            term_url = f"{request_dict['threeDSAuth']['TermUrl']}?secure_id={secure_id}"
-            method_notification_url = (
-                f"{request_dict['threeDSAuth']['MethodNotificationUrl']}"
-                f"?secure_id={secure_id}"
-            )
-
-            sale_data = {
-                "Store": self.api.settings.MERCHANT_ID,
-                "Channel": "EC",
-                "CardNumber": request_dict["CardNumber"],
-                "Expiration": request_dict["Expiration"],
-                "CVC": request_dict["CVC"],
-                "PosInputMode": "E-Commerce",
-                "TrxType": "Sale",
-                "AcquirerRefData": request_dict["AcquirerRefData"],
-                "Amount": str(request_dict["Amount"]),
-                "Itbis": str(request_dict["Itbis"]),
-                "OrderNumber": request_dict["OrderNumber"],
-                "Currency": "DOP",
-                "CustomOrderId": request_dict.get("CustomOrderId", ""),
-                "SaveToDataVault": request_dict.get("SaveToDataVault", "0"),
-                "ThreeDSAuth": {
-                    "TermUrl": term_url,
-                    "MethodNotificationUrl": method_notification_url,
-                    "RequestChallengeIndicator": request_dict["threeDSAuth"][
-                        "RequestChallengeIndicator"
-                    ],
-                },
-                "CardHolderInfo": request_dict["cardHolderInfo"],
-                "ForceNo3DS": request_dict["forceNo3DS"],
-            }
-
-            # Make the request
-            logger.debug("SENDING REQUEST TO AZUL...")
-            logger.debug("-" * 50)
-            logger.debug(json.dumps(sale_data, indent=2))
-            logger.debug("-" * 50)
-            # pylint: disable=protected-access
-            result = await self.api._async_request(
-                data=sale_data,
-                is_secure=True,  # Indicate this is a 3DS request
-            )
-
-            # Detailed response logging
-            logger.debug("AZUL RESPONSE:")
-            logger.debug("-" * 50)
-            logger.debug(json.dumps(result, indent=2))
-            logger.debug("-" * 50)
-
-            # Save session information
-            self.secure_sessions[secure_id] = {
-                "azul_order_id": result.get("AzulOrderId"),
-                "card_number": request_dict["CardNumber"],
-                "expiration": request_dict["Expiration"],
-                "cvc": request_dict["CVC"],
-                "amount": request_dict["Amount"],
-                "itbis": request_dict["Itbis"],
-                "order_number": request_dict["OrderNumber"],
-                "term_url": term_url,  # Store term_url in session
-            }
-            azul_order_id_for_state = result.get("AzulOrderId")
-
-            response_message = result.get("ResponseMessage", "")
-
-            if response_message == "3D_SECURE_CHALLENGE":
-                logger.debug("INITIATING 3D SECURE CHALLENGE!")
-                if azul_order_id_for_state:
-                    self.transaction_states[azul_order_id_for_state] = (
-                        "3D_SECURE_CHALLENGE"
-                    )
-                return {
-                    "redirect": True,
-                    "id": secure_id,
-                    "html": self._create_challenge_form(
-                        result["ThreeDSChallenge"]["CReq"],
-                        term_url,
-                        result["ThreeDSChallenge"]["RedirectPostUrl"],
-                    ),
-                    "message": "Starting 3D Secure verification...",
-                }
-            elif response_message == "3D_SECURE_2_METHOD":
-                logger.debug("INITIATING 3D SECURE METHOD!")
-                return {
-                    "redirect": True,
-                    "id": secure_id,
-                    "html": result["ThreeDSMethod"]["MethodForm"],
-                    "message": "Starting 3D Secure verification...",
-                }
-            elif response_message == "APROBADA":
-                logger.debug("TRANSACTION APPROVED WITHOUT 3DS!")
-                return {"redirect": False, "id": secure_id, "value": result}
-            else:
-                logger.warning("UNEXPECTED RESPONSE! Message: %s", response_message)
-                logger.warning("Complete response:")
-                logger.debug(json.dumps(result, indent=2))
-                return {
-                    "redirect": False,
-                    "id": secure_id,
-                    "value": result,
-                    "message": f"Unexpected response: {response_message}",
-                }
-
-        except Exception as e:
-            logger.error("ERROR IN SALE PROCESS! %s", str(e))
-            raise AzulError(f"Error processing secure sale: {str(e)}") from e
-
-    async def process_token_sale(self, request: SecureTokenSale) -> Dict[str, Any]:
-        """
-        Process a secure token sale transaction with 3DS.
-
-        This method handles tokenized payments that require 3DS authentication,
-        including session management and detailed logging.
-        """
-        secure_id = str(uuid4())
-        logger.debug("=" * 50)
-        logger.debug("STARTING SECURE TOKEN SALE PROCESS - ID: %s", secure_id)
-        logger.debug("=" * 50)
-
-        try:
-            request_dict = request.model_dump()
-
-            # Ensure URLs have secure_id as query parameter
-            term_url = f"{request_dict['threeDSAuth']['TermUrl']}?secure_id={secure_id}"
-            method_notification_url = (
-                f"{request_dict['threeDSAuth']['MethodNotificationUrl']}"
-                f"?secure_id={secure_id}"
-            )
-
-            sale_data = {
-                "Store": self.api.settings.MERCHANT_ID,
-                "Channel": "EC",
-                "DataVaultToken": request_dict["DataVaultToken"],
-                "Expiration": "",
-                "PosInputMode": "E-Commerce",
-                "TrxType": "Sale",
-                "AcquirerRefData": request_dict["AcquirerRefData"],
-                "Amount": str(request_dict["Amount"]),
-                "Itbis": str(request_dict["Itbis"]),
-                "OrderNumber": request_dict["OrderNumber"],
-                "Currency": "DOP",
-                "CustomOrderId": request_dict.get("CustomOrderId", ""),
-                "ThreeDSAuth": {
-                    "TermUrl": term_url,
-                    "MethodNotificationUrl": method_notification_url,
-                    "RequestChallengeIndicator": request_dict["threeDSAuth"][
-                        "RequestChallengeIndicator"
-                    ],
-                },
-                "CardHolderInfo": request_dict["cardHolderInfo"],
-                "ForceNo3DS": request_dict["forceNo3DS"],
-            }
-
-            # Make the request
-            logger.debug("SENDING REQUEST TO AZUL...")
-            logger.debug("-" * 50)
-            logger.debug(json.dumps(sale_data, indent=2))
-            logger.debug("-" * 50)
-            # pylint: disable=protected-access
-            result = await self.api._async_request(data=sale_data, is_secure=True)
-
-            # Detailed response logging
-            logger.debug("AZUL RESPONSE:")
-            logger.debug("-" * 50)
-            logger.debug(json.dumps(result, indent=2))
-            logger.debug("-" * 50)
-
-            # Save session information
-            self.secure_sessions[secure_id] = {
-                "azul_order_id": result.get("AzulOrderId"),
-                "amount": request_dict["Amount"],
-                "itbis": request_dict["Itbis"],
-                "order_number": request_dict["OrderNumber"],
-                "term_url": term_url,
-            }
-            azul_order_id_for_state = result.get("AzulOrderId")
-
-            response_message = result.get("ResponseMessage", "")
-
-            if response_message == "3D_SECURE_CHALLENGE":
-                logger.debug("INITIATING 3D SECURE CHALLENGE!")
-                if azul_order_id_for_state:
-                    self.transaction_states[azul_order_id_for_state] = (
-                        "3D_SECURE_CHALLENGE"
-                    )
-                return {
-                    "redirect": True,
-                    "id": secure_id,
-                    "html": self._create_challenge_form(
-                        result["ThreeDSChallenge"]["CReq"],
-                        term_url,
-                        result["ThreeDSChallenge"]["RedirectPostUrl"],
-                    ),
-                    "message": "Starting 3D Secure verification...",
-                }
-            elif response_message == "3D_SECURE_2_METHOD":
-                logger.debug("INITIATING 3D SECURE METHOD!")
-                return {
-                    "redirect": True,
-                    "id": secure_id,
-                    "html": result["ThreeDSMethod"]["MethodForm"],
-                    "message": "Starting 3D Secure verification...",
-                }
-            elif response_message == "APROBADA":
-                logger.debug("TRANSACTION APPROVED WITHOUT 3DS!")
-                return {"redirect": False, "id": secure_id, "value": result}
-            else:
-                logger.warning("UNEXPECTED RESPONSE! Message: %s", response_message)
-                logger.warning("Complete response:")
-                logger.debug(json.dumps(result, indent=2))
-                return {
-                    "redirect": False,
-                    "id": secure_id,
-                    "value": result,
-                    "message": f"Unexpected response: {response_message}",
-                }
-
-        except Exception as e:
-            logger.error("ERROR IN SALE PROCESS! %s", str(e))
-            raise AzulError(f"Error processing secure sale: {str(e)}") from e
-
-    async def process_hold(self, request: SecureSaleRequest) -> Dict[str, Any]:
-        """
-        Process a secure hold transaction with 3DS.
-
-        Similar to a secure sale, but performs a pre-authorization (hold)
-        on the card, including 3DS authentication steps.
-        """
-        secure_id = str(uuid4())
-        logger.debug("=" * 50)
-        logger.debug("STARTING SECURE HOLD PROCESS - ID: %s", secure_id)
-        logger.debug("=" * 50)
-
-        try:
-            request_dict = request.model_dump()
-
-            # Ensure URLs have secure_id as query parameter
-            term_url = f"{request_dict['threeDSAuth']['TermUrl']}?secure_id={secure_id}"
-            method_notification_url = (
-                f"{request_dict['threeDSAuth']['MethodNotificationUrl']}"
-                f"?secure_id={secure_id}"
-            )
-
-            hold_data = {
-                "Store": self.api.settings.MERCHANT_ID,
-                "Channel": "EC",
-                "CardNumber": request_dict["CardNumber"],
-                "Expiration": request_dict["Expiration"],
-                "CVC": request_dict["CVC"],
-                "PosInputMode": "E-Commerce",
-                "TrxType": "Hold",
-                "AcquirerRefData": request_dict["AcquirerRefData"],
-                "Amount": str(request_dict["Amount"]),
-                "Itbis": str(request_dict["Itbis"]),
-                "OrderNumber": request_dict["OrderNumber"],
-                "Currency": "DOP",
-                "CustomOrderId": request_dict.get("CustomOrderId", ""),
-                "SaveToDataVault": request_dict.get("SaveToDataVault", "0"),
-                "ThreeDSAuth": {
-                    "TermUrl": term_url,
-                    "MethodNotificationUrl": method_notification_url,
-                    "RequestChallengeIndicator": request_dict["threeDSAuth"][
-                        "RequestChallengeIndicator"
-                    ],
-                },
-                "CardHolderInfo": request_dict["cardHolderInfo"],
-                "ForceNo3DS": request_dict["forceNo3DS"],
-            }
-
-            # Make the request
-            logger.debug("SENDING REQUEST TO AZUL...")
-            logger.debug("-" * 50)
-            logger.debug(json.dumps(hold_data, indent=2))
-            logger.debug("-" * 50)
-            # pylint: disable=protected-access
-            result = await self.api._async_request(
-                data=hold_data,
-                is_secure=True,  # Indicate this is a 3DS request
-            )
-
-            # Detailed response logging
-            logger.debug("AZUL RESPONSE:")
-            logger.debug("-" * 50)
-            logger.debug(json.dumps(result, indent=2))
-            logger.debug("-" * 50)
-
-            # Save session information
-            self.secure_sessions[secure_id] = {
-                "azul_order_id": result.get("AzulOrderId"),
-                "card_number": request_dict["CardNumber"],
-                "expiration": request_dict["Expiration"],
-                "cvc": request_dict["CVC"],
-                "amount": request_dict["Amount"],
-                "itbis": request_dict["Itbis"],
-                "order_number": request_dict["OrderNumber"],
-                "term_url": term_url,  # Store term_url in session
-            }
-            azul_order_id_for_state = result.get("AzulOrderId")
-
-            response_message = result.get("ResponseMessage", "")
-
-            if response_message == "3D_SECURE_CHALLENGE":
-                logger.debug("INITIATING 3D SECURE CHALLENGE!")
-                if azul_order_id_for_state:
-                    self.transaction_states[azul_order_id_for_state] = (
-                        "3D_SECURE_CHALLENGE"
-                    )
-                return {
-                    "redirect": True,
-                    "id": secure_id,
-                    "html": self._create_challenge_form(
-                        result["ThreeDSChallenge"]["CReq"],
-                        term_url,
-                        result["ThreeDSChallenge"]["RedirectPostUrl"],
-                    ),
-                    "message": "Starting 3D Secure verification...",
-                }
-            elif response_message == "3D_SECURE_2_METHOD":
-                logger.debug("INITIATING 3D SECURE METHOD!")
-                return {
-                    "redirect": True,
-                    "id": secure_id,
-                    "html": result["ThreeDSMethod"]["MethodForm"],
-                    "message": "Starting 3D Secure verification...",
-                }
-            elif response_message == "APROBADA":
-                logger.debug("TRANSACTION APPROVED WITHOUT 3DS!")
-                return {"redirect": False, "id": secure_id, "value": result}
-            else:
-                logger.warning("UNEXPECTED RESPONSE! Message: %s", response_message)
-                logger.warning("Complete response:")
-                logger.debug(json.dumps(result, indent=2))
-                return {
-                    "redirect": False,
-                    "id": secure_id,
-                    "value": result,
-                    "message": f"Unexpected response: {response_message}",
-                }
-
-        except Exception as e:
-            logger.error("ERROR IN HOLD PROCESS! %s", str(e))
-            raise AzulError(f"Error processing secure hold: {str(e)}") from e
-
-    async def process_3ds_method(
-        self, azul_order_id: str, method_notification_status: str
-    ) -> Dict[str, Any]:
-        """
-        Process a 3DS method notification from the ACS.
-
-        Marks the method as processed to prevent duplicates and updates
-        the transaction state based on the notification.
-        """
-        # Check if we already processed this order
-        if self.processed_methods.get(azul_order_id):
-            return {
-                "ResponseMessage": "ALREADY_PROCESSED",
-                "AzulOrderId": azul_order_id,
-            }
-
-        try:
-            # Mark as processed before making request
-            self.processed_methods[azul_order_id] = True
-
-            # Find the session data for this azul_order_id
-            session_data = None
-            for _, session in self.secure_sessions.items():
-                if session.get("azul_order_id") == azul_order_id:
-                    session_data = session
-                    break
-
-            if not session_data:
-                logger.error(
-                    "No session data found for azul_order_id: %s", azul_order_id
-                )
-                return {
-                    "ResponseMessage": "SESSION_NOT_FOUND",
-                    "AzulOrderId": azul_order_id,
-                }
-
-            data = {
-                "Channel": "EC",
-                "Store": self.api.settings.MERCHANT_ID,
-                "AzulOrderId": azul_order_id,
-                "MethodNotificationStatus": method_notification_status,
-                # Add required fields that were missing
-                "Amount": str(session_data.get("amount", "")),
-                "Currency": "DOP",
-                "OrderNumber": session_data.get("order_number", ""),
-            }
-
-            # Add Itbis if available in session
-            if "itbis" in session_data:
-                data["Itbis"] = str(session_data["itbis"])
-
-            logger.debug("SENDING REQUEST TO AZUL WITH 3DS METHOD NOTIFICATION...")
-            logger.debug("-" * 50)
-            logger.debug(json.dumps(data, indent=2))
-            logger.debug("-" * 50)
-
-            # pylint: disable=protected-access
-            result = await self.api._async_request(
-                data, operation="processthreedsmethod", is_secure=True
-            )
-
-            # Update transaction state
-            if isinstance(result, dict):
-                self.transaction_states[azul_order_id] = result.get(
-                    "ResponseMessage", "UNKNOWN"
-                )
-
-            logger.debug("3DS METHOD NOTIFICATION PROCESS RESULT")
-            logger.debug("-" * 50)
-            logger.debug(json.dumps(result, indent=2))
-            logger.debug("-" * 50)
-            return result
-
-        except Exception as e:
-            # If error occurs, remove processed mark
-            self.processed_methods.pop(azul_order_id, None)
-            raise AzulError(
-                f"Error processing 3DS method notification: {str(e)}"
-            ) from e
-
-    async def process_challenge(self, secure_id: str, cres: str) -> Dict[str, Any]:
-        """Process the 3DS challenge response (CRes) from the ACS."""
-        session = self.secure_sessions.get(secure_id)
-        if not session:
-            raise AzulError("Invalid secure session ID")
-
-        azul_order_id = session["azul_order_id"]
-
-        # Check current transaction state
-        current_state = self.transaction_states.get(azul_order_id)
-        if current_state != "3D_SECURE_CHALLENGE":
-            logger.warning("Unexpected state for 3DS challenge: %s", current_state)
-            logger.warning("Waiting 2 seconds before continuing...")
-            await asyncio.sleep(2)  # Wait a bit before continuing
-
-        data = {
-            "Channel": "EC",
-            "Store": self.api.settings.MERCHANT_ID,
-            "AzulOrderId": azul_order_id,
-            "CRes": cres,
-        }
-
-        logger.debug("INITIATING 3DS CHALLENGE PROCESS...")
-        logger.debug("Session ID: %s", secure_id)
-        logger.debug("Order ID: %s", azul_order_id)
-        logger.debug("Current state: %s", current_state)
-        logger.debug("=" * 50)
-
-        logger.debug("SENDING REQUEST TO AZUL WITH 3DS CHALLENGE NOTIFICATION...")
-        logger.debug("-" * 50)
-        logger.debug(json.dumps(data, indent=2))
-        logger.debug("-" * 50)
-
-        try:
-            # pylint: disable=protected-access
-            result = await self.api._async_request(
-                data, operation="processthreedschallenge", is_secure=True
-            )
-
-            # Log the result
-            logger.debug("3DS CHALLENGE RESPONSE:")
-            logger.debug("-" * 50)
-            logger.debug(json.dumps(result, indent=2))
-            logger.debug("-" * 50)
-
-            # Check for specific state error
-            if isinstance(result, dict) and "ErrorDescription" in result:
-                if "Wrong transaction state" in result["ErrorDescription"]:
-                    logger.error("Transaction state error:")
-                    logger.error(
-                        "- Current state: %s", result.get("TransactionState", "Unknown")
-                    )
-                    logger.error("- Error code: %s", result.get("ErrorCode", "Unknown"))
-                    logger.error("- Description: %s", result["ErrorDescription"])
-
-                    # Return a more friendly message
-                    result["ErrorDescription"] = (
-                        "The transaction could not be completed because it expired or "
-                        "was previously processed. Please try the payment again."
-                    )
-
-            return result
-
-        except Exception as e:
-            logger.error("Error processing 3DS challenge: %s", str(e))
-            error_msg = str(e)
-
-            # Improve error message for user
-            if "Wrong transaction state" in error_msg:
-                error_msg = (
-                    "The transaction could not be completed because it expired or "
-                    "was previously processed. Please try the payment again."
-                )
-
-            raise AzulError(f"Error processing 3DS challenge: {error_msg}") from e
+    def _generate_secure_id(self) -> str:
+        """Generate a unique secure session ID."""
+        return str(uuid.uuid4())
 
     @staticmethod
     def _create_challenge_form(creq: str, term_url: str, redirect_post_url: str) -> str:
@@ -546,4 +46,466 @@ class SecureService:
             f'    <input type="hidden" name="creq" value="{creq}" />'
             f'    <input type="hidden" name="TermUrl" value="{term_url}" />'
             f"</form>"
+            f"<script>document.getElementById('form3ds').submit();</script>"
         )
+
+    def create_challenge_form(
+        self, redirect_post_url: str, creq: str, term_url: str
+    ) -> str:
+        """Create an HTML form for the 3DS challenge redirect."""
+        return self._create_challenge_form(creq, term_url, redirect_post_url)
+
+    def _check_3ds_method_required(self, response: Dict[str, Any]) -> bool:
+        """Check if 3DS Method is required based on response."""
+        return (
+            response.get("IsoCode") == "3D2METHOD"
+            and response.get("ResponseMessage") == "3D_SECURE_2_METHOD"
+            and "ThreeDSMethod" in response
+            and response.get("ThreeDSMethod", {}).get("MethodForm")
+        )
+
+    def _check_3ds_challenge_required(self, response: Dict[str, Any]) -> bool:
+        """Check if 3DS Challenge is required based on response."""
+        return (
+            response.get("IsoCode") == "3D"
+            and response.get("ResponseMessage") == "3D_SECURE_CHALLENGE"
+            and "ThreeDSChallenge" in response
+        )
+
+    def _process_3ds_response(self, response: Dict[str, Any]) -> Dict[str, Any]:
+        """Process 3DS response and add redirect/html fields if needed."""
+        # Check for 3DS Method requirement
+        if self._check_3ds_method_required(response):
+            method_form = response["ThreeDSMethod"]["MethodForm"]
+            response.update(
+                {
+                    "redirect": True,
+                    "method_form": method_form,
+                    "html": method_form,
+                    "message": "3DS Method required",
+                }
+            )
+            return response
+
+        # Check for 3DS Challenge requirement
+        if self._check_3ds_challenge_required(response):
+            challenge_data = response["ThreeDSChallenge"]
+            creq = challenge_data.get("CReq")
+            redirect_url = challenge_data.get("RedirectPostUrl")
+
+            if creq and redirect_url:
+                challenge_html = self._create_challenge_form(creq, "", redirect_url)
+                response.update(
+                    {
+                        "redirect": True,
+                        "html": challenge_html,
+                        "challenge_html": challenge_html,
+                        "challenge_required": True,
+                        "message": "3DS Challenge required",
+                    }
+                )
+
+        return response
+
+    def _get_transaction_status(
+        self, response: Dict[str, Any]
+    ) -> tuple[str, Optional[str]]:
+        """Extract transaction status and error description from response."""
+        response_msg = response.get("ResponseMessage", "")
+        iso_code = response.get("IsoCode", "")
+        error_description = response.get("ErrorDescription", "")
+
+        # Direct status mapping
+        status_map = {
+            ("APROBADA", "00"): "approved",
+            ("ALREADY_PROCESSED", ""): "processing",
+        }
+
+        status = status_map.get((response_msg, iso_code))
+        if status:
+            return status, error_description or None
+
+        # Handle declined/error cases
+        if response_msg in ["DENEGADA", "DECLINED"] or (
+            response_msg == "ERROR" and iso_code == "99"
+        ):
+            return "declined", error_description or None
+
+        # Build composite status for unknown cases
+        if error_description and response_msg:
+            status = f"{response_msg}: {error_description}"
+        elif error_description:
+            status = error_description
+        elif response_msg:
+            status = response_msg
+        else:
+            status = "unknown"
+
+        return status, error_description or None
+
+    def _store_session_data(self, secure_id: str, data: Dict[str, Any]) -> None:
+        """Store session data for a secure transaction."""
+        self.session_store[secure_id] = data
+
+    def get_session_info(self, secure_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieve information about an active 3DS session.
+
+        Args:
+            secure_id: The secure session ID
+
+        Returns:
+            Session data dictionary or None if session not found
+        """
+        return self.session_store.get(secure_id)
+
+    def _prepare_secure_request_data(
+        self,
+        request: Union[SecureSale, SecureTokenSale],
+        secure_id: str,
+        transaction_type: str = "Sale",
+    ) -> tuple[Dict[str, Any], str]:
+        """Prepare request data for secure transactions."""
+        # Modify URLs to include secure_id parameter
+        term_url = f"{request.ThreeDSAuth.TermUrl}?secure_id={secure_id}"
+        method_notification_url = (
+            f"{request.ThreeDSAuth.MethodNotificationUrl}?secure_id={secure_id}"
+        )
+
+        # Update the request URLs with secure_id
+        request.ThreeDSAuth.TermUrl = term_url
+        request.ThreeDSAuth.MethodNotificationUrl = method_notification_url
+
+        # Use clean model serialization
+        request_data = request.model_dump(exclude_none=True)
+        request_data["Currency"] = "DOP"  # Required by Azul API
+
+        # Override transaction type if needed
+        if transaction_type != "Sale":
+            request_data["TrxType"] = transaction_type
+
+        return request_data, term_url
+
+    def _create_session_data(
+        self,
+        response: Dict[str, Any],
+        request: Union[SecureSale, SecureTokenSale],
+        term_url: str,
+        transaction_type: str = "sale",
+    ) -> Dict[str, Any]:
+        """Create session data for storing transaction information."""
+        session_data = {
+            "azul_order_id": response.get("AzulOrderId"),
+            "amount": request.Amount,
+            "itbis": request.Itbis,
+            "order_number": request.OrderNumber,
+            "term_url": term_url,
+            "status": "processing",
+        }
+
+        # Add card details for hold/token transactions
+        if transaction_type in ["hold", "token"]:
+            session_data.update(
+                {
+                    "card_number": request.CardNumber,
+                    "expiration": request.Expiration,
+                    "cvc": request.CVC,
+                }
+            )
+
+        # Store 3DS forms if available
+        if response.get("method_form"):
+            session_data.update(
+                {"method_form": response["method_form"], "method_required": True}
+            )
+
+        if response.get("challenge_html"):
+            session_data.update(
+                {
+                    "challenge_html": response["challenge_html"],
+                    "challenge_required": True,
+                }
+            )
+
+        return session_data
+
+    def _update_session_with_result(
+        self, secure_id: str, result: Dict[str, Any], is_final: bool = False
+    ) -> str:
+        """Update session data with transaction result and return status."""
+        status, error_description = self._get_transaction_status(result)
+
+        session_data = self.get_session_info(secure_id)
+        if session_data:
+            session_data.update({"status": status, "final_result": result})
+            if error_description:
+                session_data["error_description"] = error_description
+            self._store_session_data(secure_id, session_data)
+
+        # Clean up completed transactions
+        if is_final and status in ["approved", "declined"]:
+            self._cleanup_session(secure_id)
+
+        return status
+
+    def _cleanup_session(self, secure_id: str) -> None:
+        """Clean up session data after transaction completion."""
+        try:
+            if secure_id in self.session_store:
+                del self.session_store[secure_id]
+                _logger.debug(f"Cleaned up session data for secure_id: {secure_id}")
+        except Exception as e:
+            _logger.warning(f"Failed to cleanup session {secure_id}: {e}")
+
+    async def _process_secure_transaction(
+        self,
+        request: Union[SecureSale, SecureTokenSale],
+        transaction_type: str,
+        transaction_name: str,
+    ) -> Dict[str, Any]:
+        """Process any type of secure transaction with common logic."""
+        try:
+            secure_id = self._generate_secure_id()
+            request_data, term_url = self._prepare_secure_request_data(
+                request, secure_id, transaction_type
+            )
+
+            response = await self.client._async_request(
+                data=request_data, is_secure=True
+            )
+
+            # Add secure_id to response first
+            response["id"] = secure_id
+
+            # Process 3DS response to add redirect/html fields if needed
+            response = self._process_3ds_response(response)
+
+            # Create and store session data after 3DS processing
+            session_data = self._create_session_data(
+                response, request, term_url, transaction_type
+            )
+            self._store_session_data(secure_id, session_data)
+
+            return response
+
+        except Exception as e:
+            _logger.error(f"3D Secure {transaction_name} transaction failed: {e}")
+            raise AzulError(
+                f"3D Secure {transaction_name} transaction failed: {e}"
+            ) from e
+
+    async def process_sale(self, request: SecureSale) -> Dict[str, Any]:
+        """Process a 3D Secure sale transaction."""
+        return await self._process_secure_transaction(request, "Sale", "sale")
+
+    async def process_token_sale(self, request: SecureTokenSale) -> Dict[str, Any]:
+        """Process a 3D Secure token sale transaction."""
+        return await self._process_secure_transaction(request, "Sale", "token sale")
+
+    async def process_hold(self, request: SecureSale) -> Dict[str, Any]:
+        """Process a 3D Secure hold transaction."""
+        return await self._process_secure_transaction(request, "Hold", "hold")
+
+    async def process_3ds_method(
+        self, azul_order_id: str, method_notification_status: str
+    ) -> Dict[str, Any]:
+        """Process 3DS method notification."""
+        try:
+            # Check if already processed
+            if self.processed_methods.get(azul_order_id):
+                return {
+                    "ResponseMessage": "ALREADY_PROCESSED",
+                    "AzulOrderId": azul_order_id,
+                }
+
+            # Mark as processed
+            self.processed_methods[azul_order_id] = True
+
+            # Find session data for this azul_order_id
+            session_data = next(
+                (
+                    session
+                    for session in self.session_store.values()
+                    if session.get("azul_order_id") == azul_order_id
+                ),
+                None,
+            )
+
+            if not session_data:
+                return {
+                    "ResponseMessage": "SESSION_NOT_FOUND",
+                    "AzulOrderId": azul_order_id,
+                }
+
+            # Build request data
+            data = {
+                "Channel": "EC",
+                "Store": self.settings.MERCHANT_ID,
+                "AzulOrderId": azul_order_id,
+                "MethodNotificationStatus": method_notification_status,
+                "Amount": str(session_data.get("amount", "")),
+                "Currency": "DOP",
+                "OrderNumber": session_data.get("order_number", ""),
+            }
+
+            if "itbis" in session_data:
+                data["Itbis"] = str(session_data["itbis"])
+
+            response = await self.client._async_request(
+                data, operation="processthreedsmethod", is_secure=True
+            )
+
+            return response
+
+        except Exception as e:
+            # Remove processed mark on error
+            self.processed_methods.pop(azul_order_id, None)
+            _logger.error(f"3DS method processing failed: {e}")
+            raise AzulError(f"3DS method processing failed: {e}") from e
+
+    async def process_challenge(
+        self, session_id: str, challenge_response: str
+    ) -> Dict[str, Any]:
+        """Process 3DS challenge response."""
+        try:
+            session_data = self.get_session_info(session_id)
+            if not session_data:
+                raise AzulError(f"No session data found for session_id: {session_id}")
+
+            azul_order_id = session_data.get("azul_order_id")
+            if not azul_order_id:
+                raise AzulError("No AzulOrderId found in session data")
+
+            data = {
+                "Channel": "EC",
+                "Store": self.settings.MERCHANT_ID,
+                "AzulOrderId": azul_order_id,
+                "CRes": challenge_response,
+            }
+
+            response = await self.client._async_request(
+                data, operation="processthreedschallenge", is_secure=True
+            )
+
+            return response
+
+        except Exception as e:
+            _logger.error(f"3DS challenge processing failed: {e}")
+            raise AzulError(f"3DS challenge processing failed: {e}") from e
+
+    async def handle_3ds_callback(
+        self,
+        secure_id: str,
+        callback_data: Dict[str, Any],
+        form_data: Dict[str, Any],
+    ) -> Dict[str, Any]:
+        """Handle 3DS callbacks - automatically detects and routes to handler."""
+        try:
+            # Auto-detect callback type based on form data
+            if "threeDSMethodData" in form_data:
+                return await self._handle_method_notification(secure_id)
+            elif "CRes" in form_data or "cres" in form_data:
+                cres = form_data.get("CRes") or form_data.get("cres")
+                if not cres:
+                    raise AzulError("No challenge response found in form data")
+                return await self._handle_challenge_response(secure_id, cres)
+            else:
+                return await self._handle_return_redirect(secure_id)
+
+        except Exception as e:
+            _logger.error(f"3DS callback processing failed: {e}")
+            raise AzulError(f"3DS callback processing failed: {e}") from e
+
+    async def _handle_method_notification(self, secure_id: str) -> Dict[str, Any]:
+        """Handle 3DS method notification callback."""
+        session_data = self.get_session_info(secure_id)
+        if not session_data:
+            raise AzulError(f"No session data found for secure_id: {secure_id}")
+
+        # Clear method form flags and update status
+        session_data.pop("method_required", None)
+        session_data.pop("method_form", None)
+        session_data["status"] = "method_processed"
+        self._store_session_data(secure_id, session_data)
+
+        azul_order_id = session_data.get("azul_order_id")
+        if not azul_order_id:
+            raise AzulError("No AzulOrderId found in session data")
+
+        result = await self.process_3ds_method(azul_order_id, "RECEIVED")
+
+        # Check if challenge is required after method processing
+        if self._check_3ds_challenge_required(result):
+            challenge_data = result.get("ThreeDSChallenge", {})
+            creq = challenge_data.get("CReq")
+            redirect_url = challenge_data.get("RedirectPostUrl")
+
+            if creq and redirect_url:
+                term_url = session_data.get("term_url", "")
+                challenge_html = self._create_challenge_form(
+                    creq, term_url, redirect_url
+                )
+
+                # Update session with challenge info
+                session_data.update(
+                    {
+                        "challenge_html": challenge_html,
+                        "challenge_required": True,
+                        "status": "challenge_required",
+                    }
+                )
+                self._store_session_data(secure_id, session_data)
+
+                return {
+                    "completed": False,
+                    "requires_redirect": False,
+                    "AzulOrderId": result.get("AzulOrderId"),
+                    "status": "challenge_stored",
+                    "message": "Challenge data stored for frontend retrieval",
+                }
+
+        # Update session with final result
+        status = self._update_session_with_result(secure_id, result)
+
+        return {
+            "completed": status != "processing",
+            "requires_redirect": False,
+            "AzulOrderId": result.get("AzulOrderId"),
+            "status": status,
+            "result": result,
+        }
+
+    async def _handle_challenge_response(
+        self, secure_id: str, cres: str
+    ) -> Dict[str, Any]:
+        """Handle 3DS challenge response callback."""
+        result = await self.process_challenge(secure_id, cres)
+
+        # Update session with final result
+        status = self._update_session_with_result(secure_id, result, is_final=True)
+
+        return {
+            "completed": True,
+            "requires_redirect": False,
+            "AzulOrderId": result.get("AzulOrderId"),
+            "status": status,
+            "result": result,
+        }
+
+    async def _handle_return_redirect(self, secure_id: str) -> Dict[str, Any]:
+        """Handle return redirect without specific form data."""
+        session_data = self.get_session_info(secure_id)
+        if not session_data:
+            raise AzulError(f"No session data found for secure_id: {secure_id}")
+
+        azul_order_id = session_data.get("azul_order_id")
+        if not azul_order_id:
+            raise AzulError("No AzulOrderId found for verification")
+
+        return {
+            "completed": False,
+            "requires_redirect": False,
+            "AzulOrderId": azul_order_id,
+            "status": "verification_needed",
+            "message": "Manual verification required",
+        }

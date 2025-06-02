@@ -32,7 +32,7 @@ def mock_api_client(mock_azul_settings) -> AzulAPI:
     # Mock private methods using spec to avoid protected access warnings
     client.configure_mock(
         **{
-            "_async_request.return_value": AsyncMock(),
+            "post.return_value": AsyncMock(),
         }
     )
     # Set additional attributes that may not be in the spec

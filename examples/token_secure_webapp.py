@@ -21,8 +21,8 @@ from fastapi.templating import Jinja2Templates
 from pyazul import PyAzul
 from pyazul.core.exceptions import AzulError
 
-# Explicitly import models that FastAPI might use for request body validation
-from pyazul.models import CardHolderInfo, SecureChallengeRequest, SecureSessionID
+# Import models using new clean names
+from pyazul.models import CardHolderInfo, ChallengeRequest, SessionID
 
 # Configure logging
 # logging.basicConfig(
@@ -116,7 +116,7 @@ async def create_token(
             "Expiration": card["expiration"],
             # CVC is optional for token creation via DataVaultRequestModel
         }
-        response: Dict[str, Any] = await azul.create_token(create_token_payload)
+        response = await azul.create_token(create_token_payload)
 
         logger.info(f"Token Creation Response: {json.dumps(response)}")
 
@@ -200,25 +200,8 @@ async def process_token_payment(
         base_url = str(request.base_url).rstrip("/")
 
         cardholder_info_dict = CardHolderInfo(
-            BillingAddressCity="Santo Domingo",
-            BillingAddressCountry="DO",
-            BillingAddressLine1="Av. Winston Churchill",
-            BillingAddressLine2=None,
-            BillingAddressLine3=None,
-            BillingAddressState="Distrito Nacional",
-            BillingAddressZip="10148",
             Email="test@example.com",
             Name="TEST USER TOKEN",
-            PhoneHome=None,
-            PhoneMobile=None,
-            PhoneWork=None,
-            ShippingAddressCity="Santo Domingo",
-            ShippingAddressCountry="DO",
-            ShippingAddressLine1="Av. Winston Churchill",
-            ShippingAddressLine2=None,
-            ShippingAddressLine3=None,
-            ShippingAddressState="Distrito Nacional",
-            ShippingAddressZip="10148",
         ).model_dump()
 
         three_ds_auth_dict = {
@@ -236,11 +219,11 @@ async def process_token_payment(
             "Itbis": int(itbis * 100),
             "TrxType": "Sale",  # SecureTokenSale model requires this
             "AcquirerRefData": "1",  # Required by SecureTokenSale or its base
-            "forceNo3DS": card_data.get("force_no_3ds", "0"),
+            "ForceNo3DS": card_data.get("force_no_3ds", "0"),  # PascalCase update
             "Channel": "EC",
             "PosInputMode": "E-Commerce",
-            "cardHolderInfo": cardholder_info_dict,
-            "threeDSAuth": three_ds_auth_dict,
+            "CardHolderInfo": cardholder_info_dict,  # PascalCase update
+            "ThreeDSAuth": three_ds_auth_dict,  # PascalCase update
         }
 
         logger.info(f"Processing secure token sale: {token_id}, Order: {order_number}")
@@ -263,20 +246,24 @@ async def process_token_payment(
                 )
 
             if not app_3ds_session_store[secure_id]["azul_order_id"]:
-                pyazul_session = await azul.get_secure_session_info(secure_id)
+                pyazul_session = await azul.get_session_info(secure_id)
                 if isinstance(pyazul_session, dict):
                     retrieved_azul_order_id = pyazul_session.get("azul_order_id")
                     if isinstance(retrieved_azul_order_id, str):
                         app_3ds_session_store[secure_id][
                             "azul_order_id"
                         ] = retrieved_azul_order_id
-                        logger.info(f"Retrieved AzulId for {secure_id}")
+                        logger.info(f"Retrieved AzulOrderId for {secure_id}")
                     elif retrieved_azul_order_id is not None:
                         logger.warning(
-                            f"AzulId for {secure_id} not str: {type(retrieved_azul_order_id)}"  # noqa: E501
+                            f"AzulOrderId for {secure_id} not str: "
+                            f"{type(retrieved_azul_order_id)}"
                         )
                 elif pyazul_session is not None:
-                    logger.warning(f"pyazul_session for {secure_id} not dict")
+                    logger.warning(
+                        f"pyazul_session for {secure_id} not dict: "
+                        f"{type(pyazul_session)}"
+                    )
 
         return response
 
@@ -289,53 +276,66 @@ async def process_token_payment(
 
 
 @app.post("/capture-3ds-method")
-async def capture_3ds_method_route(request: Request, data: SecureSessionID):
+async def capture_3ds_method_route(request: Request, data: SessionID):
     """
     Handle 3DS method notification.
 
     This endpoint receives the response from the ACS after the 3DS method completes.
     """
-    session_id = data.session_id
+    # Extract data from request body
+    azul_order_id = data.AzulOrderId
+    method_status = data.MethodNotificationStatus
 
-    if not session_id:
+    if not azul_order_id or not method_status:
         return JSONResponse(
             status_code=400,
-            content={"error": "No session identifier (secure_id) provided."},
+            content={"error": "No AzulOrderId or MethodNotificationStatus provided."},
         )
 
-    logger.info(f"3DS method notification received for session: {session_id}")
+    logger.info(f"3DS method notification received for order: {azul_order_id}")
 
     try:
-        app_data = app_3ds_session_store.get(session_id)
+        app_data = app_3ds_session_store.get(azul_order_id)
         if not isinstance(app_data, dict):
             logger.error(
-                f"App 3DS session data not found or invalid for secure_id: {session_id}"
+                f"App 3DS session data not found or invalid for "
+                f"AzulOrderId: {azul_order_id}"
             )
             return JSONResponse(
                 status_code=400, content={"error": "Invalid or expired 3DS session."}
             )
 
-        azul_order_id = app_data.get("azul_order_id")
         original_term_url = app_data.get("original_term_url")
 
-        if azul_order_id is None:
-            pyazul_session_data = await azul.get_secure_session_info(session_id)
+        if not original_term_url:
+            pyazul_session_data = await azul.get_session_info(azul_order_id)
             if isinstance(pyazul_session_data, dict):
-                retrieved_id = pyazul_session_data.get("azul_order_id")
-                if isinstance(retrieved_id, str):
-                    azul_order_id = retrieved_id
-                    app_data["azul_order_id"] = azul_order_id
+                retrieved_original_term_url = pyazul_session_data.get(
+                    "original_term_url"
+                )
+                if isinstance(retrieved_original_term_url, str):
+                    original_term_url = retrieved_original_term_url
+                    app_data["original_term_url"] = original_term_url
                     logger.info(
-                        f"Retrieved AzulId {azul_order_id} for {session_id} (3DS method)."  # noqa: E501
+                        f"Retrieved original_term_url {original_term_url} for {azul_order_id} (3DS method)."  # noqa: E501
                     )
+                elif retrieved_original_term_url is not None:
+                    logger.warning(
+                        f"original_term_url for {azul_order_id} not str: "
+                        f"{type(retrieved_original_term_url)}"
+                    )
+            elif pyazul_session_data is not None:
+                logger.warning(f"pyazul_session for {azul_order_id} not dict")
 
         assert isinstance(
             azul_order_id, str
-        ), f"AzulId ({azul_order_id}) non-str for {session_id}."
-        assert isinstance(original_term_url, str), f"TermUrl non-str for {session_id}."
+        ), f"AzulOrderId ({azul_order_id}) non-str for {azul_order_id}."
+        assert isinstance(
+            original_term_url, str
+        ), f"original_term_url non-str for {azul_order_id}."
 
         logger.info(f"Processing 3DS method for order: {azul_order_id}")
-        result = await azul.process_3ds_method(azul_order_id, "RECEIVED")
+        result = await azul.process_3ds_method(azul_order_id, method_status)
         logger.info(f"3DS Method result: {json.dumps(result)}")
 
         if (
@@ -386,36 +386,32 @@ async def capture_3ds_method_route(request: Request, data: SecureSessionID):
 
 
 @app.post("/post-3ds")
-async def post_3ds(request: Request, data: SecureChallengeRequest):
+async def post_3ds(request: Request, data: ChallengeRequest):
     """
     Handle the 3DS challenge response.
 
     This endpoint receives the CRes from the ACS after cardholder authentication.
     """
-    session_id = data.session_id
-    cres = data.cres
+    azul_order_id = data.AzulOrderId
+    cres = data.CRes
 
-    if not session_id or not cres:
-        missing_fields = []
-        if not session_id:
-            missing_fields.append("session_id")
-        if not cres:
-            missing_fields.append("cres")
+    if not azul_order_id or not cres:
         return JSONResponse(
             status_code=400,
-            content={"error": f"Missing required fields: {', '.join(missing_fields)}"},
+            content={"error": "Missing AzulOrderId or CRes in challenge response."},
         )
 
+    logger.info(f"3DS challenge response received for order: {azul_order_id}")
+
     try:
-        logger.info(f"Processing 3DS challenge for session: {session_id}")
         result = await azul.process_challenge(
-            session_id=session_id, challenge_response=cres
+            session_id=azul_order_id, challenge_response=cres
         )
         logger.info(f"Challenge result: {json.dumps(result)}")
 
         # Clean up app 3DS session store
-        if session_id in app_3ds_session_store:
-            del app_3ds_session_store[session_id]
+        if azul_order_id in app_3ds_session_store:
+            del app_3ds_session_store[azul_order_id]
 
         return templates.TemplateResponse(
             "result.html", {"request": request, "result": result}

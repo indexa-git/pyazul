@@ -31,26 +31,26 @@ Example:
 """
 
 from .core.config import AzulSettings, get_azul_settings
-from .core.exceptions import AzulError
+from .core.exceptions import AzulError, AzulResponseError
 from .index import PyAzul
 
 # Import models from the centralized pyazul.models package
 from .models import (
-    AzulBaseModel,
+    AzulBase,
     CardHolderInfo,
     ChallengeIndicator,
-    DataVaultRequestModel,
-    HoldTransactionModel,
-    PaymentPageModel,
-    PostSaleTransactionModel,
-    RefundTransactionModel,
-    SaleTransactionModel,
-    SecureSaleRequest,
+    Hold,
+    PaymentPage,
+    Post,
+    Refund,
+    Sale,
+    SecureSale,
     SecureTokenSale,
     ThreeDSAuth,
-    TokenSaleModel,
-    VerifyTransactionModel,
-    VoidTransactionModel,
+    TokenRequest,
+    TokenSale,
+    VerifyTransaction,
+    Void,
 )
 from .services import DataVaultService, PaymentPageService, TransactionService
 from .services.secure import SecureService
@@ -62,23 +62,24 @@ __all__ = [
     "get_azul_settings",
     "AzulSettings",
     "AzulError",
+    "AzulResponseError",
     # Services
     "TransactionService",
     "DataVaultService",
     "PaymentPageService",
     "SecureService",
     # Models
-    "AzulBaseModel",
-    "SaleTransactionModel",
-    "HoldTransactionModel",
-    "RefundTransactionModel",
-    "DataVaultRequestModel",
-    "TokenSaleModel",
-    "PostSaleTransactionModel",
-    "VerifyTransactionModel",
-    "VoidTransactionModel",
-    "PaymentPageModel",
-    "SecureSaleRequest",
+    "AzulBase",
+    "Sale",
+    "Hold",
+    "Refund",
+    "TokenRequest",
+    "TokenSale",
+    "Post",
+    "VerifyTransaction",
+    "Void",
+    "PaymentPage",
+    "SecureSale",
     "SecureTokenSale",
     "CardHolderInfo",
     "ThreeDSAuth",

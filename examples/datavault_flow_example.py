@@ -3,7 +3,7 @@
 import asyncio
 
 from pyazul import PyAzul
-from pyazul.models import DataVaultErrorResponse, DataVaultSuccessResponse
+from pyazul.models import TokenError, TokenSuccess
 
 
 async def test_datavault_flow():
@@ -52,13 +52,13 @@ async def test_datavault_flow():
         print(f"Full token_response from create_token: {token_response}")
 
         # Check response type for proper handling
-        if isinstance(token_response, DataVaultSuccessResponse):
+        if isinstance(token_response, TokenSuccess):
             token = token_response.DataVaultToken
             print(f"✅ Token created successfully: {token}")
             print(f"🎭 Card Number (masked): {token_response.CardNumber}")
             print(f"🏷️  Brand: {token_response.DataVaultBrand}")
             print(f"📅 Expiration: {token_response.DataVaultExpiration}")
-        elif isinstance(token_response, DataVaultErrorResponse):
+        elif isinstance(token_response, TokenError):
             raise Exception(f"Token creation failed: {token_response.ErrorDescription}")
         else:
             # Fallback for backward compatibility
@@ -102,9 +102,9 @@ async def test_datavault_flow():
         print(f"Delete response: {delete_response}")
 
         # Check response type for proper handling
-        if isinstance(delete_response, DataVaultSuccessResponse):
+        if isinstance(delete_response, TokenSuccess):
             print(f"✅ Token deleted successfully: {delete_response.DataVaultToken}")
-        elif isinstance(delete_response, DataVaultErrorResponse):
+        elif isinstance(delete_response, TokenError):
             raise Exception(
                 f"Token deletion failed: {delete_response.ErrorDescription}"
             )

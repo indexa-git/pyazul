@@ -1,490 +1,745 @@
 <!doctype html>
 <html>
-  <head>
-    <title>Azul Payment Demo</title>
-    <style>
-      body {
-        font-family: Arial, sans-serif;
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 20px;
-      }
-      .form-group {
-        margin-bottom: 15px;
-      }
-      label {
-        display: block;
-        margin-bottom: 5px;
-      }
-      select,
-      input {
-        width: 100%;
-        padding: 8px;
-        margin-bottom: 10px;
-      }
-      button {
-        background-color: #4caf50;
-        color: white;
-        padding: 10px 20px;
-        border: none;
-        border-radius: 4px;
-        cursor: pointer;
-      }
-      button:hover {
-        background-color: #45a049;
-      }
-      #result-container {
-        margin-top: 20px;
-        padding: 20px;
-        border-radius: 8px;
-        background-color: #f8f9fa;
-        border: 1px solid #dee2e6;
-        display: none;
-      }
-      .success {
-        border-left: 4px solid #28a745;
-      }
-      .error {
-        border-left: 4px solid #dc3545;
-      }
-      .processing {
-        border-left: 4px solid #17a2b8;
-      }
-      .loading-container {
-        text-align: center;
-        margin-top: 20px;
-      }
-      .loading-spinner {
-        border: 4px solid #f3f3f3;
-        border-top: 4px solid #3498db;
-        border-radius: 50%;
-        width: 40px;
-        height: 40px;
-        animation: spin 1s linear infinite;
-        margin: 20px auto;
-      }
-      @keyframes spin {
-        0% {
-          transform: rotate(0deg);
-        }
-        100% {
-          transform: rotate(360deg);
-        }
-      }
-      pre {
-        background-color: white;
-        padding: 15px;
-        border-radius: 4px;
-        overflow-x: auto;
-      }
-      .json-key {
-        color: #881391;
-      }
-      .json-string {
-        color: #008000;
-      }
-      .json-number {
-        color: #1a01cc;
-      }
-      .json-boolean {
-        color: #ff0000;
-      }
-      .json-null {
-        color: #808080;
-      }
-    </style>
-  </head>
-  <body>
-    <h1>Azul Payment Demo</h1>
 
-    <form id="payment-form">
-      <div class="form-group">
-        <label for="card">Test Card:</label>
-        <select id="card" name="card_number" required>
-          {% for card in cards %}
-          <option value="{{ card.number }}">
-            {{ card.label }} ({{ card.number }})
-          </option>
-          {% endfor %}
-        </select>
-      </div>
+<head>
+  <title>Azul Payment Demo</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 20px;
+    }
 
-      <div class="form-group">
-        <label for="amount">Amount:</label>
-        <input
-          type="number"
-          id="amount"
-          name="amount"
-          value="10.00"
-          step="0.01"
-          required
-        />
-      </div>
+    .form-group {
+      margin-bottom: 15px;
+    }
 
-      <div class="form-group">
-        <label for="itbis">ITBIS:</label>
-        <input
-          type="number"
-          id="itbis"
-          name="itbis"
-          value="1.80"
-          step="0.01"
-          required
-        />
-      </div>
+    label {
+      display: block;
+      margin-bottom: 5px;
+    }
 
-      <button type="submit">Process Payment</button>
-    </form>
+    select,
+    input {
+      width: 100%;
+      padding: 8px;
+      margin-bottom: 10px;
+    }
 
-    <div id="result-container"></div>
+    button {
+      background-color: #4caf50;
+      color: white;
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
 
-    <script>
-      function syntaxHighlight(json) {
-        if (typeof json !== "string") {
-          json = JSON.stringify(json, null, 2);
-        }
-        json = json
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
-        return json.replace(
-          /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
-          function (match) {
-            let cls = "json-number";
-            if (/^"/.test(match)) {
-              if (/:$/.test(match)) {
-                cls = "json-key";
-              } else {
-                cls = "json-string";
-              }
-            } else if (/true|false/.test(match)) {
-              cls = "json-boolean";
-            } else if (/null/.test(match)) {
-              cls = "json-null";
+    button:hover {
+      background-color: #45a049;
+    }
+
+    #result-container {
+      margin-top: 20px;
+      padding: 20px;
+      border-radius: 8px;
+      background-color: #f8f9fa;
+      border: 1px solid #dee2e6;
+      display: none;
+    }
+
+    .success {
+      border-left: 4px solid #28a745;
+    }
+
+    .error {
+      border-left: 4px solid #dc3545;
+    }
+
+    .processing {
+      border-left: 4px solid #17a2b8;
+    }
+
+    .loading-container {
+      text-align: center;
+      margin-top: 20px;
+    }
+
+    .loading-spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+      margin: 20px auto;
+    }
+
+    @keyframes spin {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+
+    pre {
+      background-color: white;
+      padding: 15px;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+
+    .json-key {
+      color: #881391;
+    }
+
+    .json-string {
+      color: #008000;
+    }
+
+    .json-number {
+      color: #1a01cc;
+    }
+
+    .json-boolean {
+      color: #ff0000;
+    }
+
+    .json-null {
+      color: #808080;
+    }
+
+    .debug-info {
+      background-color: #e8f4fd;
+      border: 1px solid #bee5eb;
+      border-radius: 4px;
+      padding: 10px;
+      margin: 10px 0;
+      font-family: monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <h1>{{ title or "Comprehensive 3DS Payment Demo" }}</h1>
+
+  <form id="payment-form">
+    <div class="form-group">
+      <label for="card">Test Card (Choose scenario to test):</label>
+      <select id="card" name="card_number" required>
+        {% for card in cards %}
+        <option value="{{ card.number }}">
+          {{ card.label }} ({{ card.number }})
+        </option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label for="amount">Amount:</label>
+      <input type="number" id="amount" name="amount" value="10.00" step="0.01" required />
+    </div>
+
+    <div class="form-group">
+      <label for="itbis">ITBIS:</label>
+      <input type="number" id="itbis" name="itbis" value="1.80" step="0.01" required />
+    </div>
+
+    <div class="form-group">
+      <label for="transaction_type">Transaction Type:</label>
+      <select id="transaction_type" name="transaction_type" required>
+        <option value="sale">Sale (Immediate capture)</option>
+        <option value="hold">Hold (Pre-authorization)</option>
+      </select>
+    </div>
+
+    <button type="submit">Process 3DS Transaction</button>
+  </form>
+
+  <div id="result-container"></div>
+
+  <script>
+    function syntaxHighlight(json) {
+      if (typeof json !== "string") {
+        json = JSON.stringify(json, null, 2);
+      }
+      json = json
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+      return json.replace(
+        /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
+        function (match) {
+          let cls = "json-number";
+          if (/^"/.test(match)) {
+            if (/:$/.test(match)) {
+              cls = "json-key";
+            } else {
+              cls = "json-string";
             }
-            return '<span class="' + cls + '">' + match + "</span>";
-          },
-        );
+          } else if (/true|false/.test(match)) {
+            cls = "json-boolean";
+          } else if (/null/.test(match)) {
+            cls = "json-null";
+          }
+          return '<span class="' + cls + '">' + match + "</span>";
+        },
+      );
+    }
+
+    function addDebugInfo(message) {
+      const container = document.getElementById("result-container");
+      const debugDiv = document.createElement("div");
+      debugDiv.className = "debug-info";
+      debugDiv.innerHTML = `[${new Date().toLocaleTimeString()}] ${message}`;
+      container.appendChild(debugDiv);
+    }
+
+    function showResult(result, status = "processing") {
+      const container = document.getElementById("result-container");
+      container.style.display = "block";
+      container.className = `result-container ${status}`;
+
+      // Create a copy of the result for cleaning sensitive data
+      const cleanResult = JSON.parse(JSON.stringify(result));
+      if (cleanResult.html) {
+        cleanResult.html = "[HTML Content - Check Browser Console]";
       }
 
-      function showResult(result, status = "processing") {
-        const container = document.getElementById("result-container");
-        container.style.display = "block";
-        container.className = `result-container ${status}`;
+      let content = "";
+      let statusText = "";
+      let errorDetails = "";
+      let processingDetails = "";
 
-        // Crear una copia del resultado para limpiar datos sensibles
-        const cleanResult = JSON.parse(JSON.stringify(result));
-        if (cleanResult.html) {
-          cleanResult.html = "[HTML Content]";
-        }
-
-        let content = "";
-        let statusText = "";
-        let errorDetails = "";
-        let processingDetails = "";
-
-        switch (status) {
-          case "success":
-            statusText =
-              '<h2 style="color: #28a745">✓ Transaction Successful</h2>';
-            break;
-          case "error":
-            statusText = '<h2 style="color: #dc3545">✗ Transaction Error</h2>';
-            // Agregar detalles del error si están disponibles
-            if (cleanResult.ErrorDescription) {
-              errorDetails = `<div class="error-details" style="margin-top: 10px; padding: 10px; background: #fff1f0; border-left: 4px solid #dc3545; margin-bottom: 15px;">
+      switch (status) {
+        case "success":
+          statusText =
+            '<h2 style="color: #28a745">✓ Transaction Successful</h2>';
+          break;
+        case "error":
+          statusText = '<h2 style="color: #dc3545">✗ Transaction Error</h2>';
+          if (cleanResult.ErrorDescription || cleanResult.error) {
+            const errorMessage = cleanResult.ErrorDescription || cleanResult.error;
+            errorDetails = `<div class="error-details" style="margin-top: 10px; padding: 10px; background: #fff1f0; border-left: 4px solid #dc3545; margin-bottom: 15px;">
                             <strong>Error Details:</strong><br>
-                            ${cleanResult.ErrorDescription}
+                            ${errorMessage}
                         </div>`;
-            }
-            break;
-          default:
-            statusText =
-              '<h2 style="color: #17a2b8">⟳ Processing Transaction</h2>';
-            if (cleanResult.message) {
-              processingDetails = `<div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-left: 4px solid #17a2b8; margin-bottom: 15px;">
+          }
+          break;
+        default:
+          statusText =
+            '<h2 style="color: #17a2b8">⟳ Processing 3DS Transaction</h2>';
+          if (cleanResult.message) {
+            processingDetails = `<div style="margin-top: 10px; padding: 10px; background: #e3f2fd; border-left: 4px solid #17a2b8; margin-bottom: 15px;">
                             ${cleanResult.message}
                             ${cleanResult.details ? `<br><small>${cleanResult.details}</small>` : ""}
                         </div>`;
-            }
-        }
+          }
+      }
 
-        content = `
+      content = `
                 ${statusText}
                 ${errorDetails}
                 ${processingDetails}
                 <pre>${syntaxHighlight(cleanResult)}</pre>
             `;
 
-        if (status === "processing") {
-          content += '<div class="loading-spinner"></div>';
-        }
-
-        container.innerHTML = content;
+      if (status === "processing") {
+        content += '<div class="loading-spinner"></div>';
       }
 
-      async function handle3DSMethod(result) {
-        showResult(result, "processing");
+      container.innerHTML = content;
+    }
 
-        // Crear un div oculto para el formulario 3DS
-        const formContainer = document.createElement("div");
-        formContainer.style.display = "none";
-        formContainer.innerHTML = result.html;
-        document.body.appendChild(formContainer);
+    async function handle3DSMethod(result) {
+      addDebugInfo("Starting 3DS Method processing with unified approach");
+      showResult(result, "processing");
 
-        const methodForm = formContainer.querySelector("form");
-        if (methodForm) {
+      // Log the HTML content for debugging
+      console.log("3DS Method HTML:", result.html);
+
+      // Create a temporary container to parse the HTML
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = result.html;
+
+      // Look for method form and iframe
+      let methodForm = tempDiv.querySelector('form[name="tdsMmethodForm"]') ||
+        tempDiv.querySelector('form#tdsMmethodForm');
+
+      let iframe = tempDiv.querySelector('iframe[name="tdsMmethodTgtFrame"]') ||
+        tempDiv.querySelector('iframe#tdsMmethodTgtFrame');
+
+      // Debug what we found
+      addDebugInfo(`Found - Form: ${!!methodForm}, Iframe: ${!!iframe}`);
+
+      if (methodForm && iframe) {
+        addDebugInfo("Processing 3DS method form in background");
+
+        // Create hidden iframe for background processing
+        const hiddenIframe = iframe.cloneNode(true);
+        hiddenIframe.style.visibility = "hidden";
+        hiddenIframe.style.width = "1px";
+        hiddenIframe.style.height = "1px";
+        hiddenIframe.style.position = "absolute";
+        hiddenIframe.style.top = "-1000px";
+
+        // Add to document
+        document.body.appendChild(hiddenIframe);
+        document.body.appendChild(methodForm);
+
+        // Submit the form and show waiting message
+        setTimeout(() => {
+          addDebugInfo("Submitting 3DS method form to ACS");
           methodForm.submit();
 
-          // Esperamos un tiempo prudente para asegurar que el método 3DS se procesó
-          setTimeout(async () => {
-            try {
-              const response = await fetch(
-                `/capture-3ds?secure_id=${result.id}`,
-                {
-                  method: "POST",
-                },
-              );
+          showResult({
+            message: "Processing 3D Secure Method...",
+            details: "Please wait while we verify your payment method with your bank. This may take a few seconds as we wait for the bank's response."
+          }, "processing");
 
-              // Primero intentamos leer la respuesta como texto
-              const responseText = await response.text();
-              let challengeResult;
+          addDebugInfo("3DS Method form submitted. Waiting for ACS callback...");
+          addDebugInfo("Setting up progressive status checks to handle ACS delays");
 
-              try {
-                // Intentamos parsear como JSON
-                challengeResult = JSON.parse(responseText);
-              } catch (e) {
-                // If it's not JSON, we assume it's an error message
-                showResult(
-                  {
-                    ResponseMessage: "ERROR",
-                    IsoCode: "ERROR",
-                    ErrorDescription: responseText,
-                  },
-                  "error",
-                );
-                return;
+          // Progressive checking with multiple fallbacks
+          let checkCount = 0;
+          const maxChecks = 6;
+
+          const progressiveCheck = async () => {
+            checkCount++;
+            addDebugInfo(`⏰ Status check ${checkCount}/${maxChecks} (${checkCount * 3} seconds elapsed)`);
+
+            let shouldStop = false;
+
+            if (checkCount <= 2) {
+              // First 2 checks: just check status (wait for natural ACS callback)
+              shouldStop = await checkTransactionStatus(result.secure_id);
+            } else {
+              // After 6 seconds: try manual processing
+              addDebugInfo("🔧 Switching to manual method processing");
+              const manualProcessingComplete = await tryManualMethodProcessing(result.secure_id);
+              if (manualProcessingComplete) {
+                shouldStop = true;
+              } else {
+                // Check status after manual processing attempt
+                shouldStop = await checkTransactionStatus(result.secure_id);
               }
-
-              console.log("Resultado del capture-3ds:", challengeResult);
-
-              // Verificar si hay error en la respuesta
-              if (response.status !== 200 || challengeResult.error) {
-                const errorMessage =
-                  challengeResult.error ||
-                  challengeResult.detail ||
-                  "Unknown error in transaction";
-                showResult(
-                  {
-                    ResponseMessage: "ERROR",
-                    IsoCode: "ERROR",
-                    ErrorDescription: errorMessage,
-                  },
-                  "error",
-                );
-                return;
-              }
-
-              // Mostrar el resultado del capture-3ds
-              if (challengeResult.ResponseMessage) {
-                // Si tenemos una respuesta directa de Azul
-                showResult(
-                  challengeResult,
-                  challengeResult.ResponseMessage === "APROBADA"
-                    ? "success"
-                    : "error",
-                );
-                return; // Terminamos aquí si ya tenemos respuesta final
-              }
-
-              if (challengeResult.redirect && challengeResult.html) {
-                // Crear un div temporal para parsear el HTML
-                const tempDiv = document.createElement("div");
-                tempDiv.innerHTML = challengeResult.html;
-
-                // Obtener el formulario y sus valores
-                const form3ds = tempDiv.querySelector("#form3ds");
-                if (form3ds) {
-                  const tempForm = document.createElement("form");
-                  tempForm.method = "POST";
-                  tempForm.action = form3ds.action;
-
-                  // Copiar todos los campos del formulario original
-                  const inputs = form3ds.querySelectorAll("input");
-                  inputs.forEach((input) => {
-                    const newInput = document.createElement("input");
-                    newInput.type = "hidden";
-                    newInput.name = input.name;
-                    newInput.value = input.value;
-                    tempForm.appendChild(newInput);
-                  });
-
-                  // Agregar el formulario al documento y enviarlo
-                  document.body.appendChild(tempForm);
-                  tempForm.submit();
-                } else {
-                  showResult(
-                    {
-                      ResponseMessage: "ERROR",
-                      IsoCode: "ERROR",
-                      ErrorDescription: "3DS form not found",
-                    },
-                    "error",
-                  );
-                }
-              }
-            } catch (error) {
-              console.error("Error en capture-3ds:", error);
-              showResult(
-                {
-                  ResponseMessage: "ERROR",
-                  IsoCode: "ERROR",
-                  ErrorDescription: error.message,
-                },
-                "error",
-              );
             }
-          }, 2000); // Esperamos 2 segundos antes de hacer el capture-3ds
-        } else {
-          showResult(
-            {
-              ResponseMessage: "ERROR",
-              IsoCode: "ERROR",
-              ErrorDescription: "No se encontró el formulario 3DS",
-            },
-            "error",
-          );
-        }
-      }
 
-      document
-        .getElementById("payment-form")
-        .addEventListener("submit", async (e) => {
-          e.preventDefault();
-
-          const formData = new FormData(e.target);
-          try {
-            showResult(
-              { message: "Starting payment process..." },
-              "processing",
-            );
-
-            const response = await fetch("/process-hold", {
-              method: "POST",
-              body: formData,
-            });
-
-            const result = await response.json();
-            console.log("Resultado del process-payment:", result);
-
-            // Mostrar el resultado inicial
-            if (result.error) {
-              showResult(
-                {
-                  ResponseMessage: "ERROR",
-                  IsoCode: "ERROR",
-                  ErrorDescription: result.error,
-                },
-                "error",
-              );
+            if (shouldStop) {
+              addDebugInfo("✓ Transaction processing completed");
               return;
             }
 
-            if (result.redirect && result.html) {
-              showResult(
-                { message: "Starting 3D Secure verification..." },
-                "processing",
-              );
-
-              if (result.html.includes("tdsMmethodForm")) {
-                await handle3DSMethod(result);
-              } else {
-                // Crear un div temporal para parsear el HTML
-                const tempDiv = document.createElement("div");
-                tempDiv.innerHTML = result.html;
-
-                // Obtener el formulario y sus valores
-                const form3ds = tempDiv.querySelector("#form3ds");
-                if (form3ds) {
-                  const tempForm = document.createElement("form");
-                  tempForm.method = "POST";
-                  tempForm.action = form3ds.action;
-
-                  // Copiar todos los campos del formulario original
-                  const inputs = form3ds.querySelectorAll("input");
-                  inputs.forEach((input) => {
-                    const newInput = document.createElement("input");
-                    newInput.type = "hidden";
-                    newInput.name = input.name;
-                    newInput.value = input.value;
-                    tempForm.appendChild(newInput);
-                  });
-
-                  // Agregar el formulario al documento y enviarlo
-                  document.body.appendChild(tempForm);
-                  tempForm.submit();
-                } else {
-                  showResult(
-                    {
-                      ResponseMessage: "ERROR",
-                      IsoCode: "ERROR",
-                      ErrorDescription: "3DS form not found",
-                    },
-                    "error",
-                  );
-                }
-              }
-            } else if (result.value) {
-              showResult(
-                result.value,
-                result.value.IsoCode === "00" ? "success" : "error",
-              );
+            if (checkCount < maxChecks) {
+              setTimeout(progressiveCheck, 3000);
+            } else {
+              addDebugInfo("⚠️ Max status checks reached. The ACS may be experiencing delays.");
+              showResult({
+                ResponseMessage: "TIMEOUT",
+                IsoCode: "TIMEOUT",
+                ErrorDescription: "3DS method processing is taking longer than expected. This may be due to ACS delays in the test environment. Please try again or contact support."
+              }, "error");
             }
-          } catch (error) {
-            console.error("Error en process-payment:", error);
+          };
+
+          // Start first check after 3 seconds
+          setTimeout(progressiveCheck, 3000);
+        }, 100);
+      } else {
+        addDebugInfo("Required 3DS method form or iframe not found");
+        showResult(
+          {
+            ResponseMessage: "ERROR",
+            IsoCode: "ERROR",
+            ErrorDescription: `3DS method form not found. Form: ${!!methodForm}, Iframe: ${!!iframe}`,
+          },
+          "error"
+        );
+      }
+    }
+
+    // Status checking function for when ACS doesn't call back automatically
+    async function checkTransactionStatus(secureId) {
+      try {
+        addDebugInfo(`📊 Checking transaction status for secure_id: ${secureId}`);
+        const response = await fetch(`/payment/status/${secureId}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            addDebugInfo("ℹ️ Session not found - transaction may have completed or expired");
+            return false; // Indicate we should stop checking
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const status = await response.json();
+        addDebugInfo(`📋 Status: ${status.status}, Message: ${status.message || 'No message'}`);
+
+        if (status.status === "approved") {
+          addDebugInfo("✅ Transaction approved!");
+          showResult(status.final_result || status, "success");
+          return true; // Transaction complete
+        } else if (status.status === "declined") {
+          addDebugInfo("❌ Transaction declined");
+          showResult(status.final_result || status, "error");
+          return true; // Transaction complete
+        } else if (status.status === "challenge_required" && status.challenge_html) {
+          addDebugInfo("🔄 Challenge ready - proceeding to authentication");
+          await handleChallenge(status.challenge_html);
+          return true; // Moving to challenge phase
+        } else if (status.status === "method_required") {
+          addDebugInfo("ℹ️ 3DS Method form ready but not processed yet - waiting for timeout to trigger manual processing");
+          return false; // Continue checking - method will be processed by timeout logic
+        } else if (status.status === "error") {
+          addDebugInfo("❌ Error in transaction");
+          showResult(status, "error");
+          return true; // Transaction complete with error
+        } else if (status.status === "not_found") {
+          addDebugInfo("⚠️ Session not found - may have expired");
+          return false; // Stop checking
+        } else {
+          addDebugInfo(`⏳ Still processing (${status.status}) - continuing to wait`);
+          return false; // Continue checking
+        }
+      } catch (error) {
+        addDebugInfo(`⚠️ Error checking status: ${error.message}`);
+        if (error.message.includes("Failed to fetch")) {
+          addDebugInfo("🔄 Network error - will retry");
+          return false; // Continue checking
+        } else {
+          addDebugInfo("❌ Status check failed permanently");
+          showResult({
+            ResponseMessage: "ERROR",
+            IsoCode: "ERROR",
+            ErrorDescription: "Unable to check transaction status: " + error.message
+          }, "error");
+          return true; // Stop checking
+        }
+      }
+    }
+
+    async function tryManualMethodProcessing(secureId) {
+      try {
+        addDebugInfo("🔧 Attempting manual 3DS method processing...");
+        const response = await fetch(`/manual-3ds-method/${secureId}`, {
+          method: "POST"
+        });
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            addDebugInfo("ℹ️ Session not found - transaction may have completed already");
+            return true; // Indicate we should stop processing
+          }
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const result = await response.json();
+        const responseMsg = result.result?.ResponseMessage || result.response_message || 'Unknown';
+        addDebugInfo(`🔧 Manual processing result: ${responseMsg}`);
+
+        if (result.success) {
+          if (result.already_completed) {
+            addDebugInfo("ℹ️ Transaction was already completed");
+            if (result.result) {
+              const isSuccess = result.result.ResponseMessage === "APROBADA" || result.result.IsoCode === "00";
+              addDebugInfo(`📋 Final result - Success: ${isSuccess}, Response: ${result.result.ResponseMessage}, ISO: ${result.result.IsoCode}`);
+              showResult(result.result, isSuccess ? "success" : "error");
+            }
+            return true; // Transaction complete
+          }
+
+          if (result.challenge_ready) {
+            addDebugInfo("✅ Challenge is ready after manual method processing");
+            // Challenge should be available now, let the status check handle it
+            return false; // Continue checking to get challenge
+          }
+
+          const methodResult = result.result;
+          if (methodResult) {
+            if (methodResult.ResponseMessage === "3D_SECURE_CHALLENGE") {
+              addDebugInfo("✅ Manual method processing triggered challenge requirement");
+              return false; // Let status check pick up the challenge
+            } else if (methodResult.ResponseMessage === "APROBADA" || methodResult.IsoCode === "00") {
+              addDebugInfo("✅ Transaction approved after manual method processing");
+              addDebugInfo(`📋 Success details - Response: ${methodResult.ResponseMessage}, ISO: ${methodResult.IsoCode}, Auth: ${methodResult.AuthorizationCode}`);
+              showResult(methodResult, "success");
+              return true; // Transaction complete
+            } else {
+              addDebugInfo(`📋 Method processing result: ${responseMsg} - continuing to monitor`);
+              return false; // Continue checking
+            }
+          }
+        } else {
+          addDebugInfo(`⚠️ Manual method processing failed: ${result.error || result.message || 'Unknown error'}`);
+          if (result.error && result.error.includes("Session not found")) {
+            addDebugInfo("ℹ️ Session expired or transaction already completed");
+            return true; // Stop processing
+          }
+        }
+
+        return false; // Continue checking
+
+      } catch (error) {
+        addDebugInfo(`⚠️ Error in manual method processing: ${error.message}`);
+        if (error.message.includes("Failed to fetch")) {
+          addDebugInfo("🔄 Network error during manual processing - will continue checking");
+          return false; // Continue checking
+        } else {
+          addDebugInfo("❌ Manual processing failed permanently");
+          return false; // Continue checking, don't fail completely
+        }
+      }
+    }
+
+    async function handleChallenge(challengeHtml) {
+      addDebugInfo("Processing 3DS challenge with direct redirect");
+      console.log("Challenge HTML:", challengeHtml);
+
+      // Create a temporary container to parse the HTML
+      const tempDiv = document.createElement("div");
+      tempDiv.innerHTML = challengeHtml;
+
+      // Find the challenge form
+      const challengeForm = tempDiv.querySelector("form#form3ds");
+
+      if (challengeForm) {
+        addDebugInfo("Found challenge form, submitting for redirect...");
+
+        // Show a message before redirect
+        showResult(
+          {
+            message: "Redirecting to 3D Secure authentication page...",
+            details: "You will be redirected to your bank's authentication page. Please complete the authentication there."
+          },
+          "processing"
+        );
+
+        // Append the form to the document body
+        challengeForm.style.display = "none";
+        document.body.appendChild(challengeForm);
+
+        // Submit the form after a brief delay to show the message
+        setTimeout(() => {
+          console.log("Submitting challenge form for redirect");
+          challengeForm.submit();
+        }, 1000);
+      } else {
+        addDebugInfo("Challenge form not found in HTML");
+        console.error("Could not find challenge form in HTML:", challengeHtml);
+
+        showResult(
+          {
+            ResponseMessage: "ERROR",
+            IsoCode: "ERROR",
+            ErrorDescription: "3DS challenge form not found",
+          },
+          "error"
+        );
+      }
+    }
+
+    document
+      .getElementById("payment-form")
+      .addEventListener("submit", async (e) => {
+        e.preventDefault();
+
+        const formData = new FormData(e.target);
+        try {
+          addDebugInfo("Starting payment process");
+          showResult(
+            { message: "Initiating 3DS payment..." },
+            "processing"
+          );
+
+          const response = await fetch("/process-payment", {
+            method: "POST",
+            body: formData,
+          });
+
+          const result = await response.json();
+          addDebugInfo(`Initial payment response: ${result.ResponseMessage || 'Unknown'}`);
+
+          if (result.error) {
             showResult(
               {
                 ResponseMessage: "ERROR",
                 IsoCode: "ERROR",
-                ErrorDescription: error.message,
+                ErrorDescription: result.error,
               },
-              "error",
+              "error"
             );
+            return;
           }
-        });
 
-      // Listen for messages from the 3DS challenge window
-      window.addEventListener("message", function (event) {
-        if (
-          event.data &&
-          event.data.status === "completed" &&
-          event.data.result
-        ) {
-          const result = event.data.result;
+          // Check if 3DS processing is required
+          if (result.redirect && result.html) {
+            // Comprehensive debugging to validate what we received
+            addDebugInfo("=== 3DS FORM TYPE VALIDATION ===");
+            addDebugInfo(`Redirect: ${result.redirect}`);
+            addDebugInfo(`HTML length: ${result.html.length}`);
+            addDebugInfo(`HTML type: ${typeof result.html}`);
 
-          // Mostrar el resultado final del 3DS
-          if (result.ResponseMessage || result.IsoCode) {
-            const isSuccess =
-              result.ResponseMessage === "APROBADA" || result.IsoCode === "00";
-            showResult(result, isSuccess ? "success" : "error");
+            console.log("=== FULL HTML CONTENT ===");
+            console.log(result.html);
+            console.log("=== END HTML CONTENT ===");
 
-            // If there is a challenge window open, close it
-            const challengeContainer = document.querySelector(
-              '[style*="position: fixed"]',
-            );
-            if (challengeContainer) {
-              challengeContainer.remove();
+            // Show first 500 characters for debugging
+            addDebugInfo(`HTML preview: ${result.html.substring(0, 500)}`);
+
+            // Case-insensitive detection with detailed logging - more robust patterns
+            const htmlLower = result.html.toLowerCase();
+
+            // Check each pattern individually with logging - FIXED patterns for double 'm'
+            const hasMethodFormName = htmlLower.includes('name="tdsmmethodform"');
+            const hasMethodFormId = htmlLower.includes('id="tdsmmethodform"');
+            const hasMethodIframe = htmlLower.includes('tdsmmethodtgtframe');
+            const hasChallengeForm = htmlLower.includes('id="form3ds"');
+
+            // Additional robust checks based on visible HTML structure - FIXED patterns
+            const hasMethodFormElement = htmlLower.includes('tdsmmethodform');
+            const hasMethodIframeElement = htmlLower.includes('tdsmmethodtgtframe');
+            const hasMethodAction = htmlLower.includes('3ds-method');
+
+            addDebugInfo(`=== DETECTION RESULTS ===`);
+            addDebugInfo(`Method form name: ${hasMethodFormName}`);
+            addDebugInfo(`Method form ID: ${hasMethodFormId}`);
+            addDebugInfo(`Method iframe: ${hasMethodIframe}`);
+            addDebugInfo(`Challenge form: ${hasChallengeForm}`);
+            addDebugInfo(`Method form element: ${hasMethodFormElement}`);
+            addDebugInfo(`Method iframe element: ${hasMethodIframeElement}`);
+            addDebugInfo(`Method action: ${hasMethodAction}`);
+
+            // Combined check - multiple fallbacks
+            const hasMethodForm = hasMethodFormName || hasMethodFormId || hasMethodIframe ||
+              hasMethodFormElement || hasMethodIframeElement || hasMethodAction;
+            addDebugInfo(`Combined method form result: ${hasMethodForm}`);
+
+            // Also check for exact strings that are visible in console - FIXED
+            const hasExactMethodForm = htmlLower.includes('tdsmmethodform');
+            const hasExactMethodIframe = htmlLower.includes('tdsmmethodtgtframe');
+            addDebugInfo(`Exact 'tdsmmethodform' found: ${hasExactMethodForm}`);
+            addDebugInfo(`Exact 'tdsmmethodtgtframe' found: ${hasExactMethodIframe}`);
+
+            if (hasMethodForm || hasExactMethodForm) {
+              addDebugInfo("✅ 3DS Method form detected");
+              await handle3DSMethod(result);
+              return; // CRITICAL: Stop further execution in this event handler
+            } else if (hasChallengeForm) {
+              addDebugInfo("✅ 3DS Challenge form detected");
+              await handleChallenge(result.html);
+              return; // CRITICAL: Stop further execution in this event handler
+            } else {
+              addDebugInfo("❌ Unknown 3DS form type");
+              addDebugInfo("=== DEBUGGING INFO ===");
+
+              // Show character-by-character analysis of key parts
+              const searchTerms = ['tdsmethodform', 'form3ds', 'iframe', 'form'];
+              searchTerms.forEach(term => {
+                const index = htmlLower.indexOf(term);
+                if (index !== -1) {
+                  const context = htmlLower.substring(Math.max(0, index - 50), index + 50);
+                  addDebugInfo(`Found '${term}' at index ${index}: ...${context}...`);
+                } else {
+                  addDebugInfo(`'${term}' NOT found in HTML`);
+                }
+              });
+
+              showResult(
+                {
+                  ResponseMessage: "ERROR",
+                  IsoCode: "ERROR",
+                  ErrorDescription: "Unknown 3DS form type received",
+                  debug_html_length: result.html.length,
+                  debug_has_iframe: htmlLower.includes('iframe'),
+                  debug_has_form: htmlLower.includes('form'),
+                },
+                "error"
+              );
+              return; // CRITICAL: Stop further execution in this event handler
+            }
+          } else if (result.result || result.value || result.IsoCode || result.ResponseMessage) {
+            // Direct response without 3DS - may be wrapped in 'result', 'value', or direct
+            let responseData;
+            let responseLocation = "unknown";
+
+            if (result.result) {
+              responseData = result.result;
+              responseLocation = "result property";
+            } else if (result.value) {
+              responseData = result.value;
+              responseLocation = "value property";
+            } else {
+              responseData = result;
+              responseLocation = "direct object";
             }
 
-            // If there is a popup window open, close it after 3 seconds
-            if (event.source && event.source !== window) {
-              setTimeout(() => {
-                event.source.close();
-              }, 3000);
-            }
+            addDebugInfo(`Direct payment response (no 3DS) - from ${responseLocation}`);
+            addDebugInfo(`=== DIRECT RESPONSE DEBUG ===`);
+            addDebugInfo(`Response data type: ${typeof responseData}`);
+            addDebugInfo(`IsoCode: "${responseData.IsoCode}"`);
+            addDebugInfo(`ResponseMessage: "${responseData.ResponseMessage}"`);
+            addDebugInfo(`ProcessorResponseMessage: "${responseData.ProcessorResponseMessage}"`);
+
+            // Check for success conditions: IsoCode "00" OR ResponseMessage "APROBADA"
+            const isSuccessIso = responseData.IsoCode === "00";
+            const isSuccessResponse = responseData.ResponseMessage === "APROBADA";
+            const isSuccessProcessor = responseData.ProcessorResponseMessage === "APPROVAL";
+
+            addDebugInfo(`Success checks - ISO: ${isSuccessIso}, Response: ${isSuccessResponse}, Processor: ${isSuccessProcessor}`);
+
+            const isSuccess = isSuccessIso || isSuccessResponse || isSuccessProcessor;
+            addDebugInfo(`Final success result: ${isSuccess}`);
+
+            showResult(responseData, isSuccess ? "success" : "error");
+          } else {
+            addDebugInfo("Unexpected payment response format");
+            addDebugInfo(`=== RESPONSE DEBUG ===`);
+            addDebugInfo(`Has redirect: ${!!result.redirect}`);
+            addDebugInfo(`Has html: ${!!result.html}`);
+            addDebugInfo(`Has value: ${!!result.value}`);
+            addDebugInfo(`Has IsoCode: ${!!result.IsoCode}`);
+            addDebugInfo(`Has ResponseMessage: ${!!result.ResponseMessage}`);
+            addDebugInfo(`Result keys: ${Object.keys(result).join(', ')}`);
+            console.log("Full result object:", result);
+            showResult(result, "error");
           }
+        } catch (error) {
+          addDebugInfo(`Payment processing error: ${error.message}`);
+          showResult(
+            {
+              ResponseMessage: "ERROR",
+              IsoCode: "ERROR",
+              ErrorDescription: error.message,
+            },
+            "error"
+          );
         }
       });
-    </script>
-  </body>
+
+    // Listen for messages from 3DS challenge completion
+    window.addEventListener("message", function (event) {
+      if (event.data && event.data.status === "completed" && event.data.result) {
+        const result = event.data.result;
+        addDebugInfo("Received 3DS completion message from iframe/popup");
+
+        if (result.ResponseMessage || result.IsoCode) {
+          // Use same success detection logic as main flow
+          const isSuccessIso = result.IsoCode === "00";
+          const isSuccessResponse = result.ResponseMessage === "APROBADA";
+          const isSuccessProcessor = result.ProcessorResponseMessage === "APPROVAL";
+          const isSuccess = isSuccessIso || isSuccessResponse || isSuccessProcessor;
+
+          addDebugInfo(`3DS completion - Success: ${isSuccess} (ISO: ${isSuccessIso}, Response: ${isSuccessResponse}, Processor: ${isSuccessProcessor})`);
+          showResult(result, isSuccess ? "success" : "error");
+        }
+      }
+    });
+  </script>
+</body>
+
 </html>

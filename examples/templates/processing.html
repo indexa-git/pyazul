@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Processing Payment...</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            text-align: center;
+        }
+        .processing {
+            padding: 20px;
+            background-color: #e3f2fd;
+            border-left: 4px solid #17a2b8;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+        .spinner {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #17a2b8;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 20px auto;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <h1>Processing Your Payment</h1>
+
+    <div class="processing">
+        <div class="spinner"></div>
+        <h3>{{ message or "Processing 3D Secure authentication..." }}</h3>
+        <p>Please wait while we process your payment securely. This may take a few moments.</p>
+        {% if secure_id %}
+        <p><small>Transaction ID: {{ secure_id }}</small></p>
+        {% endif %}
+    </div>
+
+    <script>
+        // Auto-refresh every 3 seconds to check for completion
+        setTimeout(() => {
+            window.location.reload();
+        }, 3000);
+    </script>
+</body>
+</html>
