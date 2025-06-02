@@ -417,6 +417,7 @@ async def test_process_token_hold_with_3ds_method(
     """Test process_token_hold with 3DS method response."""
     # Mock API response for 3DS method
     api_client._async_request.return_value = {
+        "IsoCode": "3D2METHOD",
         "ResponseMessage": "3D_SECURE_2_METHOD",
         "AzulOrderId": "67890",
         "ThreeDSMethod": {
