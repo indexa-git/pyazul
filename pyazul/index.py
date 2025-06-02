@@ -12,6 +12,7 @@ from .api.client import AzulAPI
 from .core.config import AzulSettings, get_azul_settings
 from .models import (
     DataVaultRequestModel,
+    DataVaultResponse,
     HoldTransactionModel,
     PaymentPageModel,
     PostSaleTransactionModel,
@@ -102,12 +103,24 @@ class PyAzul:
         """Verify the status of a transaction."""
         return await self.transaction.verify(VerifyTransactionModel(**data))
 
-    async def create_token(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Create a card token in DataVault."""
+    async def create_token(self, data: Dict[str, Any]) -> DataVaultResponse:
+        """
+        Create a card token in DataVault.
+
+        Returns:
+            DataVaultResponse: Validated response object with type-safe access
+                               to token details or error information.
+        """
         return await self.datavault.create(DataVaultRequestModel(**data))
 
-    async def delete_token(self, data: Dict[str, Any]) -> Dict[str, Any]:
-        """Delete a token from DataVault."""
+    async def delete_token(self, data: Dict[str, Any]) -> DataVaultResponse:
+        """
+        Delete a token from DataVault.
+
+        Returns:
+            DataVaultResponse: Validated response object with type-safe access
+                               to success confirmation or error information.
+        """
         return await self.datavault.delete(DataVaultRequestModel(**data))
 
     async def token_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:

@@ -4,7 +4,12 @@ from unittest.mock import AsyncMock, Mock
 
 import pytest
 
-from pyazul.models import DataVaultRequestModel, TokenSaleModel
+from pyazul.models import (
+    DataVaultErrorResponse,
+    DataVaultRequestModel,
+    DataVaultSuccessResponse,
+    TokenSaleModel,
+)
 from pyazul.models.secure import (
     CardHolderInfo,
     ChallengeIndicator,
@@ -71,9 +76,12 @@ async def created_token(datavault_service, tokenization_request, mock_api_client
         "ResponseMessage": "APROBADA",
         "IsoCode": "00",
         "DataVaultToken": "TEST_TOKEN_123456789",
+        "CardNumber": "XXXXXX...XXXX8888",  # Masked card number
+        "DataVaultBrand": "MASTERCARD",
+        "DataVaultExpiration": "202812",
     }
     response = await datavault_service.create(tokenization_request)
-    return response.get("DataVaultToken")
+    return response.DataVaultToken
 
 
 @pytest.fixture
@@ -143,17 +151,112 @@ def token_non_3ds_sale_request(created_token, mock_api_client):
 
 @pytest.mark.asyncio
 async def test_token_creation(datavault_service, tokenization_request, mock_api_client):
-    """Test token creation."""
+    """Test token creation with response validation."""
     mock_api_client._async_request.return_value = {
         "ResponseMessage": "APROBADA",
         "IsoCode": "00",
         "DataVaultToken": "TEST_TOKEN_123456789",
+        "CardNumber": "XXXXXX...XXXX8888",  # Masked card number
+        "DataVaultBrand": "MASTERCARD",
+        "DataVaultExpiration": "202812",
+        "HasCVV": True,
     }
     response = await datavault_service.create(tokenization_request)
-    assert response.get("IsoCode") == "00"
-    assert response.get("ResponseMessage") == "APROBADA"
-    assert response.get("DataVaultToken") is not None
-    return response.get("DataVaultToken")
+
+    # Assert we got a success response with CardNumber field
+    assert isinstance(response, DataVaultSuccessResponse)
+    assert response.IsoCode == "00"
+    assert response.ResponseMessage == "APROBADA"
+    assert response.DataVaultToken is not None
+    assert response.CardNumber == "XXXXXX...XXXX8888"
+    assert response.DataVaultBrand == "MASTERCARD"
+    assert response.DataVaultExpiration == "202812"
+
+    return response.DataVaultToken
+
+
+@pytest.mark.asyncio
+async def test_token_creation_cardnumber_field(
+    datavault_service, tokenization_request, mock_api_client
+):
+    """
+    Test that CardNumber field is properly included in DataVault response.
+
+    This test validates that the CardNumber field is correctly returned
+    and accessible in DataVault responses as documented by Azul.
+    """
+    # Mock response that includes CardNumber as documented by Azul
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "APROBADA",
+        "IsoCode": "00",
+        "DataVaultToken": "TEST_TOKEN_123456789",
+        "CardNumber": "XXXXXX...XXXX8888",  # Masked card number
+        "DataVaultBrand": "MASTERCARD",
+        "DataVaultExpiration": "202812",
+        "HasCVV": True,
+        "ErrorDescription": "",
+    }
+
+    response = await datavault_service.create(tokenization_request)
+
+    # Verify typed response structure
+    assert isinstance(response, DataVaultSuccessResponse)
+
+    # Specifically test the CardNumber field
+    assert hasattr(response, "CardNumber"), "Response should have CardNumber field"
+    assert (
+        response.CardNumber == "XXXXXX...XXXX8888"
+    ), "CardNumber should match expected masked value"
+    assert response.CardNumber is not None, "CardNumber should not be None"
+    assert response.CardNumber != "", "CardNumber should not be empty"
+
+    # Verify other expected fields
+    assert response.DataVaultToken == "TEST_TOKEN_123456789"
+    assert response.DataVaultBrand == "MASTERCARD"
+    assert response.DataVaultExpiration == "202812"
+    assert response.IsoCode == "00"
+    assert response.ResponseMessage == "APROBADA"
+
+    print(f"✅ CardNumber field validated: {response.CardNumber}")
+
+
+@pytest.mark.asyncio
+async def test_token_creation_error_response(
+    datavault_service, tokenization_request, mock_api_client
+):
+    """
+    Test DataVault error response handling with typed responses.
+
+    This ensures error responses are properly typed and contain expected fields.
+    """
+    # Mock an error response
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "DECLINED",
+        "IsoCode": "99",
+        "ErrorDescription": "VALIDATION_ERROR:CardNumber",
+        "DataVaultToken": "",
+        "CardNumber": "",
+        "DataVaultBrand": "",
+        "DataVaultExpiration": "",
+        "HasCVV": False,
+    }
+
+    response = await datavault_service.create(tokenization_request)
+
+    # Verify we get an error response type
+    assert isinstance(response, DataVaultErrorResponse)
+    assert response.IsoCode == "99"
+    assert response.ResponseMessage == "DECLINED"
+    assert response.ErrorDescription == "VALIDATION_ERROR:CardNumber"
+
+    # Error responses should have empty data fields
+    assert response.DataVaultToken == ""
+    assert response.CardNumber == ""
+    assert response.DataVaultBrand == ""
+    assert response.DataVaultExpiration == ""
+    assert response.HasCVV is False
+
+    print(f"✅ Error response validated: {response.ErrorDescription}")
 
 
 @pytest.mark.asyncio
@@ -329,9 +432,13 @@ async def test_complete_token_3ds_workflow(
         "ResponseMessage": "APROBADA",
         "IsoCode": "00",
         "DataVaultToken": "TEST_TOKEN_123456789",
+        "CardNumber": "XXXXXX...XXXX8888",  # Masked card number
+        "DataVaultBrand": "MASTERCARD",
+        "DataVaultExpiration": "202812",
     }
     token_response = await datavault_service.create(tokenization_request)
-    token = token_response.get("DataVaultToken")
+    assert isinstance(token_response, DataVaultSuccessResponse)
+    token = token_response.DataVaultToken
     assert token is not None
 
     order_number = generate_order_number()

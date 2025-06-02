@@ -5,7 +5,11 @@ from typing import Literal
 import pytest
 
 from pyazul import PyAzul
-from pyazul.models import DataVaultRequestModel, TokenSaleModel
+from pyazul.models import (
+    DataVaultRequestModel,
+    DataVaultSuccessResponse,
+    TokenSaleModel,
+)
 from pyazul.models.secure import (
     CardHolderInfo,
     ChallengeIndicator,
@@ -79,14 +83,25 @@ async def test_create_datavault(datavault_service_integration, datavault_create_
     Verifies that a card can be successfully tokenized.
 
     Expected outcome:
-    - Response should have IsoCode '00' (success).
-    - Should receive a valid DataVaultToken.
+    - Response should be a DataVaultSuccessResponse with IsoCode '00'.
+    - Should receive a valid DataVaultToken and CardNumber.
     """
     payment = DataVaultRequestModel(**datavault_create_data)
     response = await datavault_service_integration.create(payment)
-    assert response.get("IsoCode") == "00"
-    print("Token created:", response.get("DataVaultToken"))
-    print("Response:", response)
+
+    # Assert we got a success response
+    assert isinstance(
+        response, DataVaultSuccessResponse
+    ), f"Expected success response, got: {type(response)}"
+    assert response.IsoCode == "00"
+    assert response.DataVaultToken, "DataVaultToken should not be empty"
+
+    # Verify CardNumber field is present
+    assert response.CardNumber, "CardNumber should be included in response"
+    print(f"Token created: {response.DataVaultToken}")
+    print(f"Card Number: {response.CardNumber}")
+    print(f"Full response: {response}")
+
     return response
 
 
@@ -116,7 +131,7 @@ async def test_create_sale_datavault(
     Verifies that a token can be used for payment processing.
     """
     print(f"Completed Datavault for Sale: {completed_datavault_creation}")
-    token = completed_datavault_creation.get("DataVaultToken")
+    token = completed_datavault_creation.DataVaultToken
 
     token_sale_data = {
         # AzulBaseModel fields
@@ -152,7 +167,7 @@ async def test_create_sale_datavault_3ds(
     bugs like missing SaveToDataVault field in 3DS flows.
     """
     print(f"Completed Datavault for 3DS Sale: {completed_datavault_creation}")
-    token = completed_datavault_creation.get("DataVaultToken")
+    token = completed_datavault_creation.DataVaultToken
 
     base_dummy_url = "http://localhost:8000/dummy"
 
@@ -223,7 +238,7 @@ async def test_token_sale_comparison_3ds_vs_non_3ds(
     This test validates that both flows work and would catch integration bugs
     that affect only one of the flows.
     """
-    token = completed_datavault_creation.get("DataVaultToken")
+    token = completed_datavault_creation.DataVaultToken
 
     # Test 1: Non-3DS token sale
     print("Testing Non-3DS token sale...")
@@ -298,8 +313,9 @@ async def test_delete_and_sale_datavault(
     settings,
 ):
     """Test the complete token lifecycle: Delete and then attempt sale."""
-    token = completed_datavault_creation.get("DataVaultToken")
-    store_id = completed_datavault_creation.get("Store", settings.MERCHANT_ID)
+    token = completed_datavault_creation.DataVaultToken
+    # Since DataVault response doesn't have Store, use settings
+    store_id = settings.MERCHANT_ID
 
     # 1. Delete Token
     datavault_delete_data = {
@@ -313,7 +329,13 @@ async def test_delete_and_sale_datavault(
     delete_payment = DataVaultRequestModel(**datavault_delete_data)
     delete_response = await datavault_service_integration.delete(delete_payment)
     print("Delete response:", delete_response)
-    assert delete_response.get("IsoCode") == "00", "Token deletion should be successful"
+
+    # Verify successful deletion with typed response
+    if isinstance(delete_response, DataVaultSuccessResponse):
+        assert delete_response.IsoCode == "00", "Token deletion should be successful"
+        print(f"Successfully deleted token: {delete_response.DataVaultToken}")
+    else:
+        pytest.fail(f"Token deletion failed: {delete_response}")
 
     # 2. Attempt sale with deleted token
     token_sale_data_after_delete = {
