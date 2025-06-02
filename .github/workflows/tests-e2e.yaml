@@ -1,4 +1,4 @@
-name: Unit Tests
+name: End-to-End Tests
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
@@ -14,24 +14,35 @@ on:
       - '**/*.py'
       - 'requirements.txt'
       - 'pyproject.toml'
-      - '.github/workflows/tests.yaml'
+      - '.github/workflows/tests-e2e.yaml'
   push:
     branches: [main]
     paths:
       - '**/*.py'
       - 'requirements.txt'
       - 'pyproject.toml'
-      - '.github/workflows/tests.yaml'
+      - '.github/workflows/tests-e2e.yaml'
+
+env:
+  PYTHONUNBUFFERED: 1
+  AUTH1: ${{ secrets.AUTH1 }}
+  AUTH2: ${{ secrets.AUTH2 }}
+  MERCHANT_ID: ${{ secrets.MERCHANT_ID }}
+  AZUL_CERT: ${{ secrets.AZUL_CERT }}
+  AZUL_KEY: ${{ secrets.AZUL_KEY }}
+  MERCHANT_NAME: indexa
+  MERCHANT_TYPE: 1
+  AZUL_AUTH_KEY: ${{ secrets.AUTH1 }}
 
 jobs:
-  unit-tests:
+  e2e-tests:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout Code Repository
         uses: actions/checkout@v4.2.2
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5.6.0
+        uses: actions/setup-python@v5
         with:
           python-version: '3.12'
 
@@ -41,5 +52,5 @@ jobs:
           pip install -r requirements.txt
           pip install .[dev]
 
-      - name: Run unit tests
-        run: python -m pytest tests/unit
+      - name: Run e2e tests
+        run: python -m pytest tests/e2e

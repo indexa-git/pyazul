@@ -135,22 +135,89 @@ class AzulAPI:
             self._log_and_raise_api_error(e, response)
 
     def _check_for_errors(self, data: Dict[str, Any]) -> None:
-        """Check for errors in API response data."""
-        error_indicators = [
-            ("ErrorMessage", data.get("ErrorMessage")),
-            ("ErrorDescription", data.get("ErrorDescription")),
-            ("ResponseCode", data.get("ResponseCode") == "Error"),
-        ]
-        for _, value in error_indicators:
-            if value:
-                error_msg = data.get("ErrorMessage") or data.get(
-                    "ErrorDescription", "Unknown error"
-                )
-                error_code = data.get("IsoCode", "")
-                _logger.error(f"API Error: {error_msg} - {error_code}")
+        """Check for errors in API response data based on Azul documentation."""
+        response_code = data.get("ResponseCode", "")
+        iso_code = data.get("IsoCode", "")
+        response_message = data.get("ResponseMessage", "")
+        error_description = data.get("ErrorDescription", "")
+
+        # Handle system errors (ResponseCode = "Error")
+        if response_code == "Error":
+            error_msg = error_description or "System error occurred"
+            _logger.error(f"System Error: {error_msg}")
+            raise AzulResponseError(f"System Error: {error_msg}", response_data=data)
+
+        # Handle ISO8583 responses
+        if response_code == "ISO8583":
+            # Success case (IsoCode = "00")
+            if iso_code == "00":
+                _logger.debug("Transaction approved")
+                return
+
+            # 3DS special cases - these are processing states, not final results
+            if iso_code in ["3D", "3D2METHOD"]:
+                _logger.info(f"3DS processing required: {response_message}")
+                return
+
+            # All other ISO codes are declines - treat as normal responses
+            if error_description and response_message:
+                # Both available - use ResponseMessage as title,
+                # ErrorDescription as detail
+                decline_reason = f"{response_message}: {error_description}"
+            elif error_description:
+                # Only ErrorDescription available
+                decline_reason = error_description
+            elif response_message:
+                # Only ResponseMessage available
+                decline_reason = response_message
+            else:
+                # Neither available - use ISO code fallback
+                decline_reason = f"Declined (ISO: {iso_code})"
+            _logger.info(f"Transaction declined: {decline_reason}")
+            return
+
+        # Handle legacy error patterns and unexpected response structures
+        if error_description and "SGS-" in error_description:
+            # System gateway errors should be treated as exceptions
+            system_error_types = [
+                "timeout",
+                "not been processed",
+                "Internal Server Error",
+                "Unauthorized",
+                "Server Unavailable",
+                "SSL/TLS",
+                "connection",
+            ]
+            if any(
+                error_type in error_description for error_type in system_error_types
+            ):
+                _logger.error(f"Gateway Error: {error_description}")
                 raise AzulResponseError(
-                    f"API Error: {error_msg} - {error_code}", response_data=data
+                    f"Gateway Error: {error_description}", response_data=data
                 )
+            else:
+                # Business rule errors (like invalid card type) - treat as declines
+                _logger.info(f"Transaction declined: {error_description}")
+                return
+
+        # If we have an ErrorMessage, it's typically a system error
+        error_message = data.get("ErrorMessage")
+        if error_message:
+            _logger.error(f"API Error: {error_message}")
+            raise AzulResponseError(f"API Error: {error_message}", response_data=data)
+
+        # If we reach here with no clear response pattern, log and return
+        # (avoid throwing exceptions for unknown but potentially valid responses)
+        if response_code or iso_code or response_message:
+            _logger.debug(
+                f"Response received - Code: {response_code}, ISO: {iso_code}, "
+                f"Message: {response_message}"
+            )
+        else:
+            _logger.warning(
+                "Received response with unclear structure",
+                extra={"response_data": data},
+            )
 
     def _log_and_raise_api_error(
         self, error: Exception, response: httpx.Response
@@ -225,3 +292,37 @@ class AzulAPI:
     def _build_endpoint(self, operation: str = "") -> str:
         """Build the full endpoint URL."""
         return f"{self.url}?{operation}" if operation else self.url
+
+    async def post(
+        self,
+        endpoint: str,
+        data: Dict[str, Any],
+        is_secure: bool = False,
+        retry_on_fail: bool = True,
+    ) -> Dict[str, Any]:
+        """
+        Make a POST request to the Azul API.
+
+        Args:
+            endpoint: API endpoint (e.g., "/webservices/JSON/default.aspx")
+            data: Request data to send
+            is_secure: Whether this is a secure (3DS) request
+            retry_on_fail: Whether to retry with alternate URL on failure
+
+        Returns:
+            Dict with API response
+
+        Raises:
+            APIError: If request fails
+        """
+        # Extract operation from endpoint query parameters
+        operation = ""
+        if "?" in endpoint:
+            operation = endpoint.split("?", 1)[1]
+
+        return await self._async_request(
+            data=data,
+            operation=operation,
+            retry_on_fail=retry_on_fail,
+            is_secure=is_secure,
+        )

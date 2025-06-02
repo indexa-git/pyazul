@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>3DS Authentication</title>
+    <meta charset="utf-8">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            text-align: center;
+        }
+        .status {
+            padding: 20px;
+            color: #666;
+        }
+        .spinner {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 2px solid #f3f3f3;
+            border-top: 2px solid #007bff;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="status">
+        <div class="spinner"></div>
+        <p>Processing authentication...</p>
+    </div>
+
+    <div id="form-container" style="display: none;"></div>
+
+    <script>
+        const secureId = "{{ secure_id }}";
+        const baseUrl = "{{ base_url }}";
+
+        async function process3DS() {
+            try {
+                const response = await fetch(`${baseUrl}/payment/status/${secureId}`);
+                const status = await response.json();
+
+                console.log('3DS Status:', status.status);
+
+                if (status.status === 'method_required' && status.method_form) {
+                    // Inject method form
+                    console.log('Injecting 3DS method form');
+                    const container = document.getElementById('form-container');
+                    container.innerHTML = status.method_form;
+                    container.style.display = 'block';
+
+                    // Find and submit the method form
+                    const form = container.querySelector('form');
+                    if (form) {
+                        console.log('Submitting method form to:', form.action);
+                        form.submit();
+
+                        // Mark that we've processed the method form
+                        window.methodSubmitted = true;
+
+                        // Wait a bit longer for the method form to process
+                        setTimeout(process3DS, 5000);
+                    } else {
+                        console.error('No form found in method HTML');
+                        parent.postMessage({
+                            type: 'threeDS_error',
+                            message: 'Invalid method form HTML'
+                        }, '*');
+                    }
+
+                } else if (status.status === 'challenge_required' && status.challenge_html) {
+                    // Inject and submit challenge form
+                    console.log('Injecting challenge form');
+                    const container = document.getElementById('form-container');
+                    container.innerHTML = status.challenge_html;
+                    container.style.display = 'block';
+
+                    const form = container.querySelector('form');
+                    if (form) {
+                        console.log('Submitting challenge form to:', form.action);
+                        form.submit();
+                    } else {
+                        console.error('No form found in challenge HTML');
+                        parent.postMessage({
+                            type: 'threeDS_error',
+                            message: 'Invalid challenge form HTML'
+                        }, '*');
+                    }
+
+                } else if (status.status === 'approved') {
+                    // Success - notify parent
+                    console.log('Transaction approved');
+                    parent.postMessage({
+                        type: 'threeDS_complete',
+                        result: { status: 'approved', azul_order_id: status.azul_order_id }
+                    }, '*');
+
+                } else if (status.status === 'declined') {
+                    // Declined - notify parent with error details
+                    console.log('Transaction declined:', status.message || status.error_description);
+                    parent.postMessage({
+                        type: 'threeDS_complete',
+                        result: {
+                            status: 'declined',
+                            azul_order_id: status.azul_order_id,
+                            message: status.message || 'Transaction declined',
+                            error_description: status.error_description
+                        }
+                    }, '*');
+
+                } else if (status.status === 'error' || status.status === 'not_found') {
+                    // Error - notify parent
+                    console.log('Transaction error:', status.status);
+                    parent.postMessage({
+                        type: 'threeDS_error',
+                        message: status.message || 'Authentication failed'
+                    }, '*');
+
+                } else if (status.status === 'processing' || status.status === 'method_processed') {
+                    // Still processing - check again
+                    console.log('Still processing, checking again...');
+                    setTimeout(process3DS, 1000);
+
+                } else {
+                    // Unknown status
+                    console.log('Unknown status:', status.status, 'continuing to poll...');
+                    setTimeout(process3DS, 1000);
+                }
+
+            } catch (error) {
+                console.error('3DS processing error:', error);
+                parent.postMessage({
+                    type: 'threeDS_error',
+                    message: 'Authentication error: ' + error.message
+                }, '*');
+            }
+        }
+
+        // Check if already on result page
+        if (window.location.href.includes('/result')) {
+            const urlParams = new URLSearchParams(window.location.search);
+            const orderId = urlParams.get('order_id');
+            const status = urlParams.get('status');
+
+            parent.postMessage({
+                type: 'threeDS_complete',
+                result: { status: status, azul_order_id: orderId }
+            }, '*');
+        } else {
+            // Start processing
+            process3DS();
+        }
+    </script>
+</body>
+</html>

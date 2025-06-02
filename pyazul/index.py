@@ -10,20 +10,11 @@ from typing import Any, Dict, Optional
 
 from .api.client import AzulAPI
 from .core.config import AzulSettings, get_azul_settings
-from .models import (
-    DataVaultRequestModel,
-    DataVaultResponse,
-    HoldTransactionModel,
-    PaymentPageModel,
-    PostSaleTransactionModel,
-    RefundTransactionModel,
-    SaleTransactionModel,
-    SecureSaleRequest,
-    SecureTokenSale,
-    TokenSaleModel,
-    VerifyTransactionModel,
-    VoidTransactionModel,
-)
+from .models.datavault import TokenRequest, TokenResponse, TokenSale
+from .models.payment import Hold, Post, Refund, Sale, Void
+from .models.payment_page import PaymentPage
+from .models.three_ds import SecureSale, SecureTokenSale
+from .models.verification import VerifyTransaction
 from .services.datavault import DataVaultService
 from .services.payment_page import PaymentPageService
 from .services.secure import SecureService
@@ -74,68 +65,68 @@ class PyAzul:
         self.api = AzulAPI(settings=self.settings)
 
         # Initialize services with the API client, settings, and session_store
-        self.transaction = TransactionService(api_client=self.api)
-        self.datavault = DataVaultService(api_client=self.api)
+        self.transaction = TransactionService(client=self.api, settings=self.settings)
+        self.datavault = DataVaultService(client=self.api, settings=self.settings)
         self.payment_page_service = PaymentPageService(settings=self.settings)
-        self.secure = SecureService(api_client=self.api)
+        self.secure = SecureService(client=self.api, settings=self.settings)
 
     async def sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a direct card payment."""
-        return await self.transaction.sale(SaleTransactionModel(**data))
+        return await self.transaction.process_sale(Sale(**data))
 
     async def hold(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Perform a hold on a card (pre-authorization)."""
-        return await self.transaction.hold(HoldTransactionModel(**data))
+        return await self.transaction.process_hold(Hold(**data))
 
     async def refund(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a refund for a previous transaction."""
-        return await self.transaction.refund(RefundTransactionModel(**data))
+        return await self.transaction.process_refund(Refund(**data))
 
     async def void(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Void a previous transaction."""
-        return await self.transaction.void(VoidTransactionModel(**data))
+        return await self.transaction.process_void(Void(**data))
 
     async def post_auth(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Capture a previously held amount (post-authorization)."""
-        return await self.transaction.post_sale(PostSaleTransactionModel(**data))
+        return await self.transaction.process_post(Post(**data))
 
     async def verify_transaction(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Verify the status of a transaction."""
-        return await self.transaction.verify(VerifyTransactionModel(**data))
+        return await self.transaction.verify_payment(VerifyTransaction(**data))
 
-    async def create_token(self, data: Dict[str, Any]) -> DataVaultResponse:
+    async def create_token(self, data: Dict[str, Any]) -> TokenResponse:
         """
         Create a card token in DataVault.
 
         Returns:
-            DataVaultResponse: Validated response object with type-safe access
+            TokenResponse: Validated response object with type-safe access
                                to token details or error information.
         """
-        return await self.datavault.create(DataVaultRequestModel(**data))
+        return await self.datavault.create_token(TokenRequest(**data))
 
-    async def delete_token(self, data: Dict[str, Any]) -> DataVaultResponse:
+    async def delete_token(self, data: Dict[str, Any]) -> TokenResponse:
         """
         Delete a token from DataVault.
 
         Returns:
-            DataVaultResponse: Validated response object with type-safe access
+            TokenResponse: Validated response object with type-safe access
                                to success confirmation or error information.
         """
-        return await self.datavault.delete(DataVaultRequestModel(**data))
+        return await self.datavault.delete_token(TokenRequest(**data))
 
     async def token_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a sale using a token (without 3DS)."""
-        return await self.transaction.sale(TokenSaleModel(**data))
+        return await self.transaction.process_token_sale(TokenSale(**data))
 
     def payment_page(self, data: Dict[str, Any]) -> str:
         """Generate HTML for Azul's hosted payment page."""
-        return self.payment_page_service.create_payment_form(PaymentPageModel(**data))
+        return self.payment_page_service.generate_payment_form_html(PaymentPage(**data))
 
     # --- Secure Methods (3D Secure) ---
 
     async def secure_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a card payment using 3D Secure authentication."""
-        return await self.secure.process_sale(SecureSaleRequest(**data))
+        return await self.secure.process_sale(SecureSale(**data))
 
     async def secure_token_sale(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Process a tokenized card payment using 3D Secure authentication."""
@@ -143,8 +134,8 @@ class PyAzul:
 
     async def secure_hold(self, data: Dict[str, Any]) -> Dict[str, Any]:
         """Perform a hold on a card (pre-authorization) with 3D Secure."""
-        # SecureService process_hold expects SecureSaleRequest model
-        return await self.secure.process_hold(SecureSaleRequest(**data))
+        # SecureService process_hold expects SecureSale model
+        return await self.secure.process_hold(SecureSale(**data))
 
     async def process_3ds_method(
         self, azul_order_id: str, method_notification_status: str
@@ -160,14 +151,43 @@ class PyAzul:
         """Process the 3DS challenge response received from ACS."""
         return await self.secure.process_challenge(session_id, challenge_response)
 
-    async def get_secure_session_info(
-        self, session_id: str
-    ) -> Optional[Dict[str, Any]]:
+    async def handle_3ds_callback(
+        self,
+        secure_id: str,
+        callback_data: Optional[Dict[str, Any]] = None,
+        form_data: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """
+        Handle 3DS callbacks - automatically detects and routes to appropriate handler.
+
+        This method determines the 3DS phase and processes it accordingly:
+        - Method notifications: Processes 3DS method completion
+        - Challenge responses: Processes challenge completion
+        - Return callbacks: Verifies final transaction status
+
+        Args:
+            secure_id: The secure session ID from callback URL
+            callback_data: Query parameters from the callback
+            form_data: Form data from POST callbacks (for method/challenge data)
+
+        Returns:
+            Dict containing:
+            - completed: True if transaction is final (success/failure)
+            - requires_redirect: True if user needs to be redirected for challenge
+            - html: Challenge form HTML if redirect required
+            - AzulOrderId: Order ID for reference
+            - status: Transaction status (approved/declined/pending)
+        """
+        return await self.secure.handle_3ds_callback(
+            secure_id, callback_data or {}, form_data or {}
+        )
+
+    async def get_session_info(self, session_id: str) -> Optional[Dict[str, Any]]:
         """Retrieve information about an active 3DS session."""
-        return self.secure.secure_sessions.get(session_id)
+        return self.secure.get_session_info(session_id)
 
     def create_challenge_form(
         self, creq: str, term_url: str, redirect_post_url: str
     ) -> str:
         """Create an HTML form for the 3DS challenge redirect."""
-        return self.secure._create_challenge_form(creq, term_url, redirect_post_url)
+        return self.secure.create_challenge_form(redirect_post_url, creq, term_url)

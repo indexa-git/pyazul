@@ -1,71 +1,34 @@
-<!doctype html>
+<!DOCTYPE html>
 <html>
-  <head>
-    <title>Transaction Result - Azul Payment Demo</title>
+<head>
+    <title>Payment Result</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <style>
-      body {
-        font-family: Arial, sans-serif;
-        max-width: 800px;
-        margin: 0 auto;
-        padding: 40px 20px;
-      }
-      .result-container {
-        background-color: white;
-        border-radius: 8px;
-        padding: 30px;
-        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-      }
-      .success {
-        color: #28a745;
-      }
-      .error {
-        color: #dc3545;
-      }
-      .details {
-        margin-top: 20px;
-        background-color: #f8f9fa;
-        padding: 20px;
-        border-radius: 4px;
-      }
-      .button {
-        display: inline-block;
-        background-color: #0056b3;
-        color: white;
-        padding: 12px 24px;
-        text-decoration: none;
-        border-radius: 4px;
-        margin-top: 20px;
-      }
+        body { font-family: Arial, sans-serif; max-width: 500px; margin: 50px auto; padding: 20px; }
+        .card { border: 1px solid #ddd; padding: 20px; margin: 15px 0; border-radius: 5px; text-align: center; }
+        .success { background-color: #d4edda; color: #155724; }
+        .error { background-color: #f8d7da; color: #721c24; }
+        .back-button { margin-top: 20px; }
+        .back-button a { padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 4px; }
+        .details { font-size: 0.9em; margin-top: 10px; }
     </style>
-  </head>
-  <body>
-    <div class="result-container">
-      <h1 class="{{ 'success' if result.get('IsoCode') == '00' else 'error' }}">
-        {{ result.get('ResponseMessage', 'Transaction Error') }}
-      </h1>
+</head>
+<body>
+    <div class="card {{ 'success' if success else 'error' }}">
+        <h1>{{ '✅ Payment Successful!' if success else '❌ Payment Failed' }}</h1>
+        <p><strong>Order ID:</strong> {{ order_id }}</p>
+        <p><strong>Status:</strong> {{ status }}</p>
 
-      {% if result.get('IsoCode') == '00' %}
-      <p>The transaction has been completed successfully!</p>
-      {% else %}
-      <p>The transaction could not be completed.</p>
-      {% endif %}
+        {% if not success and status == 'declined' %}
+        <div class="details">
+            <p><strong>Reason:</strong> Transaction was declined during 3D Secure authentication</p>
+        </div>
+        {% endif %}
 
-      <div class="details">
-        <h3>Transaction Details:</h3>
-        <p>
-          <strong>Authorization Code:</strong> {{
-          result.get('AuthorizationCode', 'N/A') }}
-        </p>
-        <p>
-          <strong>Order Number:</strong> {{ result.get('AzulOrderId', 'N/A') }}
-        </p>
-        <p>
-          <strong>Date and Time:</strong> {{ result.get('DateTime', 'N/A') }}
-        </p>
-        <p><strong>ISO Code:</strong> {{ result.get('IsoCode', 'N/A') }}</p>
-      </div>
-
-      <a href="/" class="button">Make Another Transaction</a>
+        <div class="back-button">
+            <a href="/">Process Another Payment</a>
+        </div>
     </div>
-  </body>
+</body>
 </html>

@@ -24,7 +24,7 @@ This guide details the 3D Secure flow implementation within the `pyazul` library
         *   `process_3ds_method` (Note: the facade method is `process_3ds_method`, not `secure_3ds_method` as previously might have been implied by some docs/tests)
         *   `process_challenge`
         *   `create_challenge_form` (convenience wrapper around `SecureService._create_challenge_form`).
-        *   `get_secure_session_info(secure_id)`: retrieves session data stored by `SecureService`.
+        *   `get_session_info(secure_id)`: retrieves session data stored by `SecureService`.
     *   These methods delegate to the `SecureService` instance, which is initialized by `PyAzul`.
 
 ## Flow Overview
@@ -38,7 +38,7 @@ This guide details the 3D Secure flow implementation within the `pyazul` library
 
 2.  **Method Notification Callback (Your `MethodNotificationUrl`)**:
     *   Your application endpoint (the `MethodNotificationUrl` you provided) is called by the ACS/PSP, with `secure_id` available as a query parameter.
-    *   Your application should first use `secure_id` to retrieve the stored session data: `session_data = await azul.get_secure_session_info(secure_id)`.
+    *   Your application should first use `secure_id` to retrieve the stored session data: `session_data = await azul.get_session_info(secure_id)`.
     *   From `session_data`, retrieve the `azul_order_id`: `azul_order_id = session_data.get("azul_order_id")`.
     *   Then, call `await azul.process_3ds_method(azul_order_id=azul_order_id, method_notification_status="RECEIVED")`.
     *   `SecureService` uses its internal state to check if this method was already processed (to prevent duplicates) and updates the transaction state.

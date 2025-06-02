@@ -1,15 +1,12 @@
 """
-Example server for Azul Payment Page integration.
+FastAPI server example demonstrating Azul Payment Page integration.
 
-This server demonstrates how to:
-1. Create a payment form with specified amounts
-2. Handle the payment page redirection
-3. View the payment amounts in different formats
+This example shows how to:
+1. Create a payment page with proper form generation
+2. Handle successful and failed payment responses
+3. Validate payment page data and auth hashes
 
-Amounts format:
-- All amounts are in cents (last two digits are decimals)
-- Example: "100000" = $1,000.00
-- For zero ITBIS use "000"
+Run with: uvicorn examples.payment_page_server:app --reload
 """
 
 from fastapi import FastAPI, Request
@@ -17,7 +14,7 @@ from fastapi.responses import HTMLResponse, JSONResponse
 from pydantic import HttpUrl
 
 from pyazul import PyAzul
-from pyazul.models.schemas import PaymentPageModel
+from pyazul.models.payment_page import PaymentPage
 
 # Initialize FastAPI app and payment service
 app = FastAPI()
@@ -45,7 +42,7 @@ async def view_amounts():
 
     Shows both the raw amounts (in cents) and formatted amounts (in USD).
     """
-    payment_request = PaymentPageModel(
+    payment_request = PaymentPage(
         Amount="100000",  # $1,000.00 (total amount including ITBIS)
         ITBIS="18000",  # $180.00 (18% of base amount)
         ApprovedUrl=HttpUrl("https://www.instagram.com/progressa.group/#"),
@@ -79,7 +76,7 @@ async def buy_ticket(request: Request):
         # Create payment request with:
         # - Total amount: $1,000.00 = "100000" cents
         # - ITBIS: $180.00 = "18000" cents (18% of base amount)
-        payment_request = PaymentPageModel(
+        payment_request = PaymentPage(
             Amount="100000",  # $1,000.00
             ITBIS="18000",  # $180.00
             ApprovedUrl=HttpUrl("https://www.instagram.com/progressa.group/#"),

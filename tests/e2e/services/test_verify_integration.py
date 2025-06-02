@@ -1,8 +1,9 @@
-"""Tests for transaction verification functionalities of the PyAzul SDK."""
+"""Integration tests for verification operations."""
 
 import pytest
 
-from pyazul.models.schemas import SaleTransactionModel, VerifyTransactionModel
+from pyazul.models.payment import Sale
+from pyazul.models.verification import VerifyTransaction
 from tests.fixtures.cards import get_card
 from tests.fixtures.order import generate_order_number
 
@@ -16,19 +17,17 @@ async def sale_for_verification(transaction_service_integration, settings):
 
     payment_data = {
         "Store": settings.MERCHANT_ID,
-        "Channel": settings.CHANNEL,
         "OrderNumber": order_num,
         "CustomOrderId": custom_order_id,
         "ForceNo3DS": "1",
         "Amount": "500",  # Small amount for verification test
-        "Itbis": "0",
+        "Itbis": "90",  # 18% tax on 500 cents
         "CardNumber": card["number"],
         "Expiration": card["expiration"],
         "CVC": card["cvv"],
-        "TrxType": "Sale",
     }
-    payment_model = SaleTransactionModel(**payment_data)
-    response = await transaction_service_integration.sale(payment_model)
+    payment_model = Sale(**payment_data)
+    response = await transaction_service_integration.process_sale(payment_model)
     assert response.get("IsoCode") == "00", "Sale for verification fixture failed"
     return response  # Returns the full response, which includes CustomOrderId
 
@@ -41,10 +40,7 @@ def verify_transaction_data(settings, sale_for_verification):
     Uses CustomOrderId from a previously created sale transaction.
     """
     return {
-        # AzulBaseModel fields
         "Store": settings.MERCHANT_ID,
-        "Channel": settings.CHANNEL,
-        # VerifyTransactionModel specific fields
         "CustomOrderId": sale_for_verification["CustomOrderId"],
     }
 
@@ -54,8 +50,8 @@ async def test_verify_transaction(
     transaction_service_integration, verify_transaction_data
 ):
     """Test verifying an existing transaction."""
-    payment = VerifyTransactionModel(**verify_transaction_data)
-    result = await transaction_service_integration.verify(payment)
+    payment = VerifyTransaction(**verify_transaction_data)
+    result = await transaction_service_integration.verify_payment(payment)
     assert result is not None
     assert result["IsoCode"] == "00", "Transaction should be verified successfully"
     assert result["Found"], "Transaction should be found"

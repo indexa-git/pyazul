@@ -5,12 +5,8 @@ from typing import Literal
 import pytest
 
 from pyazul import PyAzul
-from pyazul.models import (
-    DataVaultRequestModel,
-    DataVaultSuccessResponse,
-    TokenSaleModel,
-)
-from pyazul.models.secure import (
+from pyazul.models.datavault import TokenRequest, TokenResponse, TokenSale
+from pyazul.models.three_ds import (
     CardHolderInfo,
     ChallengeIndicator,
     SecureTokenSale,
@@ -35,11 +31,9 @@ def datavault_create_data(settings):
     card = get_card("MASTERCARD_2")  # Using a standard card suitable for tokenization
     return {
         "Store": settings.MERCHANT_ID,
-        "Channel": settings.CHANNEL,
         "TrxType": TRX_TYPE_CREATE,
         "CardNumber": card["number"],
         "Expiration": card["expiration"],
-        "CVC": None,  # Optional for CREATE, some card fixtures might have it
     }
 
 
@@ -47,25 +41,8 @@ def datavault_create_data(settings):
 def card_holder_info_fixture() -> CardHolderInfo:
     """Provide a standard CardHolderInfo object for 3DS tests."""
     return CardHolderInfo(
-        BillingAddressCity="Santo Domingo",
-        BillingAddressCountry="DO",
-        BillingAddressLine1="Test Address 123",
-        BillingAddressLine2=None,
-        BillingAddressLine3=None,
-        BillingAddressState="Distrito Nacional",
-        BillingAddressZip="10101",
         Email="test@example.com",
         Name="Test Cardholder",
-        PhoneHome=None,
-        PhoneMobile=None,
-        PhoneWork=None,
-        ShippingAddressCity="Santo Domingo",
-        ShippingAddressCountry="DO",
-        ShippingAddressLine1="Test Shipping Address 456",
-        ShippingAddressLine2=None,
-        ShippingAddressLine3=None,
-        ShippingAddressState="Distrito Nacional",
-        ShippingAddressZip="10102",
     )
 
 
@@ -86,12 +63,12 @@ async def test_create_datavault(datavault_service_integration, datavault_create_
     - Response should be a DataVaultSuccessResponse with IsoCode '00'.
     - Should receive a valid DataVaultToken and CardNumber.
     """
-    payment = DataVaultRequestModel(**datavault_create_data)
-    response = await datavault_service_integration.create(payment)
+    payment = TokenRequest(**datavault_create_data)
+    response = await datavault_service_integration.create_token(payment)
 
     # Assert we got a success response
     assert isinstance(
-        response, DataVaultSuccessResponse
+        response, TokenResponse
     ), f"Expected success response, got: {type(response)}"
     assert response.IsoCode == "00"
     assert response.DataVaultToken, "DataVaultToken should not be empty"
@@ -117,8 +94,8 @@ async def completed_datavault_creation(
     Returns:
         dict: API response containing the created token.
     """
-    payment = DataVaultRequestModel(**datavault_create_data)
-    return await datavault_service_integration.create(payment)
+    payment = TokenRequest(**datavault_create_data)
+    return await datavault_service_integration.create_token(payment)
 
 
 @pytest.mark.asyncio
@@ -134,22 +111,16 @@ async def test_create_sale_datavault(
     token = completed_datavault_creation.DataVaultToken
 
     token_sale_data = {
-        # AzulBaseModel fields
         "Store": settings.MERCHANT_ID,
-        "Channel": settings.CHANNEL,
-        # BaseTransactionAttributes (PosInputMode, AcquirerRefData use defaults)
         "OrderNumber": generate_order_number(),
         "CustomOrderId": f"token-sale-{generate_order_number()}",
         "ForceNo3DS": "1",  # Test specific - NON-3DS
-        # TokenSaleModel specific fields (TrxType uses model default "Sale")
         "Amount": "1000",
-        "Itbis": "180",
         "DataVaultToken": token,
-        "CVC": None,
     }
 
-    payment = TokenSaleModel(**token_sale_data)
-    response = await transaction_service_integration.sale(payment)
+    payment = TokenSale(**token_sale_data)
+    response = await transaction_service_integration.process_token_sale(payment)
     assert response.get("IsoCode") == "00"
     print("Token used:", token)
     print("Response:", response)
@@ -174,23 +145,17 @@ async def test_create_sale_datavault_3ds(
     # Create 3DS token sale request
     token_sale_request = SecureTokenSale(
         Store=settings.MERCHANT_ID,
-        Channel=settings.CHANNEL,
         OrderNumber=generate_order_number(),
         CustomOrderId=f"token-3ds-sale-{generate_order_number()}",
         Amount="1000",
-        Itbis="180",
         DataVaultToken=token,
         CVC="123",  # Some providers require CVC even with tokens
-        forceNo3DS="0",  # Enable 3DS
-        cardHolderInfo=card_holder_info_fixture,
-        threeDSAuth=ThreeDSAuth(
+        CardHolderInfo=card_holder_info_fixture,
+        ThreeDSAuth=ThreeDSAuth(
             TermUrl=f"{base_dummy_url}/term",
             MethodNotificationUrl=f"{base_dummy_url}/method",
             RequestChallengeIndicator=ChallengeIndicator.NO_CHALLENGE,
         ),
-        PosInputMode="E-Commerce",
-        TrxType="Sale",
-        AcquirerRefData="1",
     )
 
     # Process the 3DS token sale
@@ -244,18 +209,17 @@ async def test_token_sale_comparison_3ds_vs_non_3ds(
     print("Testing Non-3DS token sale...")
     non_3ds_data = {
         "Store": settings.MERCHANT_ID,
-        "Channel": settings.CHANNEL,
         "OrderNumber": generate_order_number(),
         "CustomOrderId": f"compare-no3ds-{generate_order_number()}",
         "ForceNo3DS": "1",  # Disable 3DS
         "Amount": "1000",
-        "Itbis": "180",
         "DataVaultToken": token,
-        "CVC": None,
     }
 
-    non_3ds_payment = TokenSaleModel(**non_3ds_data)
-    non_3ds_response = await transaction_service_integration.sale(non_3ds_payment)
+    non_3ds_payment = TokenSale(**non_3ds_data)
+    non_3ds_response = await transaction_service_integration.process_token_sale(
+        non_3ds_payment
+    )
 
     assert (
         non_3ds_response.get("IsoCode") == "00"
@@ -264,27 +228,22 @@ async def test_token_sale_comparison_3ds_vs_non_3ds(
 
     # Test 2: 3DS token sale
     print("Testing 3DS token sale...")
+
     base_dummy_url = "http://localhost:8000/dummy"
 
     three_ds_request = SecureTokenSale(
         Store=settings.MERCHANT_ID,
-        Channel=settings.CHANNEL,
         OrderNumber=generate_order_number(),
         CustomOrderId=f"compare-3ds-{generate_order_number()}",
         Amount="1000",
-        Itbis="180",
         DataVaultToken=token,
         CVC="123",
-        forceNo3DS="0",  # Enable 3DS
-        cardHolderInfo=card_holder_info_fixture,
-        threeDSAuth=ThreeDSAuth(
+        CardHolderInfo=card_holder_info_fixture,
+        ThreeDSAuth=ThreeDSAuth(
             TermUrl=f"{base_dummy_url}/term",
             MethodNotificationUrl=f"{base_dummy_url}/method",
             RequestChallengeIndicator=ChallengeIndicator.NO_CHALLENGE,
         ),
-        PosInputMode="E-Commerce",
-        TrxType="Sale",
-        AcquirerRefData="1",
     )
 
     three_ds_result = await azul_client.secure_token_sale(
@@ -319,19 +278,16 @@ async def test_delete_and_sale_datavault(
 
     # 1. Delete Token
     datavault_delete_data = {
-        # AzulBaseModel fields
         "Store": store_id,
-        "Channel": settings.CHANNEL,
-        # DataVaultRequestModel specific fields for DELETE
         "TrxType": TRX_TYPE_DELETE,
         "DataVaultToken": token,
     }
-    delete_payment = DataVaultRequestModel(**datavault_delete_data)
-    delete_response = await datavault_service_integration.delete(delete_payment)
+    delete_payment = TokenRequest(**datavault_delete_data)
+    delete_response = await datavault_service_integration.delete_token(delete_payment)
     print("Delete response:", delete_response)
 
     # Verify successful deletion with typed response
-    if isinstance(delete_response, DataVaultSuccessResponse):
+    if isinstance(delete_response, TokenResponse):
         assert delete_response.IsoCode == "00", "Token deletion should be successful"
         print(f"Successfully deleted token: {delete_response.DataVaultToken}")
     else:
@@ -339,22 +295,18 @@ async def test_delete_and_sale_datavault(
 
     # 2. Attempt sale with deleted token
     token_sale_data_after_delete = {
-        # AzulBaseModel fields
         "Store": store_id,
-        "Channel": settings.CHANNEL,
-        # BaseTransactionAttributes (PosInputMode, AcquirerRefData use defaults)
         "OrderNumber": generate_order_number(),
         "CustomOrderId": f"token-sale-deleted-{generate_order_number()}",
         "ForceNo3DS": "1",  # Test specific
-        # TokenSaleModel specific fields (TrxType uses model default "Sale")
         "Amount": "1000",
-        "Itbis": "180",
         "DataVaultToken": token,  # The deleted token
-        "CVC": None,
     }
-    payment = TokenSaleModel(**token_sale_data_after_delete)
+    payment = TokenSale(**token_sale_data_after_delete)
     try:
-        sale_response = await transaction_service_integration.sale(payment)
+        sale_response = await transaction_service_integration.process_token_sale(
+            payment
+        )
         pytest.fail(
             f"Sale should not succeed with deleted token. Response: {sale_response}"
         )
