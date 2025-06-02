@@ -13,7 +13,7 @@ from .core.config import AzulSettings, get_azul_settings
 from .models.datavault import TokenRequest, TokenResponse, TokenSale
 from .models.payment import Hold, Post, Refund, Sale, Void
 from .models.payment_page import PaymentPage
-from .models.three_ds import SecureSale, SecureTokenSale
+from .models.three_ds import SecureSale, SecureTokenHold, SecureTokenSale
 from .models.verification import VerifyTransaction
 from .services.datavault import DataVaultService
 from .services.payment_page import PaymentPageService
@@ -136,6 +136,10 @@ class PyAzul:
         """Perform a hold on a card (pre-authorization) with 3D Secure."""
         # SecureService process_hold expects SecureSale model
         return await self.secure.process_hold(SecureSale(**data))
+
+    async def secure_token_hold(self, data: Dict[str, Any]) -> Dict[str, Any]:
+        """Perform a hold on a saved token (pre-authorization) with 3D Secure."""
+        return await self.secure.process_token_hold(SecureTokenHold(**data))
 
     async def process_3ds_method(
         self, azul_order_id: str, method_notification_status: str

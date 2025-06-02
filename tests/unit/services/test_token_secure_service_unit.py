@@ -9,6 +9,7 @@ from pyazul.models.three_ds import (
     CardHolderInfo,
     ChallengeIndicator,
     SecureSale,
+    SecureTokenHold,
     ThreeDSAuth,
 )
 from pyazul.services.datavault import DataVaultService
@@ -117,6 +118,28 @@ def token_non_3ds_sale_request(created_token, mock_settings):
         "CVC": "123",
     }
     return TokenSale(**token_sale_data)
+
+
+@pytest.fixture
+def token_3ds_hold_request(created_token, mock_settings):
+    """Create a sample token hold request with 3DS."""
+    return SecureTokenHold(
+        Amount="1000",
+        Itbis="180",
+        DataVaultToken=created_token,
+        OrderNumber=generate_order_number(),
+        Store=mock_settings.MERCHANT_ID,
+        CVC="123",
+        CardHolderInfo=CardHolderInfo(
+            Email="test@example.com",
+            Name="Test User",
+        ),
+        ThreeDSAuth=ThreeDSAuth(
+            TermUrl="https://example.com/post-3ds-token-hold",
+            MethodNotificationUrl="https://example.com/capture-3ds-token-hold",
+            RequestChallengeIndicator=ChallengeIndicator.CHALLENGE,
+        ),
+    )
 
 
 @pytest.mark.asyncio
@@ -429,3 +452,154 @@ async def test_complete_token_3ds_workflow(
     assert challenge_result["IsoCode"] == "00"
     assert "ThreeDSInfo" in challenge_result
     assert challenge_result["ThreeDSInfo"]["AuthenticationStatus"] == "Y"
+
+
+@pytest.mark.asyncio
+async def test_token_hold_with_3ds_challenge(
+    secure_service, token_3ds_hold_request, mock_api_client
+):
+    """Test token hold with 3DS challenge response."""
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "3D_SECURE_CHALLENGE",
+        "IsoCode": "3D",
+        "AzulOrderId": "12345",
+        "ThreeDSChallenge": {
+            "CReq": "test_token_hold_creq",
+            "RedirectPostUrl": "https://test.com/3ds-token-hold",
+        },
+    }
+    result = await secure_service.process_token_hold(token_3ds_hold_request)
+    assert result["redirect"] is True
+    assert "html" in result
+    assert result["id"] is not None  # secure_id should be present
+
+
+@pytest.mark.asyncio
+async def test_token_hold_with_3ds_method(
+    secure_service, token_3ds_hold_request, mock_api_client
+):
+    """Test token hold with 3DS method response and subsequent challenge."""
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "3D_SECURE_2_METHOD",
+        "IsoCode": "3D2METHOD",
+        "AzulOrderId": "67890",
+        "ThreeDSMethod": {
+            "MethodForm": "<form id='tdsMmethodForm'>...</form>",
+            "ServerTransId": "67890-method-1234",
+        },
+    }
+    result = await secure_service.process_token_hold(token_3ds_hold_request)
+    assert result["redirect"] is True
+    assert "html" in result
+    assert result["id"] is not None  # secure_id should be present
+
+    # Test method notification processing
+    secure_id = result["id"]
+    session_data = secure_service.get_session_info(secure_id)
+    azul_order_id = session_data["azul_order_id"]
+
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "3D_SECURE_CHALLENGE",
+        "IsoCode": "3D",
+        "ThreeDSChallenge": {
+            "CReq": "test_creq_after_method",
+            "RedirectPostUrl": "https://test.com/3ds-challenge-hold",
+        },
+    }
+    method_result = await secure_service.process_3ds_method(azul_order_id, "RECEIVED")
+    assert method_result["ResponseMessage"] == "3D_SECURE_CHALLENGE"
+
+
+@pytest.mark.asyncio
+async def test_token_hold_direct_approval(
+    secure_service, token_3ds_hold_request, mock_api_client
+):
+    """Test token hold with direct approval (frictionless 3DS)."""
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "APROBADA",
+        "IsoCode": "00",
+        "AuthorizationCode": "HOLD123",
+        "AzulOrderId": "67890",
+    }
+    result = await secure_service.process_token_hold(token_3ds_hold_request)
+    assert result.get("IsoCode") == "00"
+    assert result.get("AuthorizationCode") == "HOLD123"
+
+
+@pytest.mark.asyncio
+async def test_complete_token_hold_3ds_workflow(
+    secure_service,
+    datavault_service,
+    tokenization_request,
+    mock_api_client,
+    mock_settings,
+):
+    """Test the complete token hold and 3DS workflow."""
+    # First create a token
+    mock_api_client.post.return_value = {
+        "ResponseMessage": "APROBADA",
+        "IsoCode": "00",
+        "DataVaultToken": "6EF85D01-B07C-4E67-99F74E13A449DCDD",
+        "CardNumber": "XXXXXX...XXXX8888",
+        "Brand": "MASTERCARD",
+        "Expiration": "202812",
+    }
+    token_response = await datavault_service.create_token(tokenization_request)
+    assert isinstance(token_response, TokenSuccess)
+    token = token_response.DataVaultToken
+    assert token is not None
+
+    # Create token hold request
+    order_number = generate_order_number()
+    token_hold_request = SecureTokenHold(
+        Amount="1000",
+        Itbis="180",
+        DataVaultToken=token,
+        OrderNumber=order_number,
+        Store=mock_settings.MERCHANT_ID,
+        CVC="123",
+        CardHolderInfo=CardHolderInfo(
+            Email="test@example.com",
+            Name="Test User",
+        ),
+        ThreeDSAuth=ThreeDSAuth(
+            TermUrl="https://example.com/post-3ds-token-hold",
+            MethodNotificationUrl="https://example.com/capture-3ds-token-hold",
+            RequestChallengeIndicator=ChallengeIndicator.CHALLENGE,
+        ),
+    )
+
+    # Mock initial hold response requiring challenge
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "3D_SECURE_CHALLENGE",
+        "IsoCode": "3D",
+        "AzulOrderId": "12345",
+        "ThreeDSChallenge": {
+            "CReq": "test_token_hold_creq",
+            "RedirectPostUrl": "https://test.com/3ds-token-hold",
+        },
+    }
+    hold_result = await secure_service.process_token_hold(token_hold_request)
+    assert hold_result["redirect"] is True
+    secure_id = hold_result["id"]
+
+    # Mock challenge response for hold (should result in authorization, not sale)
+    mock_api_client._async_request.return_value = {
+        "ResponseMessage": "APROBADA",
+        "IsoCode": "00",
+        "AzulOrderId": "12345",
+        "AuthorizationCode": "123456",
+        "TransactionType": "Hold",  # Indicating this is a hold/authorization
+        "ThreeDSInfo": {
+            "AuthenticationStatus": "Y",
+            "AuthenticationValue": "3q2+78r+ur7erb7",
+            "ECI": "05",
+        },
+    }
+    challenge_result = await secure_service.process_challenge(secure_id, "test_cres")
+    assert challenge_result["ResponseMessage"] == "APROBADA"
+    assert challenge_result["IsoCode"] == "00"
+    assert "ThreeDSInfo" in challenge_result
+    assert challenge_result["ThreeDSInfo"]["AuthenticationStatus"] == "Y"
+    # For holds, we should get a TransactionType indicating Hold
+    assert challenge_result.get("TransactionType") == "Hold"

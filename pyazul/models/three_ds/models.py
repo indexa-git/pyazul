@@ -270,6 +270,84 @@ class SecureTokenSale(BaseModel):
     )
 
 
+class SecureTokenHold(BaseModel):
+    """Secure token hold transaction with 3DS data.
+
+    Ref: Azul Docs "Hold utilizando el Token" & "Vista general 3D-Secure 2.0"
+
+    Note: Despite documentation stating Expiration should not be sent for token
+    transactions, the 3DS API implementation requires it to be sent as empty string.
+    This is a known discrepancy between docs and API implementation.
+    """
+
+    # Core Token Hold Fields
+    Channel: str = Field(
+        default="EC", description="Payment channel (e.g., 'EC'). (X(3))"
+    )
+    Store: str = Field(..., description="Unique merchant ID (MID). (X(11))")
+    PosInputMode: str = Field(
+        default="E-Commerce", description="Transaction entry mode. (A(10))"
+    )
+    Amount: str = Field(  # In cents
+        ...,
+        description="Total amount in cents (e.g. 1000 for $10.00). Serialized to str.",
+    )
+    DataVaultToken: str = Field(
+        ...,
+        pattern=r"^[A-Fa-f0-9\-]{30,40}$",
+        description="DataVault token for the transaction. (A(100))",
+    )
+    OrderNumber: str = Field(..., description="Merchant order number. (X(15))")
+    TrxType: str = Field(
+        default="Hold",
+        pattern="^Hold$",
+        description="Transaction type, must be 'Hold'. (A(16))",
+    )
+    CardNumber: Optional[str] = Field(
+        default=None,
+        description="Card number. May be required for 3DS despite using token.",
+    )
+    Expiration: str = Field(
+        default="",
+        description="Expiration date. Must be empty string for token holds. (N(6))",
+    )
+
+    # Optional fields for Token Hold
+    Itbis: Optional[str] = Field(  # In cents
+        default=None,
+        description="ITBIS in cents (optional for TokenHold). Serialized to str.",
+    )
+    CVC: Optional[str] = Field(
+        default=None,
+        description="CVC (optional with token, E-comm mandatory if configured).",
+        min_length=3,
+        max_length=4,
+    )
+    CustomOrderId: Optional[str] = Field(
+        default=None, description="Custom merchant order ID. (X(75))"
+    )
+    AcquirerRefData: Optional[str] = Field(
+        default="1",
+        description="Acquirer reference. Fixed '1' (AZUL internal use). (N(1))",
+    )
+
+    # 3DS Specific Fields
+    ForceNo3DS: str = Field(
+        default="0",
+        pattern=r"^[01]$",
+        description="'1' to force no 3DS, '0' to use 3DS if configured.",
+    )
+    CardHolderInfo: CardHolderInfo
+    ThreeDSAuth: ThreeDSAuth
+
+    _validate_amount_values = field_validator("Amount", mode="before")(
+        _validate_amount_field
+    )
+    _validate_itbis_values = field_validator("Itbis", mode="before")(
+        _validate_itbis_field
+    )
+
+
 class ChallengeRequest(BaseModel):
     """Model for 3DS challenge requests."""
 

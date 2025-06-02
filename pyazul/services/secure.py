@@ -12,7 +12,7 @@ from typing import Any, Dict, Optional, Union
 from ..api.client import AzulAPI
 from ..core.config import AzulSettings
 from ..core.exceptions import AzulError
-from ..models.three_ds import SecureSale, SecureTokenSale
+from ..models.three_ds import SecureSale, SecureTokenHold, SecureTokenSale
 
 _logger = logging.getLogger(__name__)
 
@@ -161,7 +161,7 @@ class SecureService:
 
     def _prepare_secure_request_data(
         self,
-        request: Union[SecureSale, SecureTokenSale],
+        request: Union[SecureSale, SecureTokenSale, SecureTokenHold],
         secure_id: str,
         transaction_type: str = "Sale",
     ) -> tuple[Dict[str, Any], str]:
@@ -189,7 +189,7 @@ class SecureService:
     def _create_session_data(
         self,
         response: Dict[str, Any],
-        request: Union[SecureSale, SecureTokenSale],
+        request: Union[SecureSale, SecureTokenSale, SecureTokenHold],
         term_url: str,
         transaction_type: str = "sale",
     ) -> Dict[str, Any]:
@@ -259,7 +259,7 @@ class SecureService:
 
     async def _process_secure_transaction(
         self,
-        request: Union[SecureSale, SecureTokenSale],
+        request: Union[SecureSale, SecureTokenSale, SecureTokenHold],
         transaction_type: str,
         transaction_name: str,
     ) -> Dict[str, Any]:
@@ -305,6 +305,10 @@ class SecureService:
     async def process_hold(self, request: SecureSale) -> Dict[str, Any]:
         """Process a 3D Secure hold transaction."""
         return await self._process_secure_transaction(request, "Hold", "hold")
+
+    async def process_token_hold(self, request: SecureTokenHold) -> Dict[str, Any]:
+        """Process a 3D Secure token hold transaction."""
+        return await self._process_secure_transaction(request, "Hold", "token hold")
 
     async def process_3ds_method(
         self, azul_order_id: str, method_notification_status: str
