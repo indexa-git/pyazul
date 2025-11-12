@@ -176,11 +176,16 @@ async def test_create_sale_datavault_3ds(
         assert "html" in result, "HTML form should be provided for redirect"
 
     elif result.get("value") and isinstance(result["value"], dict):
-        # Direct approval (frictionless)
+        # Direct approval (frictionless) - wrapped response
         response = result["value"]
         assert response.get("IsoCode") == "00", f"3DS token sale failed: {response}"
         assert response.get("ResponseMessage") == "APROBADA"
         print(f"3DS token sale approved directly: {response.get('AuthorizationCode')}")
+
+    elif result.get("IsoCode") == "00":
+        # Direct approval (frictionless) - top-level response
+        assert result.get("ResponseMessage") == "APROBADA", f"3DS token sale failed: {result}"
+        print(f"3DS token sale approved directly (top-level): {result.get('AuthorizationCode')}")
 
     else:
         pytest.fail(f"Unexpected 3DS token sale result: {result}")
@@ -258,6 +263,10 @@ async def test_token_sale_comparison_3ds_vs_non_3ds(
         response = three_ds_result["value"]
         assert response.get("IsoCode") == "00", f"3DS failed: {response}"
         print(f"3DS token sale approved: {response.get('AuthorizationCode')}")
+    elif three_ds_result.get("IsoCode") == "00":
+        # Direct approval at top level
+        assert three_ds_result.get("ResponseMessage") == "APROBADA", f"3DS failed: {three_ds_result}"
+        print(f"3DS token sale approved (top-level): {three_ds_result.get('AuthorizationCode')}")
     else:
         pytest.fail(f"Unexpected 3DS result: {three_ds_result}")
 

@@ -10,11 +10,12 @@ import base64
 import os
 from functools import lru_cache
 from pathlib import Path
-from typing import Any, Optional, Self, Tuple
+from typing import Any, Optional, Tuple
 
 from dotenv import load_dotenv
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from typing_extensions import Self
 
 from pyazul.api.constants import AzulEndpoints
 
