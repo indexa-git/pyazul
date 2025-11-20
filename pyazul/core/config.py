@@ -13,16 +13,16 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
-if sys.version_info >= (3, 11):
-    from typing import Self
-else:
-    from typing_extensions import Self
-
 from dotenv import load_dotenv
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from pyazul.api.constants import AzulEndpoints
+
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
 
 # Load .env file with override=True to ensure values are loaded
 load_dotenv(override=True)

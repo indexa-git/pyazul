@@ -269,11 +269,17 @@ async def test_secure_sale_direct_to_challenge(
         and isinstance(initial_response_dict["value"], dict)
         and initial_response_dict["value"].get("IsoCode") == "00"
     ):
-        print("Unexpected direct approval (wrapped) for a challenge card, but this is valid.")
+        print(
+            "Unexpected direct approval (wrapped) for a challenge card, but this is valid."
+        )
         assert initial_response_dict["value"].get("ResponseMessage") == "APROBADA"
-        print(f"Transaction approved: {initial_response_dict['value'].get('AuthorizationCode')}")
+        print(
+            f"Transaction approved: {initial_response_dict['value'].get('AuthorizationCode')}"
+        )
     elif initial_response_dict.get("IsoCode") == "00":
-        print("Unexpected direct approval (top-level) for a challenge card, but this is valid.")
+        print(
+            "Unexpected direct approval (top-level) for a challenge card, but this is valid."
+        )
         assert initial_response_dict.get("ResponseMessage") == "APROBADA"
         print(f"Transaction approved: {initial_response_dict.get('AuthorizationCode')}")
     else:
@@ -319,9 +325,13 @@ async def test_secure_sale_challenge_after_method(
         if initial_response_dict.get("IsoCode") == "00":
             print("Transaction approved frictionlessly (no redirect).")
             assert initial_response_dict.get("ResponseMessage") == "APROBADA"
-            pytest.skip("Test expects redirect, but transaction was approved frictionlessly")
+            pytest.skip(
+                "Test expects redirect, but transaction was approved frictionlessly"
+            )
         else:
-            pytest.fail(f"Expected redirect for 3DS Method, got: {initial_response_dict}")
+            pytest.fail(
+                f"Expected redirect for 3DS Method, got: {initial_response_dict}"
+            )
 
     assert (
         initial_response_dict.get("html") is not None
@@ -412,7 +422,9 @@ async def test_secure_sale_3ds_method_with_session_validation(
         if initial_response_dict.get("IsoCode") == "00":
             print("Transaction approved frictionlessly (no redirect).")
             assert initial_response_dict.get("ResponseMessage") == "APROBADA"
-            pytest.skip("Test expects 3DS method redirect, but transaction was approved frictionlessly")
+            pytest.skip(
+                "Test expects 3DS method redirect, but transaction was approved frictionlessly"
+            )
         else:
             pytest.fail(f"Expected 3DS method redirect, got: {initial_response_dict}")
 
