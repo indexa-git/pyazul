@@ -8,14 +8,19 @@ functions for accessing these settings.
 
 import base64
 import os
+import sys
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Optional, Tuple
 
+if sys.version_info >= (3, 11):
+    from typing import Self
+else:
+    from typing_extensions import Self
+
 from dotenv import load_dotenv
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from typing_extensions import Self
 
 from pyazul.api.constants import AzulEndpoints
 
