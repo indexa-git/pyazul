@@ -13,6 +13,7 @@ from pyazul.models.three_ds import (
     SecureSale,
     ThreeDSAuth,
 )
+from tests.e2e.helpers import assert_3ds_response
 from tests.fixtures.cards import CardDetails, get_card
 from tests.fixtures.order import generate_order_number
 
@@ -107,12 +108,10 @@ async def test_secure_sale_frictionless_with_3ds_method(
     )
     assert initial_response_dict is not None
 
-    if (
-        initial_response_dict.get("redirect")
-        and initial_response_dict.get("html")
-        and initial_response_dict.get("id")
-    ):
-        secure_id = initial_response_dict["id"]
+    secure_id, response_data = assert_3ds_response(initial_response_dict, expected_type="any")
+
+    if secure_id:
+        # Redirect required (3DS Method)
         print(f"Initial 3DS Sale requires redirect (3DS Method). ID: {secure_id}")
 
         session_data = await azul.get_session_info(secure_id)
@@ -130,6 +129,7 @@ async def test_secure_sale_frictionless_with_3ds_method(
         )
         assert method_response is not None
 
+        # Check if method response is an approval
         if isinstance(method_response, dict) and method_response.get("IsoCode") == "00":
             print("Approved after 3DS Method (frictionless).")
             assert method_response.get("ResponseMessage") == "APROBADA"
@@ -141,22 +141,12 @@ async def test_secure_sale_frictionless_with_3ds_method(
             pytest.fail(
                 f"After 3DS Method, expected direct approval, but got: {response_dump}"
             )
-    elif (
-        initial_response_dict.get("value")
-        and isinstance(initial_response_dict["value"], dict)
-        and initial_response_dict["value"].get("IsoCode") == "00"
-    ):
-        print("Approved directly from secure_sale (frictionless, no method redirect).")
-        assert initial_response_dict["value"].get("ResponseMessage") == "APROBADA"
-    elif initial_response_dict.get("IsoCode") == "00":
-        print("Approved directly (frictionless, no method redirect - top level dict).")
-        assert initial_response_dict.get("ResponseMessage") == "APROBADA"
-    else:
-        response_dump = str(initial_response_dict)
-        pytest.fail(
-            "Unexpected initial response. Expected 3DS Method redirect or "
-            f"direct frictionless approval. Got: {response_dump}"
-        )
+    elif response_data:
+        # Direct approval (frictionless)
+        if initial_response_dict.get("value"):
+            print("Approved directly from secure_sale (frictionless, no method redirect).")
+        else:
+            print("Approved directly (frictionless, no method redirect - top level dict).")
 
 
 @pytest.mark.asyncio
@@ -195,25 +185,16 @@ async def test_secure_sale_frictionless_direct_approval(
         "redirect"
     ), "Expected no redirect for direct frictionless approval."
 
-    value_data = initial_response_dict.get("value")
-    if value_data is None:
-        # Check if the response is directly at the top level
-        if initial_response_dict.get("IsoCode") == "00":
-            print("Response is at top level, not in 'value' field")
-            assert initial_response_dict.get("ResponseMessage") == "APROBADA"
-            return
+    secure_id, response_data = assert_3ds_response(
+        initial_response_dict, expected_type="any"
+    )
+    assert secure_id is None, "Expected direct approval, not redirect"
+    assert response_data is not None, "Expected approval response data"
 
-    assert isinstance(
-        value_data, dict
-    ), f"Expected 'value' dict in direct approval, got: {type(value_data)}"
-
-    assert (
-        value_data.get("IsoCode") == "00"
-    ), f"Expected IsoCode 00, got: {value_data.get('IsoCode')}"
-    assert (
-        value_data.get("ResponseMessage") == "APROBADA"
-    ), f"Expected APROBADA, got: {value_data.get('ResponseMessage')}"
-    print("Approved directly (frictionless, no method/challenge redirect).")
+    if initial_response_dict.get("value"):
+        print("Approved directly (frictionless, no method/challenge redirect).")
+    else:
+        print("Response is at top level, not in 'value' field")
 
 
 @pytest.mark.asyncio
@@ -264,24 +245,24 @@ async def test_secure_sale_direct_to_challenge(
 
         print("Direct challenge by secure_sale as expected.")
 
-    elif (
-        initial_response_dict.get("value")
-        and isinstance(initial_response_dict["value"], dict)
-        and initial_response_dict["value"].get("IsoCode") == "00"
-    ):
-        print("Unexpected direct approval for a challenge card.")
-        assert initial_response_dict["value"].get("ResponseMessage") == "APROBADA"
-        pytest.fail("Expected direct challenge, got direct approval.")
-    elif initial_response_dict.get("IsoCode") == "00":
-        print("Unexpected direct approval (top-level) for a challenge card.")
-        assert initial_response_dict.get("ResponseMessage") == "APROBADA"
-        pytest.fail("Expected direct challenge, got direct approval (top-level).")
     else:
-        response_dump = str(initial_response_dict)
-        pytest.fail(
-            "Unexpected initial response. Expected 3DS redirect or approval. "
-            f"Got: {response_dump}"
+        # Check if we got an unexpected approval
+        secure_id, response_data = assert_3ds_response(
+            initial_response_dict, expected_type="any"
         )
+        if response_data:
+            if initial_response_dict.get("value"):
+                print("Unexpected direct approval for a challenge card.")
+                pytest.fail("Expected direct challenge, got direct approval.")
+            else:
+                print("Unexpected direct approval (top-level) for a challenge card.")
+                pytest.fail("Expected direct challenge, got direct approval (top-level).")
+        else:
+            response_dump = str(initial_response_dict)
+            pytest.fail(
+                "Unexpected initial response. Expected 3DS redirect or approval. "
+                f"Got: {response_dump}"
+            )
 
 
 @pytest.mark.asyncio

@@ -10,6 +10,10 @@ authors = [{ name = "INDEXA Inc.", email = "info@indexa.do" }]
 license = { text = "MIT License" }
 classifiers = [
   "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
   "License :: OSI Approved :: MIT License",
   "Operating System :: OS Independent",
 ]
@@ -18,8 +22,9 @@ dependencies = [
   "pydantic>=2.11.5",
   "pydantic-settings>=2.9.1",
   "python-dotenv>=1.1.0",
+  "typing-extensions>=4.0.0",
 ]
-requires-python = ">=3.12"
+requires-python = ">=3.10"
 readme = "README.md"
 
 [project.urls]
@@ -57,7 +62,7 @@ python_functions = ["test_*"]
 
 [tool.black]
 line-length = 88
-target-version = ["py312"]
+target-version = ["py310", "py311", "py312", "py313"]
 
 [tool.pydocstyle]
 convention = "google"
