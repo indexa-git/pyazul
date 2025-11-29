@@ -127,7 +127,7 @@ class AzulAPI:
         """
         try:
             response.raise_for_status()
-            data = response.json()
+            data: Dict[str, Any] = response.json()
             _logger.debug(f"Received response: {json.dumps(data, indent=2)}")
             self._check_for_errors(data)
             return data

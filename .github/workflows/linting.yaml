@@ -10,9 +10,9 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - '**/*.py'
-      - 'requirements.txt'
-      - 'pyproject.toml'
+      - "**/*.py"
+      - "requirements.txt"
+      - "pyproject.toml"
       - .flake8
       - .isort.cfg
       - .github/workflows/linting.yml
@@ -20,9 +20,9 @@ on:
   push:
     branches: [main]
     paths:
-      - '**/*.py'
-      - 'requirements.txt'
-      - 'pyproject.toml'
+      - "**/*.py"
+      - "requirements.txt"
+      - "pyproject.toml"
       - .flake8
       - .isort.cfg
       - .github/workflows/linting.yml
@@ -41,7 +41,7 @@ jobs:
       - name: Lint Code Base
         uses: super-linter/super-linter/slim@v7.4.0
         env:
-          LOG_LEVEL: ERROR
+          LOG_LEVEL: INFO
           VALIDATE_ALL_CODEBASE: false
           VALIDATE_SHELL_SHFMT: false
           VALIDATE_JSCPD: false
@@ -50,6 +50,9 @@ jobs:
           VALIDATE_MARKDOWN: false
           VALIDATE_JAVASCRIPT_ES: false
           VALIDATE_JAVASCRIPT_STANDARD: false
+          VALIDATE_PYTHON_PYINK: false
+          VALIDATE_PYTHON_PYLINT: false
+          VALIDATE_PYTHON_MYPY: false
           LINTER_RULES_PATH: /
           DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

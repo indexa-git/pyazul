@@ -12,6 +12,7 @@ from pyazul.models.three_ds import (
     SecureTokenSale,
     ThreeDSAuth,
 )
+from tests.e2e.helpers import assert_3ds_response
 from tests.fixtures.cards import get_card
 from tests.fixtures.order import generate_order_number
 
@@ -166,24 +167,18 @@ async def test_create_sale_datavault_3ds(
     assert result is not None, "3DS token sale result should not be None"
 
     # Handle different possible outcomes
-    if result.get("redirect"):
+    secure_id, response_data = assert_3ds_response(result, expected_type="any")
+
+    if secure_id:
         # 3DS method or challenge required
-        secure_id = result["id"]
         print(f"3DS token sale initiated with redirect. ID: {secure_id}")
 
         # This validates that the initial request was successful
         # (if SaveToDataVault was missing, we'd get an error here)
         assert "html" in result, "HTML form should be provided for redirect"
-
-    elif result.get("value") and isinstance(result["value"], dict):
+    elif response_data:
         # Direct approval (frictionless)
-        response = result["value"]
-        assert response.get("IsoCode") == "00", f"3DS token sale failed: {response}"
-        assert response.get("ResponseMessage") == "APROBADA"
-        print(f"3DS token sale approved directly: {response.get('AuthorizationCode')}")
-
-    else:
-        pytest.fail(f"Unexpected 3DS token sale result: {result}")
+        print(f"3DS token sale frictionless: {response_data.get('AuthorizationCode')}")
 
     print("3DS token sale completed successfully")
     return result
@@ -252,14 +247,12 @@ async def test_token_sale_comparison_3ds_vs_non_3ds(
 
     assert three_ds_result is not None, "3DS token sale should not be None"
 
-    if three_ds_result.get("redirect"):
-        print(f"3DS token sale initiated: {three_ds_result['id']}")
-    elif three_ds_result.get("value") and isinstance(three_ds_result["value"], dict):
-        response = three_ds_result["value"]
-        assert response.get("IsoCode") == "00", f"3DS failed: {response}"
-        print(f"3DS token sale approved: {response.get('AuthorizationCode')}")
-    else:
-        pytest.fail(f"Unexpected 3DS result: {three_ds_result}")
+    secure_id, response_data = assert_3ds_response(three_ds_result, expected_type="any")
+
+    if secure_id:
+        print(f"3DS token sale initiated: {secure_id}")
+    elif response_data:
+        print(f"3DS token sale approved: {response_data.get('AuthorizationCode')}")
 
     print("Both 3DS and non-3DS token sales work correctly")
 
