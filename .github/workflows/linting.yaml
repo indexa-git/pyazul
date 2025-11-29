@@ -41,7 +41,7 @@ jobs:
       - name: Lint Code Base
         uses: super-linter/super-linter/slim@v7.4.0
         env:
-          LOG_LEVEL: ERROR
+          LOG_LEVEL: INFO
           VALIDATE_ALL_CODEBASE: false
           VALIDATE_SHELL_SHFMT: false
           VALIDATE_JSCPD: false
