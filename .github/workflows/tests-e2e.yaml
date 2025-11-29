@@ -11,17 +11,17 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - '**/*.py'
-      - 'requirements.txt'
-      - 'pyproject.toml'
-      - '.github/workflows/tests-e2e.yaml'
+      - "**/*.py"
+      - "requirements.txt"
+      - "pyproject.toml"
+      - ".github/workflows/tests-e2e.yaml"
   push:
     branches: [main]
     paths:
-      - '**/*.py'
-      - 'requirements.txt'
-      - 'pyproject.toml'
-      - '.github/workflows/tests-e2e.yaml'
+      - "**/*.py"
+      - "requirements.txt"
+      - "pyproject.toml"
+      - ".github/workflows/tests-e2e.yaml"
 
 env:
   PYTHONUNBUFFERED: 1
@@ -39,7 +39,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     name: e2e-tests-python-${{ matrix.python-version }}
     steps:
       - name: Checkout Code Repository

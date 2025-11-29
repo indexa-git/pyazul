@@ -8,7 +8,9 @@ import pytest
 
 def assert_3ds_response(
     result: Dict[str, Any],
-    expected_type: Literal["redirect", "wrapped_approval", "direct_approval", "any"] = "any",
+    expected_type: Literal[
+        "redirect", "wrapped_approval", "direct_approval", "any"
+    ] = "any",
 ) -> Tuple[Optional[str], Optional[Dict[str, Any]]]:
     """
     Validate and extract data from 3DS response.
@@ -37,7 +39,11 @@ def assert_3ds_response(
     if result.get("redirect") and result.get("html") and result.get("id"):
         secure_id = result["id"]
         if expected_type not in ("redirect", "any"):
-            response_dump = json.dumps(result, indent=2) if isinstance(result, dict) else str(result)
+            response_dump = (
+                json.dumps(result, indent=2)
+                if isinstance(result, dict)
+                else str(result)
+            )
             pytest.fail(
                 f"Expected {expected_type}, but got redirect response. "
                 f"Response: {response_dump}"
@@ -54,9 +60,9 @@ def assert_3ds_response(
                     f"Expected {expected_type}, but got wrapped approval. "
                     f"Response: {response_dump}"
                 )
-            assert response.get("ResponseMessage") == "APROBADA", (
-                f"Expected APROBADA, got: {response.get('ResponseMessage')}"
-            )
+            assert (
+                response.get("ResponseMessage") == "APROBADA"
+            ), f"Expected APROBADA, got: {response.get('ResponseMessage')}"
             return None, response
         # If value exists but IsoCode is not "00", it might be an error
         # Let the caller handle it
@@ -64,20 +70,25 @@ def assert_3ds_response(
     # Case 3: Direct approval at top level
     if result.get("IsoCode") == "00":
         if expected_type not in ("direct_approval", "any"):
-            response_dump = json.dumps(result, indent=2) if isinstance(result, dict) else str(result)
+            response_dump = (
+                json.dumps(result, indent=2)
+                if isinstance(result, dict)
+                else str(result)
+            )
             pytest.fail(
                 f"Expected {expected_type}, but got direct approval (top-level). "
                 f"Response: {response_dump}"
             )
-        assert result.get("ResponseMessage") == "APROBADA", (
-            f"Expected APROBADA, got: {result.get('ResponseMessage')}"
-        )
+        assert (
+            result.get("ResponseMessage") == "APROBADA"
+        ), f"Expected APROBADA, got: {result.get('ResponseMessage')}"
         return None, result
 
     # If we get here, the response doesn't match any expected pattern
-    response_dump = json.dumps(result, indent=2) if isinstance(result, dict) else str(result)
+    response_dump = (
+        json.dumps(result, indent=2) if isinstance(result, dict) else str(result)
+    )
     pytest.fail(
         f"Unexpected 3DS response format. Expected one of: redirect, "
         f"wrapped_approval, or direct_approval. Got: {response_dump}"
     )
-

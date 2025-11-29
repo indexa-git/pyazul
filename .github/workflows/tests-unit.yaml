@@ -11,24 +11,24 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - '**/*.py'
-      - 'requirements.txt'
-      - 'pyproject.toml'
-      - '.github/workflows/tests-unit.yaml'
+      - "**/*.py"
+      - "requirements.txt"
+      - "pyproject.toml"
+      - ".github/workflows/tests-unit.yaml"
   push:
     branches: [main]
     paths:
-      - '**/*.py'
-      - 'requirements.txt'
-      - 'pyproject.toml'
-      - '.github/workflows/tests-unit.yaml'
+      - "**/*.py"
+      - "requirements.txt"
+      - "pyproject.toml"
+      - ".github/workflows/tests-unit.yaml"
 
 jobs:
   unit-tests:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ['3.10', '3.11', '3.12', '3.13']
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
     name: unit-tests-python-${{ matrix.python-version }}
     steps:
       - name: Checkout Code Repository

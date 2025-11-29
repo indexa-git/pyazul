@@ -178,9 +178,7 @@ async def test_create_sale_datavault_3ds(
         assert "html" in result, "HTML form should be provided for redirect"
     elif response_data:
         # Direct approval (frictionless)
-        print(
-            f"3DS token sale approved directly: {response_data.get('AuthorizationCode')}"
-        )
+        print(f"3DS token sale frictionless: {response_data.get('AuthorizationCode')}")
 
     print("3DS token sale completed successfully")
     return result

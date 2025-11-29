@@ -108,7 +108,9 @@ async def test_secure_sale_frictionless_with_3ds_method(
     )
     assert initial_response_dict is not None
 
-    secure_id, response_data = assert_3ds_response(initial_response_dict, expected_type="any")
+    secure_id, response_data = assert_3ds_response(
+        initial_response_dict, expected_type="any"
+    )
 
     if secure_id:
         # Redirect required (3DS Method)
@@ -144,9 +146,13 @@ async def test_secure_sale_frictionless_with_3ds_method(
     elif response_data:
         # Direct approval (frictionless)
         if initial_response_dict.get("value"):
-            print("Approved directly from secure_sale (frictionless, no method redirect).")
+            print(
+                "Approved directly from secure_sale (frictionless, no method redirect)."
+            )
         else:
-            print("Approved directly (frictionless, no method redirect - top level dict).")
+            print(
+                "Approved directly (frictionless, no method redirect - top level dict)."
+            )
 
 
 @pytest.mark.asyncio
@@ -256,7 +262,9 @@ async def test_secure_sale_direct_to_challenge(
                 pytest.fail("Expected direct challenge, got direct approval.")
             else:
                 print("Unexpected direct approval (top-level) for a challenge card.")
-                pytest.fail("Expected direct challenge, got direct approval (top-level).")
+                pytest.fail(
+                    "Expected direct challenge, got direct approval (top-level)."
+                )
         else:
             response_dump = str(initial_response_dict)
             pytest.fail(
