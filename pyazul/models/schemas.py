@@ -68,7 +68,7 @@ def _validate_itbis_field(v: Union[str, int, float, None], info) -> str:
         ValueError: If value is negative or not a valid number
     """
     if v is None:
-        return "0"
+        return "000"
 
     if isinstance(v, float):  # Convert float to int (cents) then to str
         v = str(int(v))
@@ -83,6 +83,9 @@ def _validate_itbis_field(v: Union[str, int, float, None], info) -> str:
     numeric_val = int(v)
     if numeric_val < 0:
         raise ValueError(f"{info.field_name} ('{v}') must be non-negative.")
+
+    if numeric_val == 0:
+        return "000"
 
     return str(numeric_val)
 
