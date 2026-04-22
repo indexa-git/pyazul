@@ -38,7 +38,7 @@ class TestPaymentPageModel:
         assert model.ITBIS == "18000"
 
     def test_zero_itbis_format(self):
-        """Test that zero ITBIS is formatted as '0'."""
+        """Test that zero ITBIS is formatted as '000'."""
         model = PaymentPage(
             OrderNumber=generate_order_number(),
             Amount="100000",
@@ -48,7 +48,20 @@ class TestPaymentPageModel:
             CancelUrl=HttpUrl("https://example.com/cancel"),
             AltMerchantName=None,
         )
-        assert model.ITBIS == "0"
+        assert model.ITBIS == "000"
+
+    def test_none_itbis_format(self):
+        """Test that none ITBIS is formatted as '000'."""
+        model = PaymentPage(
+            OrderNumber=generate_order_number(),
+            Amount="100000",
+            ITBIS=None,
+            ApprovedUrl=HttpUrl("https://example.com/approved"),
+            DeclineUrl=HttpUrl("https://example.com/declined"),
+            CancelUrl=HttpUrl("https://example.com/cancel"),
+            AltMerchantName=None,
+        )
+        assert model.ITBIS == "000"
 
     def test_invalid_amount_format(self):
         """Test that invalid amount formats are rejected."""
